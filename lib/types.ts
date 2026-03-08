@@ -78,6 +78,17 @@ export interface Content {
   sort_order: number;
 }
 
+export interface Milestone {
+  id: string;
+  user_id: string;
+  title: string;
+  category: 'milestone' | 'win';
+  date: string; // YYYY-MM-DD
+  notes: string | null;
+  template_key: string | null;
+  created_at: string;
+}
+
 export interface UserAchievement {
   id: string;
   user_id: string;
@@ -107,6 +118,7 @@ export interface Database {
       content: { Row: Content; Insert: Omit<Content, "id">; Update: Partial<Content> };
       user_achievements: { Row: UserAchievement; Insert: Omit<UserAchievement, "id">; Update: Partial<UserAchievement> };
       notification_preferences: { Row: NotificationPreferences; Insert: Omit<NotificationPreferences, "id">; Update: Partial<NotificationPreferences> };
+      milestones: { Row: Milestone; Insert: Omit<Milestone, "id" | "created_at">; Update: Partial<Milestone> };
     };
   };
 }
