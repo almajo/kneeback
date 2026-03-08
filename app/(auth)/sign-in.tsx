@@ -2,12 +2,10 @@ import { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from "react-native";
 import { Link } from "expo-router";
 import { supabase } from "../../lib/supabase";
+import * as WebBrowser from "expo-web-browser";
+import { makeRedirectUri } from "expo-auth-session";
 
-let GoogleSignin: any = null;
-try {
-  GoogleSignin = require("@react-native-google-signin/google-signin").GoogleSignin;
-  GoogleSignin.configure({ webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "" });
-} catch {}
+WebBrowser.maybeCompleteAuthSession();
 
 export default function SignIn() {
   const [email, setEmail] = useState("");
@@ -24,25 +22,34 @@ export default function SignIn() {
   }
 
   async function handleGoogleSignIn() {
-    if (!GoogleSignin) {
-      setError("Google Sign-In requires a development build.");
-      return;
-    }
     setError(null);
+    setLoading(true);
     try {
-      await GoogleSignin.hasPlayServices();
-      const response = await GoogleSignin.signIn();
-      if (response.data?.idToken) {
-        const { error } = await supabase.auth.signInWithIdToken({
+      if (Platform.OS === "web") {
+        const { error } = await supabase.auth.signInWithOAuth({
           provider: "google",
-          token: response.data.idToken,
+          options: { redirectTo: window.location.origin },
         });
         if (error) setError(error.message);
+      } else {
+        const redirectUri = makeRedirectUri({ scheme: "kneebackapp" });
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: { redirectTo: redirectUri, skipBrowserRedirect: true },
+        });
+        if (error) { setError(error.message); return; }
+        if (!data.url) { setError("Could not start Google sign-in"); return; }
+
+        const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUri);
+        if (result.type === "success") {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(result.url);
+          if (exchangeError) setError(exchangeError.message);
+        }
       }
-    } catch (err: any) {
-      if (err.code !== "SIGN_IN_CANCELLED") {
-        setError("Google sign-in failed");
-      }
+    } catch {
+      setError("Google sign-in failed");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -87,8 +94,9 @@ export default function SignIn() {
         </View>
 
         <TouchableOpacity
-          className="bg-surface border border-border rounded-2xl py-4 items-center mb-6"
+          className={`bg-surface border border-border rounded-2xl py-4 items-center mb-6 ${loading ? "opacity-50" : ""}`}
           onPress={handleGoogleSignIn}
+          disabled={loading}
         >
           <Text className="font-bold text-base" style={{ color: "#2D2D2D" }}>Continue with Google</Text>
         </TouchableOpacity>
