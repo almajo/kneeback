@@ -172,9 +172,9 @@ export default function PickExercises() {
                     <ExerciseStepper
                       label="Hold"
                       value={selectedEx.hold_seconds}
-                      min={5}
+                      min={0}
                       max={120}
-                      step={5}
+                      variableStep
                       unit="s"
                       onChange={(v) => updateExerciseValues(item.id, { hold_seconds: v })}
                     />

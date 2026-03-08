@@ -7,16 +7,26 @@ interface ExerciseStepperProps {
   min?: number;
   max?: number;
   step?: number;
+  variableStep?: boolean;
   unit?: string;
   onChange: (value: number) => void;
 }
 
-export function ExerciseStepper({ label, value, min = 1, max = 20, step = 1, unit, onChange }: ExerciseStepperProps) {
+function getStep(value: number, direction: "up" | "down", variableStep: boolean): number {
+  if (!variableStep) return 1;
+  if (direction === "up") return value < 10 ? 1 : 5;
+  // decrement: if we're at a value >10 and it's a multiple of 5, step by 5; if <=10, step by 1
+  return value > 10 ? 5 : 1;
+}
+
+export function ExerciseStepper({ label, value, min = 1, max = 20, step = 1, variableStep = false, unit, onChange }: ExerciseStepperProps) {
   function decrement() {
-    if (value - step >= min) onChange(value - step);
+    const s = variableStep ? getStep(value, "down", true) : step;
+    if (value - s >= min) onChange(value - s);
   }
   function increment() {
-    if (value + step <= max) onChange(value + step);
+    const s = variableStep ? getStep(value, "up", true) : step;
+    if (value + s <= max) onChange(value + s);
   }
 
   return (
@@ -25,9 +35,9 @@ export function ExerciseStepper({ label, value, min = 1, max = 20, step = 1, uni
       <View className="flex-row items-center gap-3">
         <TouchableOpacity
           onPress={decrement}
-          disabled={value - step < min}
+          disabled={value <= min}
           className="w-8 h-8 rounded-full bg-surface border border-border items-center justify-center"
-          style={{ opacity: value - step < min ? 0.4 : 1 }}
+          style={{ opacity: value <= min ? 0.4 : 1 }}
         >
           <Text className="text-base font-bold" style={{ color: Colors.primary }}>−</Text>
         </TouchableOpacity>
@@ -36,9 +46,9 @@ export function ExerciseStepper({ label, value, min = 1, max = 20, step = 1, uni
         </Text>
         <TouchableOpacity
           onPress={increment}
-          disabled={value + step > max}
+          disabled={value >= max}
           className="w-8 h-8 rounded-full bg-surface border border-border items-center justify-center"
-          style={{ opacity: value + step > max ? 0.4 : 1 }}
+          style={{ opacity: value >= max ? 0.4 : 1 }}
         >
           <Text className="text-base font-bold" style={{ color: Colors.primary }}>+</Text>
         </TouchableOpacity>

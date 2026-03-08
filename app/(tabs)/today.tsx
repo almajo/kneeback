@@ -222,8 +222,8 @@ export default function TodayScreen() {
             className="mx-4 mt-2 py-3 rounded-2xl border border-dashed border-primary items-center flex-row justify-center"
             onPress={() => router.push("/exercise-picker")}
           >
-            <Ionicons name="add" size={20} color={Colors.primary} />
-            <Text className="ml-2 text-primary font-bold">Add Exercise</Text>
+            <Ionicons name="create-outline" size={20} color={Colors.primary} />
+            <Text className="ml-2 text-primary font-bold">Edit Exercises</Text>
           </TouchableOpacity>
         </>
       )}

@@ -1,11 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { View, Text, TouchableOpacity, Modal, Pressable, Alert } from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../constants/colors";
 import { RestTimer } from "./RestTimer";
 import { SetTracker } from "./SetTracker";
-import { ExerciseStepper } from "./ExerciseStepper";
-import { supabase } from "../lib/supabase";
 import type { UserExercise, ExerciseLog } from "../lib/types";
 
 interface Props {
@@ -16,13 +14,8 @@ interface Props {
   disabled: boolean;
 }
 
-export function ExerciseCard({ userExercise, log, onUpdate, onExerciseUpdate, disabled }: Props) {
+export function ExerciseCard({ userExercise, log, onUpdate, disabled }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
-  const [editSets, setEditSets] = useState(userExercise.sets);
-  const [editReps, setEditReps] = useState(userExercise.reps);
-  const [editHold, setEditHold] = useState(userExercise.hold_seconds);
-  const [saving, setSaving] = useState(false);
 
   const exercise = userExercise.exercise!;
   const isCompleted = log?.completed ?? false;
@@ -42,42 +35,13 @@ export function ExerciseCard({ userExercise, log, onUpdate, onExerciseUpdate, di
   // which changes on every set increment.
   const handleTimerComplete = useCallback(() => {
     const nextSet = currentSetRef.current + 1;
-    onUpdate({ actual_sets: nextSet });
-
-    // If this was the final set, mark exercise as completed
-    if (nextSet === userExercise.sets) {
-      onUpdate({ completed: true });
-    }
+    const isLastSet = nextSet === userExercise.sets;
+    onUpdate({ actual_sets: nextSet, ...(isLastSet ? { completed: true } : {}) });
   }, [userExercise.sets, onUpdate]);
 
   const targetLabel = userExercise.hold_seconds
     ? `${userExercise.sets} × ${userExercise.hold_seconds}s hold`
     : `${userExercise.sets} × ${userExercise.reps} reps`;
-
-  function openEdit() {
-    setEditSets(userExercise.sets);
-    setEditReps(userExercise.reps);
-    setEditHold(userExercise.hold_seconds);
-    setEditOpen(true);
-  }
-
-  async function handleSave() {
-    setSaving(true);
-    const { error } = await supabase
-      .from("user_exercises")
-      .update({ sets: editSets, reps: editReps, hold_seconds: editHold })
-      .eq("id", userExercise.id);
-
-    if (error) {
-      Alert.alert("Error", "Could not save changes. Try again.");
-      setSaving(false);
-      return;
-    }
-
-    onExerciseUpdate?.({ ...userExercise, sets: editSets, reps: editReps, hold_seconds: editHold });
-    setSaving(false);
-    setEditOpen(false);
-  }
 
   return (
     <View
@@ -112,15 +76,6 @@ export function ExerciseCard({ userExercise, log, onUpdate, onExerciseUpdate, di
           </Text>
           <Text className="text-sm" style={{ color: "#6B6B6B" }}>{targetLabel}</Text>
         </View>
-        {!disabled && (
-          <TouchableOpacity
-            onPress={openEdit}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            className="mr-2"
-          >
-            <Ionicons name="pencil-outline" size={18} color={Colors.textMuted} />
-          </TouchableOpacity>
-        )}
         <Ionicons
           name={expanded ? "chevron-up" : "chevron-down"}
           size={20}
@@ -134,10 +89,8 @@ export function ExerciseCard({ userExercise, log, onUpdate, onExerciseUpdate, di
             current={currentSet}
             total={userExercise.sets}
             onSetComplete={(sets) => {
-              onUpdate({ actual_sets: sets });
-              if (sets === userExercise.sets) {
-                onUpdate({ completed: true });
-              }
+              const isLastSet = sets === userExercise.sets;
+              onUpdate({ actual_sets: sets, ...(isLastSet ? { completed: true } : {}) });
             }}
           />
           {userExercise.hold_seconds && (
@@ -148,72 +101,6 @@ export function ExerciseCard({ userExercise, log, onUpdate, onExerciseUpdate, di
           )}
         </View>
       )}
-
-      <Modal
-        visible={editOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setEditOpen(false)}
-      >
-        <Pressable
-          className="flex-1 bg-black/40"
-          onPress={() => setEditOpen(false)}
-        />
-        <View
-          className="bg-background rounded-t-3xl px-6 pt-6 pb-10"
-          style={{ position: "absolute", bottom: 0, left: 0, right: 0 }}
-        >
-          <View className="w-10 h-1 rounded-full bg-border self-center mb-6" />
-          <Text className="text-xl font-bold mb-1" style={{ color: "#2D2D2D" }}>
-            {exercise.name}
-          </Text>
-          <Text className="text-sm mb-6" style={{ color: "#6B6B6B" }}>Adjust your targets</Text>
-
-          <ExerciseStepper
-            label="Sets"
-            value={editSets}
-            min={1}
-            max={10}
-            onChange={setEditSets}
-          />
-          {editHold !== null ? (
-            <ExerciseStepper
-              label="Hold"
-              value={editHold}
-              min={5}
-              max={120}
-              step={5}
-              unit="s"
-              onChange={setEditHold}
-            />
-          ) : (
-            <ExerciseStepper
-              label="Reps"
-              value={editReps}
-              min={1}
-              max={50}
-              onChange={setEditReps}
-            />
-          )}
-
-          <View className="flex-row gap-3 mt-6">
-            <TouchableOpacity
-              className="flex-1 border border-border rounded-2xl py-3 items-center"
-              onPress={() => setEditOpen(false)}
-            >
-              <Text className="font-semibold" style={{ color: "#6B6B6B" }}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              className="flex-1 bg-primary rounded-2xl py-3 items-center"
-              onPress={handleSave}
-              disabled={saving}
-              style={{ opacity: saving ? 0.5 : 1 }}
-            >
-              <Text className="text-white font-semibold">{saving ? "Saving…" : "Save"}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
