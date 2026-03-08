@@ -47,3 +47,4 @@ app-example
 # git worktrees
 .worktrees/
 .playwright-mcp/
+.vercel
