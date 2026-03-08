@@ -11,20 +11,32 @@ export default function ExercisePicker() {
   const router = useRouter();
   const { session } = useAuth();
   const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [userExerciseIds, setUserExerciseIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [adding, setAdding] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase
-      .from("exercises")
-      .select("*")
-      .eq("status", "approved")
-      .order("sort_order")
-      .then(({ data }) => setExercises((data as Exercise[]) || []));
-  }, []);
+    if (!session) return;
+    Promise.all([
+      supabase
+        .from("exercises")
+        .select("*")
+        .eq("status", "approved")
+        .order("sort_order"),
+      supabase
+        .from("user_exercises")
+        .select("exercise_id")
+        .eq("user_id", session.user.id),
+    ]).then(([{ data: exercises }, { data: userExercises }]) => {
+      setExercises((exercises as Exercise[]) || []);
+      setUserExerciseIds(new Set((userExercises || []).map((ue) => ue.exercise_id)));
+    });
+  }, [session]);
 
-  const filtered = exercises.filter((e) =>
-    e.name.toLowerCase().includes(search.toLowerCase())
+  const filtered = exercises.filter(
+    (e) =>
+      !userExerciseIds.has(e.id) &&
+      e.name.toLowerCase().includes(search.toLowerCase())
   );
 
   async function addToMyPlan(exercise: Exercise) {

@@ -6,6 +6,11 @@
       "sourceType": "github",
       "computedHash": "d2b5bcc7c09fdb649129ffc7dd7b647ec1b155736974b974292675afd588cb39"
     },
+    "langfuse": {
+      "source": "langfuse/skills",
+      "sourceType": "github",
+      "computedHash": "ce94973bbb934a44b0f380c762a678c9b51925826f4f2d107f5d095d6c98b321"
+    },
     "vercel-composition-patterns": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",

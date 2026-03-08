@@ -33,6 +33,7 @@ export default function SetReminder() {
       // Insert profile
       const { error: profileError } = await supabase.from("profiles").insert({
         id: userId,
+        name: data.name,
         username: data.username,
         surgery_date: data.surgeryDate,
         graft_type: data.graftType!,
@@ -42,25 +43,18 @@ export default function SetReminder() {
       if (profileError) throw profileError;
 
       // Insert user exercises
-      if (data.selectedExerciseIds.length > 0) {
-        const { data: exercises } = await supabase
-          .from("exercises")
-          .select("*")
-          .in("id", data.selectedExerciseIds);
-
-        if (exercises && exercises.length > 0) {
-          const userExercises = exercises.map((ex, i) => ({
-            user_id: userId,
-            exercise_id: ex.id,
-            sets: ex.default_sets,
-            reps: ex.default_reps,
-            hold_seconds: ex.default_hold_seconds,
-            is_active: true,
-            sort_order: i,
-          }));
-          const { error: exError } = await supabase.from("user_exercises").insert(userExercises);
-          if (exError) throw exError;
-        }
+      if (data.selectedExercises.length > 0) {
+        const userExercises = data.selectedExercises.map((ex, i) => ({
+          user_id: userId,
+          exercise_id: ex.exerciseId,
+          sets: ex.sets,
+          reps: ex.reps,
+          hold_seconds: ex.hold_seconds,
+          is_active: true,
+          sort_order: i,
+        }));
+        const { error: exError } = await supabase.from("user_exercises").insert(userExercises);
+        if (exError) throw exError;
       }
 
       // Insert notification preferences

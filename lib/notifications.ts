@@ -1,17 +1,25 @@
 import * as Device from "expo-device";
+import Constants from "expo-constants";
 import { supabase } from "./supabase";
 
-let Notifications: typeof import("expo-notifications") | null = null;
-try {
-  Notifications = require("expo-notifications");
-  Notifications!.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-    }),
-  });
-} catch {}
+type NotificationsModule = typeof import("expo-notifications");
+let Notifications: NotificationsModule | null = null;
+
+// expo-notifications is not supported in Expo Go on SDK 53+
+const isExpoGo = Constants.executionEnvironment === "storeClient";
+
+if (!isExpoGo) {
+  try {
+    Notifications = require("expo-notifications");
+    Notifications!.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    });
+  } catch {}
+}
 
 export async function registerForPushNotifications(userId: string): Promise<string | null> {
   if (!Notifications || !Device.isDevice) return null;

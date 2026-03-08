@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Platform } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
 import { useOnboarding } from "../../lib/onboarding-context";
 import type { GraftType, KneeSide } from "../../lib/types";
@@ -16,12 +17,30 @@ const KNEE_SIDES: { value: KneeSide; label: string }[] = [
   { value: "right", label: "Right" },
 ];
 
+function parseDateSafe(str: string): Date {
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? new Date() : d;
+}
+
 export default function SurgeryDetails() {
   const router = useRouter();
   const { data, update } = useOnboarding();
-  const [dateInput, setDateInput] = useState(data.surgeryDate);
+  const [surgeryDate, setSurgeryDate] = useState(parseDateSafe(data.surgeryDate));
+  const [showDatePicker, setShowDatePicker] = useState(Platform.OS === "ios");
+
+  function formatDate(d: Date) {
+    return d.toISOString().split("T")[0];
+  }
+
+  function displayDate(d: Date) {
+    return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  }
 
   function handleNext() {
+    if (!data.name.trim()) {
+      Alert.alert("Missing info", "Please enter your name.");
+      return;
+    }
     if (!data.username.trim()) {
       Alert.alert("Missing info", "Please enter a username.");
       return;
@@ -34,7 +53,7 @@ export default function SurgeryDetails() {
       Alert.alert("Missing info", "Please select which knee.");
       return;
     }
-    update({ surgeryDate: dateInput });
+    update({ surgeryDate: formatDate(surgeryDate) });
     router.push("/(onboarding)/pick-exercises");
   }
 
@@ -45,23 +64,62 @@ export default function SurgeryDetails() {
         Tell us about your surgery so we can set up your recovery plan.
       </Text>
 
+      <Text className="text-sm font-semibold mb-2" style={{ color: "#2D2D2D" }}>Your Name</Text>
+      <TextInput
+        className="bg-surface border border-border rounded-2xl px-4 py-4 text-base mb-6"
+        placeholder="First name"
+        value={data.name}
+        onChangeText={(v) => update({ name: v })}
+        autoCapitalize="words"
+        autoFocus
+        returnKeyType="next"
+      />
+
       <Text className="text-sm font-semibold mb-2" style={{ color: "#2D2D2D" }}>Username</Text>
       <TextInput
         className="bg-surface border border-border rounded-2xl px-4 py-4 text-base mb-6"
-        placeholder="Your name or nickname"
+        placeholder="Your nickname or handle"
         value={data.username}
         onChangeText={(v) => update({ username: v })}
-        autoCapitalize="words"
+        autoCapitalize="none"
+        returnKeyType="next"
       />
 
       <Text className="text-sm font-semibold mb-2" style={{ color: "#2D2D2D" }}>Surgery Date</Text>
-      <TextInput
-        className="bg-surface border border-border rounded-2xl px-4 py-4 text-base mb-6"
-        placeholder="YYYY-MM-DD"
-        value={dateInput}
-        onChangeText={setDateInput}
-        keyboardType="numbers-and-punctuation"
-      />
+      {Platform.OS === "android" ? (
+        <>
+          <TouchableOpacity
+            className="bg-surface border border-border rounded-2xl px-4 py-4 mb-6"
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Text className="text-base" style={{ color: "#2D2D2D" }}>{displayDate(surgeryDate)}</Text>
+          </TouchableOpacity>
+          {showDatePicker && (
+            <DateTimePicker
+              value={surgeryDate}
+              mode="date"
+              maximumDate={new Date()}
+              onChange={(_, selected) => {
+                setShowDatePicker(false);
+                if (selected) setSurgeryDate(selected);
+              }}
+            />
+          )}
+        </>
+      ) : (
+        <View className="bg-surface border border-border rounded-2xl px-2 mb-6 items-center">
+          <DateTimePicker
+            value={surgeryDate}
+            mode="date"
+            display="spinner"
+            maximumDate={new Date()}
+            onChange={(_, selected) => {
+              if (selected) setSurgeryDate(selected);
+            }}
+            style={{ width: "100%" }}
+          />
+        </View>
+      )}
 
       <Text className="text-sm font-semibold mb-3" style={{ color: "#2D2D2D" }}>Graft Type</Text>
       <View className="flex-row flex-wrap gap-2 mb-6">

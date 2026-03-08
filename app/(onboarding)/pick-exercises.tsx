@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../lib/supabase";
 import { useOnboarding } from "../../lib/onboarding-context";
+import { ExerciseStepper } from "../../components/ExerciseStepper";
 import { Colors } from "../../constants/colors";
 import type { Exercise, ExercisePhase } from "../../lib/types";
 
@@ -22,9 +23,8 @@ function daysSince(dateStr: string): number {
 
 export default function PickExercises() {
   const router = useRouter();
-  const { data, update } = useOnboarding();
+  const { data, toggleExercise, isSelected, updateExerciseValues } = useOnboarding();
   const [exercisesByPhase, setExercisesByPhase] = useState<Record<string, Exercise[]>>({});
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,17 +53,7 @@ export default function PickExercises() {
       );
   }, []);
 
-  function toggleExercise(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
   function handleNext() {
-    update({ selectedExerciseIds: Array.from(selected) });
     router.push("/(onboarding)/set-reminder");
   }
 
@@ -129,37 +119,76 @@ export default function PickExercises() {
         }}
         renderItem={({ item, section }) => {
           const { locked } = section;
-          const isSelected = selected.has(item.id);
+          const selected = isSelected(item.id);
+          const selectedEx = data.selectedExercises.find((e) => e.exerciseId === item.id);
+
+          const previewLabel = selectedEx
+            ? `${selectedEx.sets} sets × ${selectedEx.hold_seconds ? `${selectedEx.hold_seconds}s hold` : `${selectedEx.reps} reps`}`
+            : `${item.default_sets} sets × ${item.default_hold_seconds ? `${item.default_hold_seconds}s hold` : `${item.default_reps} reps`}`;
+
           return (
             <TouchableOpacity
-              className={`mb-3 rounded-2xl border p-4 flex-row items-start ${
+              className={`mb-3 rounded-2xl border ${
                 locked
                   ? "bg-surface border-border opacity-40"
-                  : isSelected
+                  : selected
                   ? "bg-primary/10 border-primary"
                   : "bg-surface border-border"
               }`}
-              onPress={() => !locked && toggleExercise(item.id)}
+              onPress={() => !locked && toggleExercise(item)}
               disabled={locked}
+              activeOpacity={0.8}
             >
-              <Ionicons
-                name={isSelected && !locked ? "checkmark-circle" : "ellipse-outline"}
-                size={24}
-                color={isSelected && !locked ? Colors.primary : Colors.textMuted}
-                style={{ marginRight: 12, marginTop: 2 }}
-              />
-              <View className="flex-1">
-                <Text className="font-semibold text-base" style={{ color: locked ? "#A0A0A0" : "#2D2D2D" }}>
-                  {item.name}
-                </Text>
-                <Text className="text-sm mt-1" style={{ color: "#6B6B6B" }} numberOfLines={2}>
-                  {item.description}
-                </Text>
-                <Text className="text-xs mt-1" style={{ color: "#A0A0A0" }}>
-                  {item.default_sets} sets ×{" "}
-                  {item.default_hold_seconds ? `${item.default_hold_seconds}s hold` : `${item.default_reps} reps`}
-                </Text>
+              <View className="flex-row items-start p-4">
+                <Ionicons
+                  name={selected && !locked ? "checkmark-circle" : "ellipse-outline"}
+                  size={24}
+                  color={selected && !locked ? Colors.primary : Colors.textMuted}
+                  style={{ marginRight: 12, marginTop: 2 }}
+                />
+                <View className="flex-1">
+                  <Text className="font-semibold text-base" style={{ color: locked ? "#A0A0A0" : "#2D2D2D" }}>
+                    {item.name}
+                  </Text>
+                  <Text className="text-sm mt-1" style={{ color: "#6B6B6B" }} numberOfLines={selected ? undefined : 2}>
+                    {item.description}
+                  </Text>
+                  <Text className="text-xs mt-1" style={{ color: selected ? Colors.primary : "#A0A0A0" }}>
+                    {previewLabel}
+                  </Text>
+                </View>
               </View>
+
+              {selected && !locked && selectedEx && (
+                <View className="px-4 pb-4 border-t border-primary/20 pt-3">
+                  <ExerciseStepper
+                    label="Sets"
+                    value={selectedEx.sets}
+                    min={1}
+                    max={10}
+                    onChange={(v) => updateExerciseValues(item.id, { sets: v })}
+                  />
+                  {selectedEx.hold_seconds !== null ? (
+                    <ExerciseStepper
+                      label="Hold"
+                      value={selectedEx.hold_seconds}
+                      min={5}
+                      max={120}
+                      step={5}
+                      unit="s"
+                      onChange={(v) => updateExerciseValues(item.id, { hold_seconds: v })}
+                    />
+                  ) : (
+                    <ExerciseStepper
+                      label="Reps"
+                      value={selectedEx.reps}
+                      min={1}
+                      max={50}
+                      onChange={(v) => updateExerciseValues(item.id, { reps: v })}
+                    />
+                  )}
+                </View>
+              )}
             </TouchableOpacity>
           );
         }}
@@ -187,7 +216,7 @@ export default function PickExercises() {
       <View className="absolute bottom-0 left-0 right-0 bg-background px-6 pb-8 pt-4 border-t border-border">
         <TouchableOpacity className="bg-primary rounded-2xl py-4 items-center" onPress={handleNext}>
           <Text className="text-white font-bold text-lg">
-            Next → ({selected.size} selected)
+            Next → ({data.selectedExercises.length} selected)
           </Text>
         </TouchableOpacity>
       </View>

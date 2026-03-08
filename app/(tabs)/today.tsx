@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { View, ScrollView, Text, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -24,12 +24,18 @@ export default function TodayScreen() {
     weekNumber,
     userExercises,
     dailyLog,
-    exerciseLogs,
+    exerciseLogs: initialExerciseLogs,
     dailyMessage,
     refetch,
+    updateUserExercise,
   } = useToday();
+  const [exerciseLogs, setExerciseLogs] = useState<typeof initialExerciseLogs>([]);
   const [pendingAchievement, setPendingAchievement] = useState<Content | null>(null);
   const { todayMilestones } = useMilestones();
+
+  useEffect(() => {
+    setExerciseLogs(initialExerciseLogs);
+  }, [initialExerciseLogs]);
 
   if (loading) {
     return (
@@ -93,6 +99,25 @@ export default function TodayScreen() {
     if (!dailyLog) return;
     const existing = exerciseLogs.find((l) => l.user_exercise_id === userExerciseId);
     const isFirstEver = exerciseLogs.every((l) => !l.completed) && updates.completed === true;
+
+    // Optimistically update local state
+    if (existing) {
+      setExerciseLogs((prev) =>
+        prev.map((l) => (l.id === existing.id ? { ...l, ...updates } : l))
+      );
+    } else {
+      const newLog = {
+        id: `temp-${userExerciseId}`,
+        daily_log_id: dailyLog.id,
+        user_exercise_id: userExerciseId,
+        completed: false,
+        actual_sets: 0,
+        actual_reps: 0,
+        ...updates,
+      };
+      setExerciseLogs((prev) => [...prev, newLog]);
+    }
+
     if (existing) {
       await supabase.from("exercise_logs").update(updates).eq("id", existing.id);
     } else {
@@ -105,8 +130,8 @@ export default function TodayScreen() {
         ...updates,
       });
     }
-    await refetch();
     if (updates.completed === true) {
+      await refetch();
       await runAchievementCheck({ isFirstExercise: isFirstEver });
     }
   }
@@ -171,6 +196,7 @@ export default function TodayScreen() {
                 userExercise={ue}
                 log={exerciseLogs.find((l) => l.user_exercise_id === ue.id) ?? null}
                 onUpdate={(updates) => updateExerciseLog(ue.id, updates)}
+                onExerciseUpdate={updateUserExercise}
                 disabled={isRestDay}
               />
             ))

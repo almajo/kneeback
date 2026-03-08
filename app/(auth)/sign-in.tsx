@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from "react-native";
 import { Link } from "expo-router";
 import { supabase } from "../../lib/supabase";
 
@@ -13,19 +13,22 @@ export default function SignIn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSignIn() {
+    setError(null);
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) Alert.alert("Error", error.message);
+    if (error) setError(error.message);
     setLoading(false);
   }
 
   async function handleGoogleSignIn() {
     if (!GoogleSignin) {
-      Alert.alert("Not available", "Google Sign-In requires a development build.");
+      setError("Google Sign-In requires a development build.");
       return;
     }
+    setError(null);
     try {
       await GoogleSignin.hasPlayServices();
       const response = await GoogleSignin.signIn();
@@ -34,11 +37,11 @@ export default function SignIn() {
           provider: "google",
           token: response.data.idToken,
         });
-        if (error) Alert.alert("Error", error.message);
+        if (error) setError(error.message);
       }
-    } catch (error: any) {
-      if (error.code !== "SIGN_IN_CANCELLED") {
-        Alert.alert("Error", "Google sign-in failed");
+    } catch (err: any) {
+      if (err.code !== "SIGN_IN_CANCELLED") {
+        setError("Google sign-in failed");
       }
     }
   }
@@ -64,6 +67,10 @@ export default function SignIn() {
           onChangeText={setPassword}
           secureTextEntry
         />
+
+        {error && (
+          <Text className="text-red-500 text-sm text-center mb-4">{error}</Text>
+        )}
 
         <TouchableOpacity
           className={`bg-primary rounded-2xl py-4 items-center mb-4 ${loading ? "opacity-50" : ""}`}

@@ -88,6 +88,10 @@ export function useToday() {
 
   const weekNumber = Math.floor(daysSinceSurgery / 7) + 1;
 
+  function updateUserExercise(updated: UserExercise) {
+    setUserExercises((prev) => prev.map((ue) => (ue.id === updated.id ? updated : ue)));
+  }
+
   return {
     loading,
     daysSinceSurgery,
@@ -97,5 +101,6 @@ export function useToday() {
     exerciseLogs,
     dailyMessage,
     refetch: fetchAll,
+    updateUserExercise,
   };
 }

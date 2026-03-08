@@ -22,7 +22,7 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "output": "static",
+      "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -39,7 +39,8 @@
           }
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,
