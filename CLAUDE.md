@@ -10,4 +10,3 @@
 - Create a commit for each finished feature with a descriptive message
 - After adding a new feature, make sure to test it using playwright
 - Code must adhere to liniting and formatting best practices
-- 
