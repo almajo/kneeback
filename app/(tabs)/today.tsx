@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { View, ScrollView, Text, TouchableOpacity, ActivityIndicator } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useToday } from "../../lib/hooks/use-today";
 import { useAuth } from "../../lib/auth-context";
@@ -31,11 +31,15 @@ export default function TodayScreen() {
   } = useToday();
   const [exerciseLogs, setExerciseLogs] = useState<typeof initialExerciseLogs>([]);
   const [pendingAchievement, setPendingAchievement] = useState<Content | null>(null);
-  const { todayMilestones } = useMilestones();
+  const { todayMilestones, refetch: refetchMilestones } = useMilestones();
 
   useEffect(() => {
     setExerciseLogs(initialExerciseLogs);
   }, [initialExerciseLogs]);
+
+  useFocusEffect(useCallback(() => {
+    refetchMilestones();
+  }, [refetchMilestones]));
 
   if (loading) {
     return (
