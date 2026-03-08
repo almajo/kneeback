@@ -1,6 +1,6 @@
 export type GraftType = "patellar" | "hamstring" | "quad" | "allograft";
 export type KneeSide = "left" | "right";
-export type ExercisePhase = "early" | "mid" | "late";
+export type ExercisePhase = "acute" | "early_active" | "strengthening" | "return_to_sport";
 export type ExerciseCategory = "rom" | "strengthening" | "activation";
 export type ContentType = "achievement" | "daily_message" | "crutch_hack";
 export type ExerciseStatus = "approved" | "pending";
