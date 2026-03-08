@@ -27,9 +27,11 @@ export function ExerciseCard({ userExercise, log, onUpdate, disabled }: Props) {
 
   return (
     <View
-      className={`mx-4 mb-3 rounded-2xl border ${
-        isCompleted ? "bg-green-50 border-green-200" : "bg-surface border-border"
-      } ${disabled ? "opacity-40" : ""}`}
+      className={`mx-4 mb-3 rounded-2xl border ${disabled ? "opacity-40" : ""}`}
+      style={{
+        backgroundColor: isCompleted ? Colors.success + "15" : "#FFFFFF",
+        borderColor: isCompleted ? Colors.success + "60" : "#E8E0D8",
+      }}
     >
       <TouchableOpacity
         className="flex-row items-center px-4 py-4"

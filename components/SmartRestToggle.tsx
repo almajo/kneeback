@@ -14,6 +14,7 @@ export function SmartRestToggle({ isRestDay, onToggle }: Props) {
         isRestDay ? "bg-rest border-rest" : "bg-surface border-border"
       }`}
       onPress={onToggle}
+      activeOpacity={0.75}
     >
       <Ionicons
         name={isRestDay ? "bed" : "bed-outline"}

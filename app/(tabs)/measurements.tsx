@@ -205,7 +205,7 @@ export default function MeasurementsScreen() {
                 )}
               </View>
             </View>
-            <Ionicons name="pencil-outline" size={18} color={Colors.textMuted} />
+            <Ionicons name="pencil-outline" size={20} color={Colors.textMuted} />
           </TouchableOpacity>
         ))
       )}

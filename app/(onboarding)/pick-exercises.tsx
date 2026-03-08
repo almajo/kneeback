@@ -65,6 +65,13 @@ export default function PickExercises() {
         data={exercises}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
+        ListEmptyComponent={
+          <View className="items-center py-12">
+            <Text className="text-base text-center" style={{ color: "#6B6B6B" }}>
+              No exercises found. Check your connection and try again.
+            </Text>
+          </View>
+        }
         renderItem={({ item }) => {
           const isSelected = selected.has(item.id);
           return (

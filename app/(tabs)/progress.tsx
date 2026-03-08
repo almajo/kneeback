@@ -116,7 +116,9 @@ export default function ProgressScreen() {
       <Text className="text-2xl font-bold px-4 mb-4" style={{ color: "#2D2D2D" }}>Progress</Text>
 
       <CalendarHeatmap days={heatmapDays} month={currentMonth} />
+      <View className="mx-4 my-2 border-b border-border" />
       <RomChart data={romData} />
+      <View className="mx-4 my-2 border-b border-border" />
       <QuadStreak activationDays={activationDays} last30={last30} />
 
       {romData.length === 0 && (
