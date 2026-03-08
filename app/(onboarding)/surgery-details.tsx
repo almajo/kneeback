@@ -26,7 +26,7 @@ export default function SurgeryDetails() {
   const router = useRouter();
   const { data, update } = useOnboarding();
   const [surgeryDate, setSurgeryDate] = useState(parseDateSafe(data.surgeryDate));
-  const [showDatePicker, setShowDatePicker] = useState(Platform.OS === "ios");
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   function formatDate(d: Date) {
     return d.toISOString().split("T")[0];
@@ -86,7 +86,26 @@ export default function SurgeryDetails() {
       />
 
       <Text className="text-sm font-semibold mb-2" style={{ color: "#2D2D2D" }}>Surgery Date</Text>
-      {Platform.OS === "android" ? (
+      {Platform.OS === "web" ? (
+        <input
+          type="date"
+          value={formatDate(surgeryDate)}
+          max={formatDate(new Date())}
+          onChange={(e) => { if (e.target.value) setSurgeryDate(new Date(e.target.value + "T12:00:00")); }}
+          style={{
+            width: "100%",
+            backgroundColor: "#FFFFFF",
+            border: "1px solid #E5E5E5",
+            borderRadius: 16,
+            padding: "16px",
+            fontSize: 16,
+            color: "#2D2D2D",
+            outline: "none",
+            boxSizing: "border-box",
+            marginBottom: 24,
+          }}
+        />
+      ) : Platform.OS === "android" ? (
         <>
           <TouchableOpacity
             className="bg-surface border border-border rounded-2xl px-4 py-4 mb-6"
