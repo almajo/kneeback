@@ -4,9 +4,10 @@ import * as Haptics from "expo-haptics";
 
 interface Props {
   seconds: number;
+  onTimerComplete?: () => void;
 }
 
-export function RestTimer({ seconds }: Props) {
+export function RestTimer({ seconds, onTimerComplete }: Props) {
   const [remaining, setRemaining] = useState(seconds);
   const [running, setRunning] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -16,6 +17,7 @@ export function RestTimer({ seconds }: Props) {
       intervalRef.current = setInterval(() => {
         setRemaining((prev) => {
           if (prev <= 1) {
+            onTimerComplete?.();
             setRunning(false);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             return 0;
@@ -27,7 +29,7 @@ export function RestTimer({ seconds }: Props) {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [running, remaining]);
+  }, [running, remaining, onTimerComplete]);
 
   function toggle() {
     if (remaining === 0) {
