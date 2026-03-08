@@ -152,16 +152,28 @@ export default function TodayScreen() {
       <SmartRestToggle isRestDay={isRestDay} onToggle={toggleRestDay} />
 
       {todayMilestones.length > 0 && (
-        <View className="mx-4 mb-4 rounded-2xl px-4 py-4" style={{ backgroundColor: Colors.primary + "18", borderWidth: 1, borderColor: Colors.primary + "40" }}>
-          <Text className="text-xs font-bold tracking-widest mb-2" style={{ color: Colors.primary }}>TODAY'S MILESTONE</Text>
-          {todayMilestones.map((m) => (
-            <View key={m.id} className="flex-row items-center gap-2">
-              <Text style={{ color: m.category === "win" ? Colors.success : Colors.primary, fontSize: 16 }}>
-                {m.category === "win" ? "★" : "◆"}
-              </Text>
-              <Text className="text-base font-semibold flex-1" style={{ color: Colors.text }}>{m.title}</Text>
-            </View>
-          ))}
+        <View className="mx-4 mb-4 rounded-2xl overflow-hidden" style={{ backgroundColor: Colors.primary, shadowColor: Colors.primaryDark, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 6 }}>
+          {/* Decorative top strip */}
+          <View style={{ backgroundColor: Colors.primaryDark, paddingHorizontal: 16, paddingVertical: 8, flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Ionicons name="trophy" size={14} color="rgba(255,255,255,0.9)" />
+            <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 11, fontWeight: "800", letterSpacing: 1.5 }}>TODAY&apos;S THE DAY</Text>
+          </View>
+          {/* Main content */}
+          <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16 }}>
+            {todayMilestones.map((m, i) => (
+              <View key={m.id} style={{ flexDirection: "row", alignItems: "flex-start", gap: 12, marginTop: i > 0 ? 12 : 0 }}>
+                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Text style={{ fontSize: 18 }}>{m.category === "win" ? "⭐" : "🏆"}</Text>
+                </View>
+                <View style={{ flex: 1, justifyContent: "center" }}>
+                  <Text style={{ color: "#FFFFFF", fontSize: 17, fontWeight: "700", lineHeight: 22 }}>{m.title}</Text>
+                  <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 13, marginTop: 2 }}>
+                    {m.category === "win" ? "You did it — log it and own it." : "A big moment in your recovery."}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
         </View>
       )}
 

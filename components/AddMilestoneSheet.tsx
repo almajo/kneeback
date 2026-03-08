@@ -38,7 +38,7 @@ export function AddMilestoneSheet({ visible, onClose, onSave }: Props) {
   const [category, setCategory] = useState<"milestone" | "win" | null>(null);
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(new Date());
-  const [showAndroidPicker, setShowAndroidPicker] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
   const [notes, setNotes] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -47,7 +47,7 @@ export function AddMilestoneSheet({ visible, onClose, onSave }: Props) {
     setCategory(null);
     setTitle("");
     setDate(new Date());
-    setShowAndroidPicker(false);
+    setShowPicker(false);
     setNotes("");
     setSelectedTemplate(null);
     setSaving(false);
@@ -192,35 +192,43 @@ export function AddMilestoneSheet({ visible, onClose, onSave }: Props) {
                   <Text className="text-xs font-semibold tracking-wide mb-2" style={{ color: Colors.textMuted }}>
                     DATE
                   </Text>
-                  {Platform.OS === "android" ? (
+                  {Platform.OS === "web" ? (
+                    <input
+                      type="date"
+                      value={toDateString(date)}
+                      onChange={(e) => { if (e.target.value) setDate(new Date(e.target.value + "T12:00:00")); }}
+                      style={{
+                        width: "100%",
+                        backgroundColor: "#FFFFFF",
+                        border: `1px solid ${Colors.border}`,
+                        borderRadius: 16,
+                        padding: "12px 16px",
+                        fontSize: 16,
+                        color: Colors.text,
+                        outline: "none",
+                        boxSizing: "border-box",
+                      }}
+                    />
+                  ) : (
                     <>
                       <TouchableOpacity
                         className="bg-surface border border-border rounded-2xl px-4 py-3"
-                        onPress={() => setShowAndroidPicker(true)}
+                        onPress={() => setShowPicker(true)}
                       >
                         <Text className="text-base" style={{ color: Colors.text }}>{displayDate(date)}</Text>
                       </TouchableOpacity>
-                      {showAndroidPicker && (
+                      {showPicker && (
                         <DateTimePicker
                           value={date}
                           mode="date"
+                          display={Platform.OS === "ios" ? "spinner" : "default"}
                           onChange={(_, selected) => {
-                            setShowAndroidPicker(false);
+                            setShowPicker(false);
                             if (selected) setDate(selected);
                           }}
                         />
                       )}
                     </>
-                  ) : (
-                    <View className="bg-surface border border-border rounded-2xl px-2 items-center">
-                      <DateTimePicker
-                        value={date}
-                        mode="date"
-                        display="spinner"
-                        onChange={(_, selected) => { if (selected) setDate(selected); }}
-                        style={{ width: "100%" }}
-                      />
-                    </View>
                   )}
                 </View>
               )}
