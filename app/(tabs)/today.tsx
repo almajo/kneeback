@@ -12,6 +12,7 @@ import { AchievementPopup } from "../../components/AchievementPopup";
 import { supabase } from "../../lib/supabase";
 import { checkAchievements, getStreak } from "../../lib/achievements";
 import { Colors } from "../../constants/colors";
+import { useMilestones } from "../../lib/hooks/use-milestones";
 import type { Content } from "../../lib/types";
 
 export default function TodayScreen() {
@@ -28,6 +29,7 @@ export default function TodayScreen() {
     refetch,
   } = useToday();
   const [pendingAchievement, setPendingAchievement] = useState<Content | null>(null);
+  const { todayMilestones } = useMilestones();
 
   if (loading) {
     return (
@@ -119,6 +121,20 @@ export default function TodayScreen() {
       <DayHeader day={daysSinceSurgery} week={weekNumber} />
       <DailyMessage message={dailyMessage?.body ?? null} />
       <SmartRestToggle isRestDay={isRestDay} onToggle={toggleRestDay} />
+
+      {todayMilestones.length > 0 && (
+        <View className="mx-4 mb-4 rounded-2xl px-4 py-4" style={{ backgroundColor: Colors.primary + "18", borderWidth: 1, borderColor: Colors.primary + "40" }}>
+          <Text className="text-xs font-bold tracking-widest mb-2" style={{ color: Colors.primary }}>TODAY'S MILESTONE</Text>
+          {todayMilestones.map((m) => (
+            <View key={m.id} className="flex-row items-center gap-2">
+              <Text style={{ color: m.category === "win" ? Colors.success : Colors.primary, fontSize: 16 }}>
+                {m.category === "win" ? "★" : "◆"}
+              </Text>
+              <Text className="text-base font-semibold flex-1" style={{ color: Colors.text }}>{m.title}</Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       {isRestDay ? (
         <View className="mx-4 rounded-2xl p-6 items-center" style={{ backgroundColor: "#7E57C220" }}>

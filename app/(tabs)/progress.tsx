@@ -6,6 +6,9 @@ import { Colors } from "../../constants/colors";
 import { RomChart } from "../../components/RomChart";
 import { QuadStreak } from "../../components/QuadStreak";
 import { CalendarHeatmap } from "../../components/CalendarHeatmap";
+import { MilestoneTimeline } from "../../components/MilestoneTimeline";
+import { AddMilestoneSheet } from "../../components/AddMilestoneSheet";
+import { useMilestones } from "../../lib/hooks/use-milestones";
 
 function getLast30Dates(): string[] {
   const dates: string[] = [];
@@ -32,6 +35,8 @@ function getCurrentMonthDates(): string[] {
 export default function ProgressScreen() {
   const { session } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const { milestones, addMilestone, deleteMilestone } = useMilestones();
   const [romData, setRomData] = useState<{ date: string; flexion: number | null; extension: number | null }[]>([]);
   const [activationDays, setActivationDays] = useState<Set<string>>(new Set());
   const [heatmapDays, setHeatmapDays] = useState<{ date: string; status: "complete" | "rest" | "partial" | "missed" | "future" }[]>([]);
@@ -112,8 +117,21 @@ export default function ProgressScreen() {
   }
 
   return (
+    <>
+    <AddMilestoneSheet
+      visible={sheetOpen}
+      onClose={() => setSheetOpen(false)}
+      onSave={addMilestone}
+    />
     <ScrollView className="flex-1 bg-background" contentContainerStyle={{ paddingTop: 16, paddingBottom: 40 }}>
       <Text className="text-2xl font-bold px-4 mb-4" style={{ color: "#2D2D2D" }}>Progress</Text>
+
+      <MilestoneTimeline
+        milestones={milestones}
+        onAdd={() => setSheetOpen(true)}
+        onDelete={deleteMilestone}
+      />
+      <View className="mx-4 my-2 border-b border-border" />
 
       <CalendarHeatmap days={heatmapDays} month={currentMonth} />
       <View className="mx-4 my-2 border-b border-border" />
@@ -129,5 +147,6 @@ export default function ProgressScreen() {
         </View>
       )}
     </ScrollView>
+    </>
   );
 }
