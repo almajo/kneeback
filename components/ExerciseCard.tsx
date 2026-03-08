@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { View, Text, TouchableOpacity, Modal, Pressable, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../constants/colors";
@@ -28,18 +28,27 @@ export function ExerciseCard({ userExercise, log, onUpdate, onExerciseUpdate, di
   const isCompleted = log?.completed ?? false;
   const currentSet = log?.actual_sets ?? 0;
 
+  // Track current set count in a ref to break circular dependency in timer callback.
+  // The ref allows us to read the latest set count without including it in the dependency array.
+  const currentSetRef = useRef(currentSet);
+
+  // Keep the ref in sync with currentSet whenever it changes
+  useEffect(() => {
+    currentSetRef.current = currentSet;
+  }, [currentSet]);
+
   // Memoize callback to prevent RestTimer from unnecessarily restarting its interval.
-  // Reads actual_sets directly from log prop to avoid stale closure bugs when user
-  // manually advances the set before timer completes.
+  // Uses ref to access current set count, avoiding dependency on log?.actual_sets
+  // which changes on every set increment.
   const handleTimerComplete = useCallback(() => {
-    const nextSet = (log?.actual_sets ?? 0) + 1;
+    const nextSet = currentSetRef.current + 1;
     onUpdate({ actual_sets: nextSet });
 
     // If this was the final set, mark exercise as completed
     if (nextSet === userExercise.sets) {
       onUpdate({ completed: true });
     }
-  }, [log?.actual_sets, userExercise.sets, onUpdate]);
+  }, [userExercise.sets, onUpdate]);
 
   const targetLabel = userExercise.hold_seconds
     ? `${userExercise.sets} × ${userExercise.hold_seconds}s hold`
