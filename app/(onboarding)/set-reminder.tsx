@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { useOnboarding } from "../../lib/onboarding-context";
 import { useAuth } from "../../lib/auth-context";
 import { supabase } from "../../lib/supabase";
+import { registerForPushNotifications, scheduleDailyReminder } from "../../lib/notifications";
 import { Colors } from "../../constants/colors";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -71,6 +72,9 @@ export default function SetReminder() {
         completion_congrats_enabled: true,
       });
       if (notifError) throw notifError;
+
+      await registerForPushNotifications(userId);
+      await scheduleDailyReminder(hour, minute);
 
       router.replace("/(tabs)/today");
     } catch (err: any) {

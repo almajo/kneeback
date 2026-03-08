@@ -12,6 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../lib/auth-context";
 import { supabase } from "../../lib/supabase";
+import { registerForPushNotifications, scheduleDailyReminder } from "../../lib/notifications";
 import { Colors } from "../../constants/colors";
 import type { Profile, NotificationPreferences } from "../../lib/types";
 
@@ -33,6 +34,10 @@ export default function ProfileScreen() {
       ]);
       setProfile(prof as Profile);
       setNotifPrefs(prefs as NotificationPreferences);
+      if (prefs?.daily_reminder_time) {
+        const [h, m] = (prefs.daily_reminder_time as string).split(":").map(Number);
+        registerForPushNotifications(userId!).then(() => scheduleDailyReminder(h, m));
+      }
       setLoading(false);
     }
     load();
