@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { Colors } from "../constants/colors";
 import { MILESTONE_TEMPLATES } from "../constants/milestone-templates";
 
@@ -26,29 +26,19 @@ interface Props {
   }) => Promise<void>;
 }
 
-function getTodayString() {
-  return new Date().toISOString().split("T")[0];
-}
-
-function formatDateLabel(dateStr: string) {
-  const [year, month, day] = dateStr.split("-").map(Number);
-  const d = new Date(year, month - 1, day);
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-}
-
-function shiftDate(dateStr: string, field: "day" | "month" | "year", delta: number): string {
-  const [year, month, day] = dateStr.split("-").map(Number);
-  const d = new Date(year, month - 1, day);
-  if (field === "day") d.setDate(d.getDate() + delta);
-  if (field === "month") d.setMonth(d.getMonth() + delta);
-  if (field === "year") d.setFullYear(d.getFullYear() + delta);
+function toDateString(d: Date): string {
   return d.toISOString().split("T")[0];
+}
+
+function displayDate(d: Date): string {
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
 export function AddMilestoneSheet({ visible, onClose, onSave }: Props) {
   const [category, setCategory] = useState<"milestone" | "win" | null>(null);
   const [title, setTitle] = useState("");
-  const [date, setDate] = useState(getTodayString());
+  const [date, setDate] = useState(new Date());
+  const [showAndroidPicker, setShowAndroidPicker] = useState(false);
   const [notes, setNotes] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -56,7 +46,8 @@ export function AddMilestoneSheet({ visible, onClose, onSave }: Props) {
   function reset() {
     setCategory(null);
     setTitle("");
-    setDate(getTodayString());
+    setDate(new Date());
+    setShowAndroidPicker(false);
     setNotes("");
     setSelectedTemplate(null);
     setSaving(false);
@@ -78,7 +69,7 @@ export function AddMilestoneSheet({ visible, onClose, onSave }: Props) {
     await onSave({
       title: title.trim(),
       category,
-      date,
+      date: toDateString(date),
       notes: notes.trim() || undefined,
       template_key: selectedTemplate || undefined,
     });
@@ -139,7 +130,7 @@ export function AddMilestoneSheet({ visible, onClose, onSave }: Props) {
                 backgroundColor: category === "win" ? Colors.success + "15" : Colors.surface,
                 borderColor: category === "win" ? Colors.success : Colors.border,
               }}
-              onPress={() => { setCategory("win"); setDate(getTodayString()); setSelectedTemplate(null); setTitle(""); }}
+              onPress={() => { setCategory("win"); setDate(new Date()); setSelectedTemplate(null); setTitle(""); }}
             >
               <Text className="text-2xl mb-1">★</Text>
               <Text className="font-bold text-sm" style={{ color: category === "win" ? Colors.success : Colors.textSecondary }}>
@@ -201,21 +192,36 @@ export function AddMilestoneSheet({ visible, onClose, onSave }: Props) {
                   <Text className="text-xs font-semibold tracking-wide mb-2" style={{ color: Colors.textMuted }}>
                     DATE
                   </Text>
-                  <View
-                    className="bg-surface border border-border rounded-2xl px-4 py-3"
-                    style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}
-                  >
-                    <DateStepper label="D" value={date} field="day" onChange={setDate} />
-                    <Text style={{ color: Colors.textMuted }}>·</Text>
-                    <DateStepper label="M" value={date} field="month" onChange={setDate} />
-                    <Text style={{ color: Colors.textMuted }}>·</Text>
-                    <DateStepper label="Y" value={date} field="year" onChange={setDate} />
-                    <View style={{ flex: 1, alignItems: "flex-end" }}>
-                      <Text className="text-sm font-semibold" style={{ color: Colors.text }}>
-                        {formatDateLabel(date)}
-                      </Text>
+                  {Platform.OS === "android" ? (
+                    <>
+                      <TouchableOpacity
+                        className="bg-surface border border-border rounded-2xl px-4 py-3"
+                        onPress={() => setShowAndroidPicker(true)}
+                      >
+                        <Text className="text-base" style={{ color: Colors.text }}>{displayDate(date)}</Text>
+                      </TouchableOpacity>
+                      {showAndroidPicker && (
+                        <DateTimePicker
+                          value={date}
+                          mode="date"
+                          onChange={(_, selected) => {
+                            setShowAndroidPicker(false);
+                            if (selected) setDate(selected);
+                          }}
+                        />
+                      )}
+                    </>
+                  ) : (
+                    <View className="bg-surface border border-border rounded-2xl px-2 items-center">
+                      <DateTimePicker
+                        value={date}
+                        mode="date"
+                        display="spinner"
+                        onChange={(_, selected) => { if (selected) setDate(selected); }}
+                        style={{ width: "100%" }}
+                      />
                     </View>
-                  </View>
+                  )}
                 </View>
               )}
 
@@ -252,33 +258,5 @@ export function AddMilestoneSheet({ visible, onClose, onSave }: Props) {
         </View>
       </KeyboardAvoidingView>
     </Modal>
-  );
-}
-
-function DateStepper({
-  label,
-  value,
-  field,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  field: "day" | "month" | "year";
-  onChange: (v: string) => void;
-}) {
-  const parts = value.split("-");
-  const display = field === "day" ? parts[2] : field === "month" ? parts[1] : parts[0];
-
-  return (
-    <View style={{ alignItems: "center", marginHorizontal: 4 }}>
-      <TouchableOpacity onPress={() => onChange(shiftDate(value, field, 1))} hitSlop={{ top: 8, bottom: 4, left: 8, right: 8 }}>
-        <Ionicons name="chevron-up" size={16} color={Colors.primary} />
-      </TouchableOpacity>
-      <Text className="text-xs font-semibold my-0.5" style={{ color: Colors.textMuted }}>{label}</Text>
-      <Text className="text-base font-bold" style={{ color: Colors.text }}>{display}</Text>
-      <TouchableOpacity onPress={() => onChange(shiftDate(value, field, -1))} hitSlop={{ top: 4, bottom: 8, left: 8, right: 8 }}>
-        <Ionicons name="chevron-down" size={16} color={Colors.primary} />
-      </TouchableOpacity>
-    </View>
   );
 }
