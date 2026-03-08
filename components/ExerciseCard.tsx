@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { View, Text, TouchableOpacity, Modal, Pressable, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../constants/colors";
@@ -28,15 +28,18 @@ export function ExerciseCard({ userExercise, log, onUpdate, onExerciseUpdate, di
   const isCompleted = log?.completed ?? false;
   const currentSet = log?.actual_sets ?? 0;
 
-  function handleTimerComplete() {
-    const nextSet = currentSet + 1;
+  // Memoize callback to prevent RestTimer from unnecessarily restarting its interval.
+  // Reads actual_sets directly from log prop to avoid stale closure bugs when user
+  // manually advances the set before timer completes.
+  const handleTimerComplete = useCallback(() => {
+    const nextSet = (log?.actual_sets ?? 0) + 1;
     onUpdate({ actual_sets: nextSet });
 
     // If this was the final set, mark exercise as completed
     if (nextSet === userExercise.sets) {
       onUpdate({ completed: true });
     }
-  }
+  }, [log?.actual_sets, userExercise.sets, onUpdate]);
 
   const targetLabel = userExercise.hold_seconds
     ? `${userExercise.sets} × ${userExercise.hold_seconds}s hold`
