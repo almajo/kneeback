@@ -8,7 +8,9 @@ import {
   Alert,
   ActivityIndicator,
   Share,
+  Platform,
 } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../lib/auth-context";
 import { supabase } from "../../lib/supabase";
@@ -16,12 +18,24 @@ import { registerForPushNotifications, scheduleDailyReminder } from "../../lib/n
 import { Colors } from "../../constants/colors";
 import type { Profile, NotificationPreferences } from "../../lib/types";
 
+function pad(n: number) {
+  return n.toString().padStart(2, "0");
+}
+
 export default function ProfileScreen() {
   const { session } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingNotif, setSavingNotif] = useState(false);
+  const [editingReminder, setEditingReminder] = useState(false);
+  const [reminderHour, setReminderHour] = useState(8);
+  const [reminderMinute, setReminderMinute] = useState(0);
+  const [reminderDate, setReminderDate] = useState(() => {
+    const d = new Date();
+    d.setHours(8, 0, 0, 0);
+    return d;
+  });
 
   const userId = session?.user.id;
 
@@ -36,6 +50,11 @@ export default function ProfileScreen() {
       setNotifPrefs(prefs as NotificationPreferences);
       if (prefs?.daily_reminder_time) {
         const [h, m] = (prefs.daily_reminder_time as string).split(":").map(Number);
+        setReminderHour(h);
+        setReminderMinute(m);
+        const d = new Date();
+        d.setHours(h, m, 0, 0);
+        setReminderDate(d);
         registerForPushNotifications(userId!).then(() => scheduleDailyReminder(h, m));
       }
       setLoading(false);
@@ -51,6 +70,20 @@ export default function ProfileScreen() {
       .update({ evening_nudge_enabled: value })
       .eq("id", notifPrefs.id);
     setNotifPrefs({ ...notifPrefs, evening_nudge_enabled: value });
+    setSavingNotif(false);
+  }
+
+  async function saveReminderTime(h = reminderHour, m = reminderMinute) {
+    if (!notifPrefs) return;
+    setSavingNotif(true);
+    const timeStr = `${pad(h)}:${pad(m)}`;
+    await supabase
+      .from("notification_preferences")
+      .update({ daily_reminder_time: timeStr })
+      .eq("id", notifPrefs.id);
+    setNotifPrefs({ ...notifPrefs, daily_reminder_time: timeStr });
+    await scheduleDailyReminder(h, m);
+    setEditingReminder(false);
     setSavingNotif(false);
   }
 
@@ -152,7 +185,85 @@ export default function ProfileScreen() {
       {notifPrefs && (
         <View className="bg-surface border border-border rounded-2xl p-4 mb-4">
           <Text className="text-base font-semibold mb-3" style={{ color: "#2D2D2D" }}>Notifications</Text>
-          <InfoRow label="Daily reminder" value={notifPrefs.daily_reminder_time?.slice(0, 5) ?? "—"} />
+
+          {/* Daily reminder row */}
+          <TouchableOpacity
+            className="flex-row justify-between items-center py-3 border-b border-border"
+            onPress={() => setEditingReminder((v) => !v)}
+          >
+            <Text style={{ color: "#6B6B6B" }}>Daily reminder</Text>
+            <View className="flex-row items-center gap-2">
+              <Text className="font-semibold" style={{ color: "#2D2D2D" }}>
+                {notifPrefs.daily_reminder_time?.slice(0, 5) ?? "—"}
+              </Text>
+              <Ionicons
+                name={editingReminder ? "chevron-up" : "chevron-down"}
+                size={14}
+                color="#A0A0A0"
+              />
+            </View>
+          </TouchableOpacity>
+
+          {/* Native time picker */}
+          {editingReminder && (
+            <View className="pb-2">
+              {Platform.OS === "web" ? (
+                <input
+                  type="time"
+                  value={`${pad(reminderHour)}:${pad(reminderMinute)}`}
+                  onChange={(e) => {
+                    const [h, m] = e.target.value.split(":").map(Number);
+                    setReminderHour(h);
+                    setReminderMinute(m);
+                    const d = new Date();
+                    d.setHours(h, m, 0, 0);
+                    setReminderDate(d);
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "12px 16px",
+                    fontSize: 16,
+                    border: "1px solid #E5E7EB",
+                    borderRadius: 12,
+                    marginTop: 8,
+                    marginBottom: 8,
+                    outline: "none",
+                    boxSizing: "border-box",
+                    backgroundColor: "transparent",
+                  }}
+                />
+              ) : (
+                <DateTimePicker
+                  value={reminderDate}
+                  mode="time"
+                  display={Platform.OS === "ios" ? "spinner" : "default"}
+                  onChange={(_, selected) => {
+                    if (!selected) return;
+                    setReminderDate(selected);
+                    setReminderHour(selected.getHours());
+                    setReminderMinute(selected.getMinutes());
+                    if (Platform.OS === "android") {
+                      saveReminderTime(selected.getHours(), selected.getMinutes());
+                    }
+                  }}
+                />
+              )}
+              {Platform.OS !== "android" && (
+                <TouchableOpacity
+                  className={`bg-primary rounded-xl py-3 items-center mt-2 ${savingNotif ? "opacity-50" : ""}`}
+                  onPress={() => saveReminderTime(reminderHour, reminderMinute)}
+                  disabled={savingNotif}
+                >
+                  {savingNotif ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text className="text-white font-semibold">Save</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
           <View className="flex-row items-center justify-between py-3">
             <Text style={{ color: "#2D2D2D" }}>Evening nudge</Text>
             <Switch
