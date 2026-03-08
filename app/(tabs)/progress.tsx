@@ -76,19 +76,29 @@ export default function ProgressScreen() {
         .eq("user_id", userId)
         .gte("date", `${currentMonth}-01`);
 
+      const logIds = (logs || []).map((l) => l.id);
       const { data: exLogs } = await supabase
         .from("exercise_logs")
-        .select("daily_log_id, completed");
+        .select("daily_log_id, user_exercise_id, completed")
+        .in("daily_log_id", logIds.length > 0 ? logIds : [""]);
 
       const logMap = new Map<string, { isRest: boolean; logId: string }>();
       (logs || []).forEach((l) => logMap.set(l.date, { isRest: l.is_rest_day, logId: l.id }));
 
-      const completionMap = new Map<string, { total: number; done: number }>();
+      // Deduplicate by (daily_log_id, user_exercise_id): an exercise is done if ANY row is completed
+      const exerciseStatusMap = new Map<string, boolean>();
       (exLogs || []).forEach((el) => {
-        const entry = completionMap.get(el.daily_log_id) || { total: 0, done: 0 };
+        const key = `${el.daily_log_id}|${el.user_exercise_id}`;
+        exerciseStatusMap.set(key, (exerciseStatusMap.get(key) ?? false) || el.completed);
+      });
+
+      const completionMap = new Map<string, { total: number; done: number }>();
+      exerciseStatusMap.forEach((isDone, key) => {
+        const dailyLogId = key.split("|")[0];
+        const entry = completionMap.get(dailyLogId) || { total: 0, done: 0 };
         entry.total++;
-        if (el.completed) entry.done++;
-        completionMap.set(el.daily_log_id, entry);
+        if (isDone) entry.done++;
+        completionMap.set(dailyLogId, entry);
       });
 
       const days = monthDates.map((date) => {
@@ -133,7 +143,7 @@ export default function ProgressScreen() {
       />
       <View className="mx-4 my-2 border-b border-border" />
 
-      <CalendarHeatmap days={heatmapDays} month={currentMonth} />
+      <CalendarHeatmap days={heatmapDays} month={currentMonth} milestones={milestones} />
       <View className="mx-4 my-2 border-b border-border" />
       <RomChart data={romData} />
       <View className="mx-4 my-2 border-b border-border" />
