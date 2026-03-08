@@ -149,7 +149,6 @@ export default function TodayScreen() {
     <ScrollView className="flex-1 bg-background" contentContainerStyle={{ paddingBottom: 100 }}>
       <DayHeader day={daysSinceSurgery} week={weekNumber} />
       <DailyMessage message={dailyMessage?.body ?? null} />
-      <SmartRestToggle isRestDay={isRestDay} onToggle={toggleRestDay} />
 
       {todayMilestones.length > 0 && (
         <View className="mx-4 mb-4 rounded-2xl overflow-hidden" style={{ backgroundColor: Colors.primary, shadowColor: Colors.primaryDark, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 6 }}>
@@ -176,6 +175,12 @@ export default function TodayScreen() {
           </View>
         </View>
       )}
+
+      <Text className="mx-4 mt-2 mb-1 text-base font-bold" style={{ color: "#2D2D2D" }}>
+        Today's Training
+      </Text>
+
+      <SmartRestToggle isRestDay={isRestDay} onToggle={toggleRestDay} />
 
       {isRestDay ? (
         <View className="mx-4 rounded-2xl p-6 items-center" style={{ backgroundColor: "#7E57C220" }}>
