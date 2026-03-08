@@ -26,6 +26,7 @@ export default function PickExercises() {
   const [exercisesByPhase, setExercisesByPhase] = useState<Record<string, Exercise[]>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const days = daysSince(data.surgeryDate);
 
@@ -35,15 +36,21 @@ export default function PickExercises() {
       .select("*")
       .eq("status", "approved")
       .order("sort_order")
-      .then(({ data: exs }) => {
-        const grouped: Record<string, Exercise[]> = {};
-        for (const ex of (exs as Exercise[] | null) || []) {
-          if (!grouped[ex.phase]) grouped[ex.phase] = [];
-          grouped[ex.phase].push(ex);
+      .then(
+        ({ data: exs }) => {
+          const grouped: Record<string, Exercise[]> = {};
+          for (const ex of (exs as Exercise[] | null) || []) {
+            if (!grouped[ex.phase]) grouped[ex.phase] = [];
+            grouped[ex.phase].push(ex);
+          }
+          setExercisesByPhase(grouped);
+          setLoading(false);
+        },
+        () => {
+          setError("Could not load exercises. Check your connection.");
+          setLoading(false);
         }
-        setExercisesByPhase(grouped);
-        setLoading(false);
-      });
+      );
   }, []);
 
   function toggleExercise(id: string) {
@@ -58,6 +65,14 @@ export default function PickExercises() {
   function handleNext() {
     update({ selectedExerciseIds: Array.from(selected) });
     router.push("/(onboarding)/set-reminder");
+  }
+
+  if (error) {
+    return (
+      <View className="flex-1 bg-background items-center justify-center px-6">
+        <Text className="text-base text-center" style={{ color: "#6B6B6B" }}>{error}</Text>
+      </View>
+    );
   }
 
   if (loading) {
@@ -147,6 +162,18 @@ export default function PickExercises() {
               </View>
             </TouchableOpacity>
           );
+        }}
+        renderSectionFooter={({ section }) => {
+          if (section.locked && section.data.length === 0) {
+            return (
+              <View className="mb-4 px-2 py-3 rounded-2xl bg-surface border border-border border-dashed items-center">
+                <Text className="text-sm" style={{ color: "#A0A0A0" }}>
+                  Exercises for this phase are coming soon
+                </Text>
+              </View>
+            );
+          }
+          return null;
         }}
         ListEmptyComponent={
           <View className="items-center py-12">
