@@ -2,11 +2,12 @@ import { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from "react-native";
 import { Link } from "expo-router";
 import { supabase } from "../../lib/supabase";
-import { GoogleSignin } from "@react-native-google-signin/google-signin";
 
-GoogleSignin.configure({
-  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "",
-});
+let GoogleSignin: any = null;
+try {
+  GoogleSignin = require("@react-native-google-signin/google-signin").GoogleSignin;
+  GoogleSignin.configure({ webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "" });
+} catch {}
 
 export default function SignIn() {
   const [email, setEmail] = useState("");
@@ -21,6 +22,10 @@ export default function SignIn() {
   }
 
   async function handleGoogleSignIn() {
+    if (!GoogleSignin) {
+      Alert.alert("Not available", "Google Sign-In requires a development build.");
+      return;
+    }
     try {
       await GoogleSignin.hasPlayServices();
       const response = await GoogleSignin.signIn();

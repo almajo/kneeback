@@ -1,17 +1,20 @@
-import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import { supabase } from "./supabase";
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+let Notifications: typeof import("expo-notifications") | null = null;
+try {
+  Notifications = require("expo-notifications");
+  Notifications!.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+} catch {}
 
 export async function registerForPushNotifications(userId: string): Promise<string | null> {
-  if (!Device.isDevice) return null;
+  if (!Notifications || !Device.isDevice) return null;
 
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
@@ -23,25 +26,30 @@ export async function registerForPushNotifications(userId: string): Promise<stri
 
   if (finalStatus !== "granted") return null;
 
-  const token = (await Notifications.getExpoPushTokenAsync()).data;
-
-  await supabase.from("profiles").update({ expo_push_token: token }).eq("id", userId);
-
-  return token;
+  try {
+    const token = (await Notifications.getExpoPushTokenAsync()).data;
+    await supabase.from("profiles").update({ expo_push_token: token }).eq("id", userId);
+    return token;
+  } catch {
+    return null;
+  }
 }
 
 export async function scheduleDailyReminder(hour: number, minute: number) {
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  if (!Notifications) return;
 
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: "KneeBack",
-      body: "Time to do your exercises. Your knee is waiting.",
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour,
-      minute,
-    },
-  });
+  try {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "KneeBack",
+        body: "Time to do your exercises. Your knee is waiting.",
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour,
+        minute,
+      },
+    });
+  } catch {}
 }
