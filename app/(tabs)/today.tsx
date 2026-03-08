@@ -1,16 +1,22 @@
+import { useState } from "react";
 import { View, ScrollView, Text, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useToday } from "../../lib/hooks/use-today";
+import { useAuth } from "../../lib/auth-context";
 import { DayHeader } from "../../components/DayHeader";
 import { DailyMessage } from "../../components/DailyMessage";
 import { SmartRestToggle } from "../../components/SmartRestToggle";
 import { ExerciseCard } from "../../components/ExerciseCard";
+import { AchievementPopup } from "../../components/AchievementPopup";
 import { supabase } from "../../lib/supabase";
+import { checkAchievements, getStreak } from "../../lib/achievements";
 import { Colors } from "../../constants/colors";
+import type { Content } from "../../lib/types";
 
 export default function TodayScreen() {
   const router = useRouter();
+  const { session } = useAuth();
   const {
     loading,
     daysSinceSurgery,
@@ -21,6 +27,7 @@ export default function TodayScreen() {
     dailyMessage,
     refetch,
   } = useToday();
+  const [pendingAchievement, setPendingAchievement] = useState<Content | null>(null);
 
   if (loading) {
     return (
@@ -31,19 +38,59 @@ export default function TodayScreen() {
   }
 
   const isRestDay = dailyLog?.is_rest_day ?? false;
+  const userId = session?.user.id;
+
+  async function runAchievementCheck(overrides?: Partial<{ isFirstExercise: boolean; isFirstRestDay: boolean; completed: boolean }>) {
+    if (!userId) return;
+    const [streak, { data: allLogs }, { data: romRows }] = await Promise.all([
+      getStreak(userId),
+      supabase.from("exercise_logs").select("id, completed").eq("daily_log_id", dailyLog?.id ?? ""),
+      supabase.from("rom_measurements").select("flexion_degrees, extension_degrees, quad_activation").eq("user_id", userId).order("date", { ascending: false }).limit(1),
+    ]);
+    const logs = allLogs ?? [];
+    const completedNow = logs.filter((l) => l.completed).length;
+    const totalNow = userExercises.length;
+    const rom = romRows?.[0];
+    const newAchievements = await checkAchievements({
+      userId,
+      daysSinceSurgery,
+      streak,
+      totalExercisesCompleted: completedNow,
+      dailyComplete: overrides?.completed ?? (completedNow === totalNow && totalNow > 0),
+      isFirstExercise: overrides?.isFirstExercise ?? false,
+      isFirstRestDay: overrides?.isFirstRestDay ?? false,
+      isFirstMeasurement: false,
+      latestFlexion: rom?.flexion_degrees ?? null,
+      latestExtension: rom?.extension_degrees ?? null,
+      hasQuadActivation: rom?.quad_activation ?? false,
+    });
+    if (newAchievements.length > 0) {
+      setPendingAchievement(newAchievements[0]);
+    }
+  }
 
   async function toggleRestDay() {
     if (!dailyLog) return;
+    const newIsRest = !isRestDay;
     await supabase
       .from("daily_logs")
-      .update({ is_rest_day: !isRestDay })
+      .update({ is_rest_day: newIsRest })
       .eq("id", dailyLog.id);
-    refetch();
+    await refetch();
+    if (newIsRest) {
+      const { data: prevRestDays } = await supabase
+        .from("daily_logs")
+        .select("id")
+        .eq("user_id", userId!)
+        .eq("is_rest_day", true);
+      await runAchievementCheck({ isFirstRestDay: (prevRestDays?.length ?? 0) <= 1 });
+    }
   }
 
   async function updateExerciseLog(userExerciseId: string, updates: Record<string, any>) {
     if (!dailyLog) return;
     const existing = exerciseLogs.find((l) => l.user_exercise_id === userExerciseId);
+    const isFirstEver = exerciseLogs.every((l) => !l.completed) && updates.completed === true;
     if (existing) {
       await supabase.from("exercise_logs").update(updates).eq("id", existing.id);
     } else {
@@ -56,13 +103,18 @@ export default function TodayScreen() {
         ...updates,
       });
     }
-    refetch();
+    await refetch();
+    if (updates.completed === true) {
+      await runAchievementCheck({ isFirstExercise: isFirstEver });
+    }
   }
 
   const completedCount = exerciseLogs.filter((l) => l.completed).length;
   const totalCount = userExercises.length;
 
   return (
+    <>
+    <AchievementPopup achievement={pendingAchievement} onDismiss={() => setPendingAchievement(null)} />
     <ScrollView className="flex-1 bg-background" contentContainerStyle={{ paddingBottom: 100 }}>
       <DayHeader day={daysSinceSurgery} week={weekNumber} />
       <DailyMessage message={dailyMessage?.body ?? null} />
@@ -118,5 +170,6 @@ export default function TodayScreen() {
         </>
       )}
     </ScrollView>
+    </>
   );
 }
