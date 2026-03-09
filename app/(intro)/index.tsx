@@ -56,11 +56,24 @@ export default function IntroScreen() {
   const illustrationSize = Math.min(280, width * 0.6, height * 0.32);
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const startIndexRef = useRef(0);
+
+  const handleScrollBeginDrag = useCallback(() => {
+    startIndexRef.current = currentIndex;
+  }, [currentIndex]);
 
   const handleScrollEnd = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const index = Math.round(event.nativeEvent.contentOffset.x / width);
-      setCurrentIndex(index);
+      const rawIndex = Math.round(event.nativeEvent.contentOffset.x / width);
+      const clamped = Math.max(
+        startIndexRef.current - 1,
+        Math.min(startIndexRef.current + 1, rawIndex)
+      );
+      const finalIndex = Math.max(0, Math.min(SLIDES.length - 1, clamped));
+      if (finalIndex !== rawIndex) {
+        flatListRef.current?.scrollToIndex({ index: finalIndex, animated: true });
+      }
+      setCurrentIndex(finalIndex);
     },
     [width]
   );
@@ -79,17 +92,36 @@ export default function IntroScreen() {
     const node = (flatListRef.current as any)?.getScrollableNode?.() as HTMLElement | null;
     if (!node) return;
 
+    let isSnapping = false;
+
+    const onPointerDown = () => {
+      startIndexRef.current = Math.round(node.scrollLeft / width);
+    };
+
     let timer: ReturnType<typeof setTimeout>;
     const onScroll = () => {
+      if (isSnapping) return;
       clearTimeout(timer);
       timer = setTimeout(() => {
-        const index = Math.round(node.scrollLeft / width);
-        setCurrentIndex(index);
+        const rawIndex = Math.round(node.scrollLeft / width);
+        const clamped = Math.max(
+          startIndexRef.current - 1,
+          Math.min(startIndexRef.current + 1, rawIndex)
+        );
+        const finalIndex = Math.max(0, Math.min(SLIDES.length - 1, clamped));
+        setCurrentIndex(finalIndex);
+        if (finalIndex !== rawIndex) {
+          isSnapping = true;
+          node.scrollTo({ left: finalIndex * width, behavior: "smooth" });
+          setTimeout(() => { isSnapping = false; }, 400);
+        }
       }, 80);
     };
 
+    node.addEventListener("pointerdown", onPointerDown, { passive: true });
     node.addEventListener("scroll", onScroll, { passive: true });
     return () => {
+      node.removeEventListener("pointerdown", onPointerDown);
       node.removeEventListener("scroll", onScroll);
       clearTimeout(timer);
     };
@@ -117,6 +149,7 @@ export default function IntroScreen() {
         showsHorizontalScrollIndicator={false}
         keyExtractor={(item) => item.id}
         getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
+        onScrollBeginDrag={handleScrollBeginDrag}
         onMomentumScrollEnd={handleScrollEnd}
         onScrollEndDrag={handleScrollEnd}
         renderItem={({ item }) => {
