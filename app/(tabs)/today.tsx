@@ -135,7 +135,6 @@ export default function TodayScreen() {
       });
     }
     if (updates.completed === true) {
-      await refetch();
       await runAchievementCheck({ isFirstExercise: isFirstEver });
     }
   }
