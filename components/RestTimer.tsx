@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import * as Haptics from "expo-haptics";
+import * as Speech from "expo-speech";
 
 interface Props {
   seconds: number;
@@ -22,6 +23,9 @@ export function RestTimer({ seconds, onTimerComplete }: Props) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             return 0;
           }
+          if (prev >= 2 && prev <= 4) {
+            Speech.speak(String(prev - 1), { rate: 1.2 });
+          }
           return prev - 1;
         });
       }, 1000);
@@ -36,6 +40,7 @@ export function RestTimer({ seconds, onTimerComplete }: Props) {
       setRemaining(seconds);
       setRunning(true);
     } else {
+      if (running) Speech.stop();
       setRunning(!running);
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
