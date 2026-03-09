@@ -13,11 +13,12 @@ function RootLayoutNav() {
   useEffect(() => {
     if (loading) return;
 
-    const inAuthGroup = segments[0] === "(auth)";
+    const inPublicGroup =
+      segments[0] === "(auth)" || segments[0] === "(intro)";
 
-    if (!session && !inAuthGroup) {
+    if (!session && !inPublicGroup) {
       router.replace("/(auth)/sign-in");
-    } else if (session && inAuthGroup) {
+    } else if (session && inPublicGroup) {
       supabase
         .from("profiles")
         .select("id")
