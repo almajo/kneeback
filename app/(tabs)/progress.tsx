@@ -134,8 +134,6 @@ export default function ProgressScreen() {
       onSave={addMilestone}
     />
     <ScrollView className="flex-1 bg-background" contentContainerStyle={{ paddingTop: 16, paddingBottom: 40 }}>
-      <Text className="text-2xl font-bold px-4 mb-4" style={{ color: "#2D2D2D" }}>Progress</Text>
-
       <MilestoneTimeline
         milestones={milestones}
         onAdd={() => setSheetOpen(true)}

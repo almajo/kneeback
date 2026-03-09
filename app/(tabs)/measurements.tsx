@@ -99,8 +99,6 @@ export default function MeasurementsScreen() {
 
   return (
     <ScrollView className="flex-1 bg-background" contentContainerStyle={{ padding: 16, paddingTop: 16, paddingBottom: 40 }}>
-      <Text className="text-2xl font-bold mb-4" style={{ color: "#2D2D2D" }}>Measurements</Text>
-
       {/* Form */}
       <View className="bg-surface border border-border rounded-2xl p-4 mb-6">
         <Text className="text-base font-semibold mb-3" style={{ color: "#2D2D2D" }}>

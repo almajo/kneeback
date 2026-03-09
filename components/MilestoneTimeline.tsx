@@ -33,9 +33,8 @@ export function MilestoneTimeline({ milestones, onAdd, onDelete }: Props) {
   const past = milestones.filter((m) => m.date <= TODAY).slice().reverse(); // most recent first
 
   const visibleUpcoming = showAll ? upcoming : upcoming.slice(0, DEFAULT_VISIBLE);
-  const visiblePast = showAll ? past : past.slice(0, DEFAULT_VISIBLE);
-  const totalHidden = (upcoming.length - visibleUpcoming.length) + (past.length - visiblePast.length);
-  const isEmpty = milestones.length === 0;
+  const totalHidden = upcoming.length - visibleUpcoming.length;
+  const isEmpty = upcoming.length === 0;
 
   function confirmDelete(m: Milestone) {
     Alert.alert(
@@ -73,10 +72,10 @@ export function MilestoneTimeline({ milestones, onAdd, onDelete }: Props) {
         >
           <Text className="text-2xl mb-2">🏁</Text>
           <Text className="text-base font-semibold mb-1" style={{ color: Colors.textSecondary }}>
-            Add your first milestone
+            {milestones.length > 0 ? "No upcoming milestones" : "Add your first milestone"}
           </Text>
           <Text className="text-sm" style={{ color: Colors.textMuted }}>
-            Track upcoming events and personal wins
+            {milestones.length > 0 ? "Tap + Add to set your next goal" : "Track upcoming events and personal wins"}
           </Text>
         </TouchableOpacity>
       ) : (
@@ -92,29 +91,6 @@ export function MilestoneTimeline({ milestones, onAdd, onDelete }: Props) {
             />
           ))}
 
-          {/* TODAY divider */}
-          {(upcoming.length > 0 || past.length > 0) && (
-            <View className="flex-row items-center px-4 py-2" style={{ backgroundColor: Colors.surfaceAlt }}>
-              <View style={{ flex: 1, height: 1, backgroundColor: Colors.border }} />
-              <Text className="mx-3 text-xs font-bold tracking-widest" style={{ color: Colors.textMuted }}>
-                TODAY
-              </Text>
-              <View style={{ flex: 1, height: 1, backgroundColor: Colors.border }} />
-            </View>
-          )}
-
-          {/* Past */}
-          {visiblePast.length > 0 && visiblePast.map((m, i) => (
-            <MilestoneNode
-              key={m.id}
-              milestone={m}
-              isFirst={false}
-              isLast={i === visiblePast.length - 1}
-              past
-              onLongPress={() => confirmDelete(m)}
-            />
-          ))}
-
           {/* Show all toggle */}
           {totalHidden > 0 && (
             <TouchableOpacity
@@ -126,7 +102,7 @@ export function MilestoneTimeline({ milestones, onAdd, onDelete }: Props) {
               </Text>
             </TouchableOpacity>
           )}
-          {showAll && milestones.length > DEFAULT_VISIBLE * 2 && (
+          {showAll && upcoming.length > DEFAULT_VISIBLE && (
             <TouchableOpacity
               className="py-3 items-center border-t border-border"
               onPress={() => setShowAll(false)}
