@@ -56,7 +56,7 @@ export default function IntroScreen() {
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const onMomentumScrollEnd = useCallback(
+  const handleScrollEnd = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       const index = Math.round(event.nativeEvent.contentOffset.x / width);
       setCurrentIndex(index);
@@ -66,6 +66,7 @@ export default function IntroScreen() {
 
   const goNext = useCallback(() => {
     const next = currentIndex + 1;
+    setCurrentIndex(next);
     flatListRef.current?.scrollToIndex({ index: next, animated: true });
   }, [currentIndex]);
 
@@ -91,7 +92,8 @@ export default function IntroScreen() {
         showsHorizontalScrollIndicator={false}
         keyExtractor={(item) => item.id}
         getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
-        onMomentumScrollEnd={onMomentumScrollEnd}
+        onMomentumScrollEnd={handleScrollEnd}
+        onScrollEndDrag={handleScrollEnd}
         renderItem={({ item }) => {
           const { headline, subtext, Illustration } = item;
           return (
