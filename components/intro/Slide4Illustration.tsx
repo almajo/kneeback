@@ -1,9 +1,10 @@
 import React from "react";
 import Svg, { Rect, Circle, Path, G, Ellipse, Line } from "react-native-svg";
 
-export default function Slide4Illustration() {
+interface Props { size?: number }
+export default function Slide4Illustration({ size = 280 }: Props) {
   return (
-    <Svg width="280" height="280" viewBox="0 0 280 280">
+    <Svg width={size} height={size} viewBox="0 0 280 280">
       {/* Track / road */}
       <Ellipse cx="140" cy="220" rx="120" ry="24" fill="#E8E0D8" />
       <Ellipse cx="140" cy="220" rx="96" ry="16" fill="#F5F0EB" />

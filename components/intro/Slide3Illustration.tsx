@@ -1,9 +1,10 @@
 import React from "react";
 import Svg, { Rect, Circle, Path, G, Ellipse } from "react-native-svg";
 
-export default function Slide3Illustration() {
+interface Props { size?: number }
+export default function Slide3Illustration({ size = 280 }: Props) {
   return (
-    <Svg width="280" height="280" viewBox="0 0 280 280">
+    <Svg width={size} height={size} viewBox="0 0 280 280">
       {/* Floor */}
       <Rect x="20" y="230" width="240" height="12" rx="6" fill="#E8E0D8" />
 

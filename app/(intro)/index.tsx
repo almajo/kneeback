@@ -3,10 +3,10 @@ import {
   View,
   Text,
   FlatList,
-  Dimensions,
   TouchableOpacity,
   ViewToken,
   StyleSheet,
+  useWindowDimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -14,8 +14,6 @@ import Slide1Illustration from "../../components/intro/Slide1Illustration";
 import Slide2Illustration from "../../components/intro/Slide2Illustration";
 import Slide3Illustration from "../../components/intro/Slide3Illustration";
 import Slide4Illustration from "../../components/intro/Slide4Illustration";
-
-const { width } = Dimensions.get("window");
 
 const SLIDES = [
   {
@@ -52,6 +50,8 @@ async function completeIntro() {
 
 export default function IntroScreen() {
   const router = useRouter();
+  const { width, height } = useWindowDimensions();
+  const illustrationSize = Math.min(280, width * 0.6, height * 0.32);
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -98,7 +98,7 @@ export default function IntroScreen() {
           return (
             <View style={[styles.slide, { width }]}>
               <View style={styles.illustrationContainer}>
-                <Illustration />
+                <Illustration size={illustrationSize} />
               </View>
               <Text style={styles.headline}>{headline}</Text>
               {subtext ? (
@@ -156,11 +156,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 32,
-    paddingTop: 60,
-    paddingBottom: 20,
+    paddingVertical: 16,
   },
   illustrationContainer: {
-    marginBottom: 32,
+    marginBottom: 20,
   },
   headline: {
     fontSize: 28,
@@ -181,7 +180,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     gap: 8,
-    marginBottom: 24,
+    marginBottom: 12,
   },
   dot: {
     borderRadius: 4,
@@ -199,7 +198,7 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     paddingHorizontal: 32,
-    paddingBottom: 48,
+    paddingBottom: 24,
     gap: 12,
   },
   primaryButton: {
