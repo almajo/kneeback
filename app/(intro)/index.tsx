@@ -4,9 +4,10 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  ViewToken,
   StyleSheet,
   useWindowDimensions,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -55,19 +56,17 @@ export default function IntroScreen() {
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 50 });
-  const onViewableItemsChanged = useRef(
-    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      if (viewableItems.length > 0 && viewableItems[0].index != null) {
-        setCurrentIndex(viewableItems[0].index);
-      }
-    }
+  const onMomentumScrollEnd = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const index = Math.round(event.nativeEvent.contentOffset.x / width);
+      setCurrentIndex(index);
+    },
+    [width]
   );
 
   const goNext = useCallback(() => {
     const next = currentIndex + 1;
-    setCurrentIndex(next);
-    flatListRef.current?.scrollToOffset({ offset: next * width, animated: true });
+    flatListRef.current?.scrollToIndex({ index: next, animated: true });
   }, [currentIndex]);
 
   const handleSignIn = useCallback(async () => {
@@ -91,8 +90,8 @@ export default function IntroScreen() {
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         keyExtractor={(item) => item.id}
-        viewabilityConfig={viewabilityConfig.current}
-        onViewableItemsChanged={onViewableItemsChanged.current}
+        getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
+        onMomentumScrollEnd={onMomentumScrollEnd}
         renderItem={({ item }) => {
           const { headline, subtext, Illustration } = item;
           return (
