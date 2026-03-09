@@ -16,7 +16,14 @@ import { useAuth } from "../../lib/auth-context";
 import { supabase } from "../../lib/supabase";
 import { registerForPushNotifications, scheduleDailyReminder } from "../../lib/notifications";
 import { Colors } from "../../constants/colors";
-import type { Profile, NotificationPreferences } from "../../lib/types";
+import type { Profile, NotificationPreferences, GraftType } from "../../lib/types";
+
+const GRAFT_TYPE_OPTIONS: { value: GraftType; label: string }[] = [
+  { value: "patellar", label: "Patellar Tendon" },
+  { value: "hamstring", label: "Hamstring" },
+  { value: "quad", label: "Quad Tendon" },
+  { value: "allograft", label: "Allograft" },
+];
 
 function pad(n: number) {
   return n.toString().padStart(2, "0");
@@ -29,6 +36,8 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [savingNotif, setSavingNotif] = useState(false);
   const [editingReminder, setEditingReminder] = useState(false);
+  const [editingGraftType, setEditingGraftType] = useState(false);
+  const [savingGraftType, setSavingGraftType] = useState(false);
   const [reminderHour, setReminderHour] = useState(8);
   const [reminderMinute, setReminderMinute] = useState(0);
   const [reminderDate, setReminderDate] = useState(() => {
@@ -109,6 +118,15 @@ export default function ProfileScreen() {
     });
   }
 
+  async function saveGraftType(graftType: GraftType) {
+    if (!userId || !profile) return;
+    setSavingGraftType(true);
+    await supabase.from("profiles").update({ graft_type: graftType }).eq("id", userId);
+    setProfile({ ...profile, graft_type: graftType });
+    setEditingGraftType(false);
+    setSavingGraftType(false);
+  }
+
   async function handleSignOut() {
     await supabase.auth.signOut();
   }
@@ -177,7 +195,48 @@ export default function ProfileScreen() {
       <View className="bg-surface border border-border rounded-2xl p-4 mb-4">
         <Text className="text-base font-semibold mb-3" style={{ color: "#2D2D2D" }}>Surgery Details</Text>
         <InfoRow label="Surgery Date" value={profile?.surgery_date ? surgeryDateLabel(profile.surgery_date) : "—"} />
-        <InfoRow label="Graft Type" value={profile?.graft_type ? capitalize(profile.graft_type) : "—"} />
+
+        {/* Editable Graft Type */}
+        <TouchableOpacity
+          className="flex-row justify-between items-center py-3 border-b border-border"
+          onPress={() => setEditingGraftType((v) => !v)}
+        >
+          <Text style={{ color: "#6B6B6B" }}>Graft Type</Text>
+          <View className="flex-row items-center gap-2">
+            <Text className="font-semibold" style={{ color: "#2D2D2D" }}>
+              {profile?.graft_type
+                ? (GRAFT_TYPE_OPTIONS.find((o) => o.value === profile.graft_type)?.label ?? capitalize(profile.graft_type))
+                : "—"}
+            </Text>
+            <Ionicons
+              name={editingGraftType ? "chevron-up" : "chevron-down"}
+              size={14}
+              color="#A0A0A0"
+            />
+          </View>
+        </TouchableOpacity>
+        {editingGraftType && (
+          <View className="pb-2 pt-1">
+            {GRAFT_TYPE_OPTIONS.map((option) => {
+              const isSelected = profile?.graft_type === option.value;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  className={`flex-row items-center justify-between px-3 py-3 rounded-xl mb-1 ${isSelected ? "bg-primary" : "bg-background"}`}
+                  onPress={() => saveGraftType(option.value)}
+                  disabled={savingGraftType}
+                >
+                  <Text className="text-base" style={{ color: isSelected ? "#fff" : "#2D2D2D" }}>
+                    {option.label}
+                  </Text>
+                  {isSelected && <Ionicons name="checkmark" size={16} color="#fff" />}
+                  {savingGraftType && isSelected && <ActivityIndicator size="small" color="#fff" />}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+
         <InfoRow label="Knee" value={profile?.knee_side ? capitalize(profile.knee_side) : "—"} last />
       </View>
 
