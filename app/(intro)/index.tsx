@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from "react";
+import React, { useRef, useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   useWindowDimensions,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -69,6 +70,30 @@ export default function IntroScreen() {
     setCurrentIndex(next);
     flatListRef.current?.scrollToIndex({ index: next, animated: true });
   }, [currentIndex]);
+
+  // Web: attach a native scroll listener because onMomentumScrollEnd /
+  // onScrollEndDrag are not fired by React Native Web on mouse/pointer scroll.
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+
+    const node = (flatListRef.current as any)?.getScrollableNode?.() as HTMLElement | null;
+    if (!node) return;
+
+    let timer: ReturnType<typeof setTimeout>;
+    const onScroll = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const index = Math.round(node.scrollLeft / width);
+        setCurrentIndex(index);
+      }, 80);
+    };
+
+    node.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      node.removeEventListener("scroll", onScroll);
+      clearTimeout(timer);
+    };
+  }, [width]);
 
   const handleSignIn = useCallback(async () => {
     await completeIntro();
