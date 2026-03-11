@@ -32,7 +32,6 @@ export default function ProgressScreen() {
   const { session } = useAuth();
   const [loading, setLoading] = useState(true);
   const [romSheetOpen, setRomSheetOpen] = useState(false);
-  const [editingEntry, setEditingEntry] = useState<RomMeasurement | null>(null);
   const { milestones, addMilestone, deleteMilestone } = useMilestones();
   const [romData, setRomData] = useState<{ date: string; flexion: number | null; extension: number | null }[]>([]);
   const [measurements, setMeasurements] = useState<RomMeasurement[]>([]);
@@ -115,29 +114,13 @@ export default function ProgressScreen() {
     const userId = session.user.id;
 
     const record = { user_id: userId, ...payload };
+    const { error } = await supabase.from("rom_measurements").insert(record);
+    if (error) Alert.alert("Error", error.message);
 
-    if (editingEntry) {
-      const { error } = await supabase
-        .from("rom_measurements")
-        .update(record)
-        .eq("id", editingEntry.id);
-      if (error) Alert.alert("Error", error.message);
-    } else {
-      const { error } = await supabase.from("rom_measurements").insert(record);
-      if (error) Alert.alert("Error", error.message);
-    }
-
-    setEditingEntry(null);
     await fetchMeasurements();
   }
 
-  function openEditSheet(m: RomMeasurement) {
-    setEditingEntry(m);
-    setRomSheetOpen(true);
-  }
-
   function openAddSheet() {
-    setEditingEntry(null);
     setRomSheetOpen(true);
   }
 
@@ -153,9 +136,9 @@ export default function ProgressScreen() {
     <>
       <LogRomSheet
         visible={romSheetOpen}
-        onClose={() => { setRomSheetOpen(false); setEditingEntry(null); }}
+        onClose={() => setRomSheetOpen(false)}
         onSave={handleSaveRom}
-        editingEntry={editingEntry}
+        editingEntry={null}
       />
       <ScrollView className="flex-1 bg-background" contentContainerStyle={{ paddingTop: 16, paddingBottom: 40 }}>
         {/* ROM section */}
@@ -183,39 +166,6 @@ export default function ProgressScreen() {
           </View>
         ) : (
           <RomDualChart data={romData} daysSinceSurgery={daysSinceSurgery} />
-        )}
-
-        {/* Measurement history */}
-        {measurements.length > 0 && (
-          <View className="mx-4 mb-4">
-            {measurements.map((m) => (
-              <TouchableOpacity
-                key={m.id}
-                className="bg-surface border border-border rounded-2xl p-4 mb-2 flex-row items-center"
-                onPress={() => openEditSheet(m)}
-              >
-                <View className="flex-1">
-                  <Text className="text-xs font-semibold mb-1" style={{ color: Colors.textMuted }}>{m.date}</Text>
-                  <View className="flex-row gap-4">
-                    {m.flexion_degrees !== null && (
-                      <Text className="text-base font-bold" style={{ color: Colors.primary }}>
-                        Flex {m.flexion_degrees}°
-                      </Text>
-                    )}
-                    {m.extension_degrees !== null && (
-                      <Text className="text-base font-bold" style={{ color: Colors.secondary }}>
-                        Ext {m.extension_degrees}°
-                      </Text>
-                    )}
-                    {m.quad_activation && (
-                      <Text className="text-base" style={{ color: Colors.success }}>⚡ Quad</Text>
-                    )}
-                  </View>
-                </View>
-                <Ionicons name="pencil-outline" size={18} color={Colors.textMuted} />
-              </TouchableOpacity>
-            ))}
-          </View>
         )}
 
         <View className="mx-4 my-2 border-b border-border" />
