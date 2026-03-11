@@ -9,7 +9,7 @@ import {
   Platform,
   ActivityIndicator,
 } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { usePost } from "../../lib/hooks/use-post";
@@ -20,6 +20,7 @@ import { formatRelativeTime } from "../../lib/utils/format-time";
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const { post, comments, loading, submitting, addComment, toggleUpvote } = usePost(id);
   const [commentText, setCommentText] = useState("");
   const inputRef = useRef<TextInput>(null);
@@ -125,6 +126,29 @@ export default function PostDetailScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
+      {/* Back header */}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          paddingHorizontal: 8,
+          paddingVertical: 10,
+          borderBottomWidth: 1,
+          borderBottomColor: Colors.borderLight,
+          backgroundColor: Colors.surface,
+        }}
+      >
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{ padding: 8, flexDirection: "row", alignItems: "center", gap: 4 }}
+        >
+          <Ionicons name="chevron-back" size={22} color={Colors.primary} />
+          <Text style={{ fontSize: 15, color: Colors.primary, fontWeight: "600" }}>
+            Community
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <FlatList
         data={comments}
         keyExtractor={(item) => item.id}
