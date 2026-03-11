@@ -105,6 +105,37 @@ export interface NotificationPreferences {
   completion_congrats_enabled: boolean;
 }
 
+// Community types
+export type PostType = "question" | "milestone" | "life_hack";
+
+export interface CommunityPost {
+  id: string;
+  user_id: string;
+  post_type: PostType;
+  title: string;
+  body: string;
+  upvote_count: number;
+  created_at: string;
+  author_username: string;   // joined from profiles
+  comment_count: number;     // joined count
+  has_upvoted: boolean;      // computed per current user
+}
+
+export interface CommunityComment {
+  id: string;
+  post_id: string;
+  user_id: string;
+  body: string;
+  created_at: string;
+  author_username: string;   // joined from profiles
+}
+
+export interface CreatePostInput {
+  post_type: PostType;
+  title: string;
+  body: string;
+}
+
 // Supabase Database type (simplified, generate full version later)
 export interface Database {
   public: {
