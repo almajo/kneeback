@@ -53,22 +53,36 @@ export function usePost(postId: string) {
     ]);
 
     if (rawPost) {
-      // Fetch usernames for post author + all commenters
+      const commentList = rawComments ?? [];
+      const commentIds = commentList.map((c: any) => c.id as string);
       const commentAuthorIds = [
-        ...new Set((rawComments ?? []).map((c: any) => c.user_id as string)),
+        ...new Set(commentList.map((c: any) => c.user_id as string)),
       ];
       const allUserIds = [...new Set([rawPost.user_id, ...commentAuthorIds])];
 
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, username, surgery_date")
-        .in("id", allUserIds);
+      const [{ data: profiles }, { data: myCommentReactions }] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, username, surgery_date")
+          .in("id", allUserIds),
+        commentIds.length > 0
+          ? supabase
+              .from("community_comment_reactions")
+              .select("comment_id")
+              .eq("user_id", userId)
+              .in("comment_id", commentIds)
+          : Promise.resolve({ data: [] }),
+      ]);
 
       const profileMap = new Map(
         (profiles ?? []).map((p: any) => [
           p.id,
           { username: p.username, phase: getPhaseFromDate(p.surgery_date) },
         ])
+      );
+
+      const upvotedCommentIds = new Set(
+        (myCommentReactions ?? []).map((r: any) => r.comment_id)
       );
 
       setPost({
@@ -81,12 +95,12 @@ export function usePost(postId: string) {
         created_at: rawPost.created_at,
         author_username: profileMap.get(rawPost.user_id)?.username ?? "Anonymous",
         author_phase: profileMap.get(rawPost.user_id)?.phase ?? "",
-        comment_count: rawComments?.length ?? 0,
+        comment_count: commentList.length,
         has_upvoted: !!myReaction,
       });
 
       setComments(
-        (rawComments ?? []).map((c: any) => ({
+        commentList.map((c: any) => ({
           id: c.id,
           post_id: c.post_id,
           user_id: c.user_id,
@@ -94,6 +108,8 @@ export function usePost(postId: string) {
           created_at: c.created_at,
           author_username: profileMap.get(c.user_id)?.username ?? "Anonymous",
           author_phase: profileMap.get(c.user_id)?.phase ?? "",
+          upvote_count: c.upvote_count ?? 0,
+          has_upvoted: upvotedCommentIds.has(c.id),
         }))
       );
     }
@@ -118,6 +134,8 @@ export function usePost(postId: string) {
       created_at: new Date().toISOString(),
       author_username: myUsername,
       author_phase: myPhase,
+      upvote_count: 0,
+      has_upvoted: false,
     };
 
     setComments((prev) => [...prev, optimistic]);
@@ -141,6 +159,8 @@ export function usePost(postId: string) {
         created_at: data.created_at,
         author_username: myUsername,
         author_phase: myPhase,
+        upvote_count: 0,
+        has_upvoted: false,
       };
       setComments((prev) =>
         prev.map((c) => (c.id === optimistic.id ? real : c))
@@ -179,6 +199,39 @@ export function usePost(postId: string) {
     }
   }
 
+  async function toggleCommentUpvote(commentId: string) {
+    if (!userId) return;
+
+    const comment = comments.find((c) => c.id === commentId);
+    if (!comment) return;
+
+    const wasUpvoted = comment.has_upvoted;
+
+    setComments((prev) =>
+      prev.map((c) =>
+        c.id === commentId
+          ? {
+              ...c,
+              has_upvoted: !wasUpvoted,
+              upvote_count: wasUpvoted ? c.upvote_count - 1 : c.upvote_count + 1,
+            }
+          : c
+      )
+    );
+
+    if (wasUpvoted) {
+      await supabase
+        .from("community_comment_reactions")
+        .delete()
+        .eq("comment_id", commentId)
+        .eq("user_id", userId);
+    } else {
+      await supabase
+        .from("community_comment_reactions")
+        .insert({ comment_id: commentId, user_id: userId });
+    }
+  }
+
   return {
     post,
     comments,
@@ -186,5 +239,6 @@ export function usePost(postId: string) {
     submitting,
     addComment,
     toggleUpvote,
+    toggleCommentUpvote,
   };
 }

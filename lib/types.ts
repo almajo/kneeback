@@ -130,6 +130,8 @@ export interface CommunityComment {
   created_at: string;
   author_username: string;   // joined from profiles
   author_phase: string;      // computed from surgery_date
+  upvote_count: number;
+  has_upvoted: boolean;
 }
 
 export interface CreatePostInput {

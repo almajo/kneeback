@@ -1,13 +1,15 @@
 import { View, Text } from "react-native";
 import { Colors } from "../../constants/colors";
 import { formatRelativeTime } from "../../lib/utils/format-time";
+import { ReactionButton } from "./ReactionButton";
 import type { CommunityComment } from "../../lib/types";
 
 interface Props {
   comment: CommunityComment;
+  onUpvote: () => void;
 }
 
-export function CommentItem({ comment }: Props) {
+export function CommentItem({ comment, onUpvote }: Props) {
   const initial = (comment.author_username?.[0] ?? "?").toUpperCase();
 
   return (
@@ -57,6 +59,13 @@ export function CommentItem({ comment }: Props) {
           {comment.body}
         </Text>
       </View>
+
+      {/* Upvote */}
+      <ReactionButton
+        count={comment.upvote_count}
+        active={comment.has_upvoted}
+        onPress={onUpvote}
+      />
     </View>
   );
 }

@@ -21,7 +21,7 @@ import { formatRelativeTime } from "../../lib/utils/format-time";
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { post, comments, loading, submitting, addComment, toggleUpvote } = usePost(id);
+  const { post, comments, loading, submitting, addComment, toggleUpvote, toggleCommentUpvote } = usePost(id);
   const [commentText, setCommentText] = useState("");
   const inputRef = useRef<TextInput>(null);
 
@@ -166,7 +166,9 @@ export default function PostDetailScreen() {
       <FlatList
         data={comments}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <CommentItem comment={item} />}
+        renderItem={({ item }) => (
+            <CommentItem comment={item} onUpvote={() => toggleCommentUpvote(item.id)} />
+          )}
         ListHeaderComponent={renderHeader}
         contentContainerStyle={{ paddingBottom: 16 }}
         ItemSeparatorComponent={() => (
