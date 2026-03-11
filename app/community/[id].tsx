@@ -139,7 +139,7 @@ export default function PostDetailScreen() {
         }}
       >
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => router.push("/(tabs)/community")}
           style={{ padding: 8, flexDirection: "row", alignItems: "center", gap: 4 }}
         >
           <Ionicons name="chevron-back" size={22} color={Colors.primary} />
