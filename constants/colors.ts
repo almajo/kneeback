@@ -26,4 +26,8 @@ export const Colors = {
   // Border
   border: "#E8E0D8",
   borderLight: "#F0EAE2",
+
+  // Disabled
+  disabled: "#C8C0B8",
+  textDisabled: "#B0A8A0",
 };

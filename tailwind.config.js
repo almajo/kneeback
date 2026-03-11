@@ -12,9 +12,20 @@ module.exports = {
         rest: "#7E57C2",
         border: { DEFAULT: "#E8E0D8", light: "#F0EAE2" },
       },
+      fontFamily: {
+        sans: ["Outfit_400Regular", "system-ui", "sans-serif"],
+        medium: ["Outfit_500Medium", "system-ui", "sans-serif"],
+        semibold: ["Outfit_600SemiBold", "system-ui", "sans-serif"],
+        bold: ["Outfit_700Bold", "system-ui", "sans-serif"],
+        heading: ["Outfit_700Bold", "system-ui", "sans-serif"],
+      },
       borderRadius: {
         xl: "16px",
         "2xl": "24px",
+      },
+      boxShadow: {
+        card: "0 1px 4px rgba(0,0,0,0.08)",
+        modal: "0 4px 16px rgba(0,0,0,0.14)",
       },
     },
   },

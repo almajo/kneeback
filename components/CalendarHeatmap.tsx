@@ -21,7 +21,7 @@ function statusColor(status: DayStatus["status"]): string {
     case "complete": return Colors.success;
     case "rest": return Colors.rest;
     case "partial": return Colors.warning;
-    case "missed": return Colors.error + "60";
+    case "missed": return "#E5E5E5";
     case "future": return Colors.borderLight;
   }
 }
@@ -102,9 +102,10 @@ export function CalendarHeatmap({ days, month, milestones = [] }: Props) {
       </View>
       <View className="flex-row gap-3 mt-3 flex-wrap">
         {[
-          { label: "Complete", color: Colors.success, symbol: null },
-          { label: "Rest", color: Colors.rest, symbol: null },
-          { label: "Partial", color: Colors.warning, symbol: null },
+          { label: "Complete", color: Colors.success },
+          { label: "Rest", color: Colors.rest },
+          { label: "Partial", color: Colors.warning },
+          { label: "Missed", color: "#E5E5E5" },
         ].map((item) => (
           <View key={item.label} className="flex-row items-center gap-1">
             <View className="w-3 h-3 rounded-sm" style={{ backgroundColor: item.color }} />

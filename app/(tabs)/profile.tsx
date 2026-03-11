@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useAuth } from "../../lib/auth-context";
 import { supabase } from "../../lib/supabase";
 import { registerForPushNotifications, scheduleDailyReminder } from "../../lib/notifications";
@@ -30,6 +31,7 @@ function pad(n: number) {
 }
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const { session } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences | null>(null);
@@ -237,7 +239,19 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        <InfoRow label="Knee" value={profile?.knee_side ? capitalize(profile.knee_side) : "—"} last />
+        <InfoRow label="Knee" value={profile?.knee_side ? capitalize(profile.knee_side) : "—"} />
+
+        {/* Manage Exercises */}
+        <TouchableOpacity
+          className="flex-row justify-between items-center py-3"
+          onPress={() => router.push("/exercise-picker")}
+        >
+          <Text style={{ color: "#6B6B6B" }}>Exercise Plan</Text>
+          <View className="flex-row items-center gap-2">
+            <Text className="font-semibold" style={{ color: "#2D2D2D" }}>Manage</Text>
+            <Ionicons name="chevron-forward" size={14} color="#A0A0A0" />
+          </View>
+        </TouchableOpacity>
       </View>
 
       {/* Notifications */}
@@ -328,7 +342,7 @@ export default function ProfileScreen() {
             <Switch
               value={notifPrefs.evening_nudge_enabled}
               onValueChange={toggleEveningNudge}
-              trackColor={{ true: Colors.primary }}
+              trackColor={{ false: Colors.borderLight, true: Colors.secondary }}
               disabled={savingNotif}
             />
           </View>
@@ -363,9 +377,9 @@ function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-function InfoRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
+function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <View className={`flex-row justify-between py-3 ${!last ? "border-b border-border" : ""}`}>
+    <View className="flex-row justify-between py-3 border-b border-border">
       <Text style={{ color: "#6B6B6B" }}>{label}</Text>
       <Text className="font-semibold" style={{ color: "#2D2D2D" }}>{value}</Text>
     </View>

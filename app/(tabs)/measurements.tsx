@@ -8,7 +8,9 @@ import {
   Switch,
   Alert,
   ActivityIndicator,
+  Platform,
 } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../lib/auth-context";
 import { supabase } from "../../lib/supabase";
@@ -23,6 +25,8 @@ export default function MeasurementsScreen() {
 
   // Form state
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [dateObj, setDateObj] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [flexion, setFlexion] = useState("");
   const [extension, setExtension] = useState("");
   const [quadActivation, setQuadActivation] = useState(false);
@@ -46,7 +50,9 @@ export default function MeasurementsScreen() {
   }, [userId]);
 
   function resetForm() {
-    setDate(new Date().toISOString().split("T")[0]);
+    const now = new Date();
+    setDate(now.toISOString().split("T")[0]);
+    setDateObj(now);
     setFlexion("");
     setExtension("");
     setQuadActivation(false);
@@ -56,9 +62,20 @@ export default function MeasurementsScreen() {
   function startEdit(m: RomMeasurement) {
     setEditingId(m.id);
     setDate(m.date);
+    const [year, month, day] = m.date.split("-").map(Number);
+    setDateObj(new Date(year, month - 1, day));
     setFlexion(m.flexion_degrees?.toString() ?? "");
     setExtension(m.extension_degrees?.toString() ?? "");
     setQuadActivation(m.quad_activation);
+  }
+
+  function formatDateLabel(dateStr: string): string {
+    const [year, month, day] = dateStr.split("-").map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
   }
 
   async function saveMeasurement() {
@@ -106,13 +123,64 @@ export default function MeasurementsScreen() {
         </Text>
 
         <Text className="text-sm mb-1" style={{ color: "#6B6B6B" }}>Date</Text>
-        <TextInput
-          className="border border-border rounded-xl px-3 py-3 text-base mb-3 bg-background"
-          value={date}
-          onChangeText={setDate}
-          placeholder="YYYY-MM-DD"
-          keyboardType="numbers-and-punctuation"
-        />
+        {Platform.OS === "web" ? (
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => {
+              setDate(e.target.value);
+              if (e.target.value) {
+                const [y, mo, d] = e.target.value.split("-").map(Number);
+                setDateObj(new Date(y, mo - 1, d));
+              }
+            }}
+            style={{
+              width: "100%",
+              padding: "12px 16px",
+              fontSize: 16,
+              border: "1px solid #E8E0D8",
+              borderRadius: 12,
+              marginBottom: 12,
+              outline: "none",
+              boxSizing: "border-box",
+              backgroundColor: "#FFF8F0",
+              color: "#2D2D2D",
+            }}
+          />
+        ) : (
+          <>
+            <TouchableOpacity
+              className="border border-border rounded-xl px-3 py-3 mb-3 bg-background flex-row items-center justify-between"
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Text className="text-base" style={{ color: "#2D2D2D" }}>{formatDateLabel(date)}</Text>
+              <Ionicons name="calendar-outline" size={18} color={Colors.textMuted} />
+            </TouchableOpacity>
+            {showDatePicker && (
+              <DateTimePicker
+                value={dateObj}
+                mode="date"
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                maximumDate={new Date()}
+                onChange={(_, selected) => {
+                  setShowDatePicker(Platform.OS === "ios");
+                  if (selected) {
+                    setDateObj(selected);
+                    setDate(selected.toISOString().split("T")[0]);
+                  }
+                }}
+              />
+            )}
+            {showDatePicker && Platform.OS === "ios" && (
+              <TouchableOpacity
+                className="bg-primary rounded-xl py-3 items-center mb-3"
+                onPress={() => setShowDatePicker(false)}
+              >
+                <Text className="text-white font-semibold">Done</Text>
+              </TouchableOpacity>
+            )}
+          </>
+        )}
 
         <View className="flex-row gap-3 mb-3">
           <View className="flex-1">

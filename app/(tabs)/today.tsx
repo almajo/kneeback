@@ -26,6 +26,7 @@ export default function TodayScreen() {
     dailyLog,
     exerciseLogs: initialExerciseLogs,
     dailyMessage,
+    streak,
     refetch,
     updateUserExercise,
   } = useToday();
@@ -146,7 +147,7 @@ export default function TodayScreen() {
     <>
     <AchievementPopup achievement={pendingAchievement} onDismiss={() => setPendingAchievement(null)} />
     <ScrollView className="flex-1 bg-background" contentContainerStyle={{ paddingBottom: 100 }}>
-      <DayHeader day={daysSinceSurgery} week={weekNumber} />
+      <DayHeader day={daysSinceSurgery} week={weekNumber} streak={streak} />
       <DailyMessage message={dailyMessage?.body ?? null} />
 
       {todayMilestones.length > 0 && (
@@ -175,11 +176,13 @@ export default function TodayScreen() {
         </View>
       )}
 
-      <Text className="mx-4 mt-2 mb-1 text-base font-bold" style={{ color: "#2D2D2D" }}>
-        Today's Training
-      </Text>
-
       <SmartRestToggle isRestDay={isRestDay} onToggle={toggleRestDay} />
+
+      {!isRestDay && (
+        <Text className="mx-4 mt-2 mb-1 text-base font-bold" style={{ color: "#2D2D2D" }}>
+          {"Today's Training"}
+        </Text>
+      )}
 
       {isRestDay ? (
         <View className="mx-4 rounded-2xl p-6 items-center" style={{ backgroundColor: "#7E57C220" }}>
@@ -191,15 +194,26 @@ export default function TodayScreen() {
       ) : (
         <>
           {totalCount > 0 && (
-            <View className="mx-4 mb-3 flex-row items-center">
-              <Text className="text-sm font-semibold" style={{ color: "#6B6B6B" }}>
-                {completedCount}/{totalCount} complete
-              </Text>
-              {completedCount === totalCount && totalCount > 0 && (
-                <Text className="ml-2 text-sm font-bold" style={{ color: Colors.success }}>
-                  🎉 All done!
+            <View className="mx-4 mb-3">
+              <View className="flex-row items-center justify-between mb-1.5">
+                <Text className="text-sm font-semibold" style={{ color: "#6B6B6B" }}>
+                  {completedCount}/{totalCount} complete
                 </Text>
-              )}
+                {completedCount === totalCount && totalCount > 0 && (
+                  <Text className="text-sm font-bold" style={{ color: Colors.success }}>
+                    🎉 All done!
+                  </Text>
+                )}
+              </View>
+              <View className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: Colors.borderLight }}>
+                <View
+                  className="h-2 rounded-full"
+                  style={{
+                    backgroundColor: completedCount === totalCount ? Colors.success : Colors.primary,
+                    width: `${totalCount > 0 ? (completedCount / totalCount) * 100 : 0}%`,
+                  }}
+                />
+              </View>
             </View>
           )}
 
@@ -207,6 +221,16 @@ export default function TodayScreen() {
             <View className="mx-4 bg-surface border border-border rounded-2xl p-6 items-center">
               <Text className="text-base text-center" style={{ color: "#6B6B6B" }}>
                 No exercises yet. Add your first one below.
+              </Text>
+            </View>
+          ) : completedCount === totalCount && totalCount > 0 ? (
+            <View className="mx-4 rounded-2xl p-6 items-center mb-3" style={{ backgroundColor: Colors.success + "15", borderColor: Colors.success + "40", borderWidth: 1 }}>
+              <Text className="text-3xl mb-2">🎉</Text>
+              <Text className="text-base font-bold mb-1" style={{ color: Colors.success }}>
+                Session Complete!
+              </Text>
+              <Text className="text-sm text-center" style={{ color: "#6B6B6B" }}>
+                Your knee did the work. Come back tomorrow.
               </Text>
             </View>
           ) : (

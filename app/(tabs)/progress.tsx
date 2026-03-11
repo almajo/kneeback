@@ -149,8 +149,12 @@ export default function ProgressScreen() {
 
       {romData.length === 0 && (
         <View className="mx-4 mt-4 bg-surface border border-border rounded-2xl p-6 items-center">
-          <Text className="text-base text-center" style={{ color: "#6B6B6B" }}>
-            Log your first ROM measurement to see your progress charts.
+          <Text className="text-3xl mb-2">📐</Text>
+          <Text className="text-base font-semibold mb-1 text-center" style={{ color: "#2D2D2D" }}>
+            No measurements yet
+          </Text>
+          <Text className="text-sm text-center" style={{ color: "#6B6B6B" }}>
+            Log your first ROM measurement in the Measure tab to unlock your progress charts.
           </Text>
         </View>
       )}

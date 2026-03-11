@@ -64,7 +64,7 @@ export function MilestoneTimeline({ milestones, onAdd, onDelete }: Props) {
         </TouchableOpacity>
       </View>
 
-      {isEmpty ? (
+      {milestones.length === 0 ? (
         <TouchableOpacity
           onPress={onAdd}
           className="border-2 border-dashed rounded-2xl py-8 items-center"
@@ -72,24 +72,33 @@ export function MilestoneTimeline({ milestones, onAdd, onDelete }: Props) {
         >
           <Text className="text-2xl mb-2">🏁</Text>
           <Text className="text-base font-semibold mb-1" style={{ color: Colors.textSecondary }}>
-            {milestones.length > 0 ? "No upcoming milestones" : "Add your first milestone"}
+            Add your first milestone
           </Text>
           <Text className="text-sm" style={{ color: Colors.textMuted }}>
-            {milestones.length > 0 ? "Tap + Add to set your next goal" : "Track upcoming events and personal wins"}
+            Track upcoming events and personal wins
           </Text>
         </TouchableOpacity>
       ) : (
         <View className="bg-surface border border-border rounded-2xl overflow-hidden">
-          {/* Upcoming */}
-          {visibleUpcoming.length > 0 && visibleUpcoming.map((m, i) => (
-            <MilestoneNode
-              key={m.id}
-              milestone={m}
-              isFirst={i === 0}
-              isLast={false}
-              onLongPress={() => confirmDelete(m)}
-            />
-          ))}
+          {/* Upcoming section */}
+          {visibleUpcoming.length > 0 && (
+            <>
+              <View className="px-4 py-2 border-b border-border" style={{ backgroundColor: Colors.background }}>
+                <Text className="text-xs font-semibold uppercase tracking-wider" style={{ color: Colors.textMuted }}>
+                  Upcoming
+                </Text>
+              </View>
+              {visibleUpcoming.map((m, i) => (
+                <MilestoneNode
+                  key={m.id}
+                  milestone={m}
+                  isFirst={i === 0}
+                  isLast={false}
+                  onLongPress={() => confirmDelete(m)}
+                />
+              ))}
+            </>
+          )}
 
           {/* Show all toggle */}
           {totalHidden > 0 && (
@@ -109,6 +118,45 @@ export function MilestoneTimeline({ milestones, onAdd, onDelete }: Props) {
             >
               <Text className="text-sm font-semibold" style={{ color: Colors.textMuted }}>
                 Show less
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Achieved section */}
+          {past.length > 0 && (
+            <>
+              <View className="px-4 py-2 border-t border-border" style={{ backgroundColor: Colors.background }}>
+                <Text className="text-xs font-semibold uppercase tracking-wider" style={{ color: Colors.textMuted }}>
+                  Achieved
+                </Text>
+              </View>
+              {past.slice(0, 3).map((m, i) => (
+                <MilestoneNode
+                  key={m.id}
+                  milestone={m}
+                  isFirst={i === 0}
+                  isLast={i === Math.min(past.length, 3) - 1}
+                  past
+                  onLongPress={() => confirmDelete(m)}
+                />
+              ))}
+              {past.length > 3 && (
+                <View className="py-2 items-center border-t border-border">
+                  <Text className="text-xs" style={{ color: Colors.textMuted }}>
+                    + {past.length - 3} more achieved
+                  </Text>
+                </View>
+              )}
+            </>
+          )}
+
+          {isEmpty && (
+            <TouchableOpacity
+              onPress={onAdd}
+              className="py-8 items-center border-t border-border"
+            >
+              <Text className="text-sm" style={{ color: Colors.textMuted }}>
+                No upcoming milestones — Tap + Add to set your next goal
               </Text>
             </TouchableOpacity>
           )}
@@ -146,8 +194,7 @@ function MilestoneNode({ milestone, isFirst, isLast, past = false, onLongPress }
     }
   }, [isToday, past]);
 
-  const nodeColor = isMilestone ? Colors.primary : Colors.success;
-  const dimmed = past && !isToday;
+  const nodeColor = past ? Colors.success : (isMilestone ? Colors.primary : Colors.success);
 
   return (
     <TouchableOpacity
@@ -158,8 +205,7 @@ function MilestoneNode({ milestone, isFirst, isLast, past = false, onLongPress }
       <View
         className="flex-row px-4 py-3"
         style={{
-          opacity: dimmed ? 0.55 : 1,
-          backgroundColor: isToday ? nodeColor + "0D" : "transparent",
+          backgroundColor: isToday ? nodeColor + "0D" : past ? Colors.success + "08" : "transparent",
           borderTopWidth: isFirst ? 0 : 1,
           borderTopColor: Colors.border,
         }}
@@ -168,10 +214,10 @@ function MilestoneNode({ milestone, isFirst, isLast, past = false, onLongPress }
         <View style={{ width: 28, alignItems: "center", paddingTop: 2 }}>
           {isToday ? (
             <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-              <NodeIcon category={milestone.category} color={nodeColor} />
+              <NodeIcon category={milestone.category} color={nodeColor} past={past} />
             </Animated.View>
           ) : (
-            <NodeIcon category={milestone.category} color={nodeColor} />
+            <NodeIcon category={milestone.category} color={nodeColor} past={past} />
           )}
         </View>
 
@@ -179,7 +225,7 @@ function MilestoneNode({ milestone, isFirst, isLast, past = false, onLongPress }
         <View style={{ flex: 1, marginLeft: 10 }}>
           <Text
             className="text-sm font-semibold"
-            style={{ color: dimmed ? Colors.textMuted : Colors.text }}
+            style={{ color: past ? Colors.textMuted : Colors.text }}
           >
             {milestone.title}
           </Text>
@@ -187,7 +233,16 @@ function MilestoneNode({ milestone, isFirst, isLast, past = false, onLongPress }
             <Text className="text-xs" style={{ color: Colors.textMuted }}>
               {formatDate(milestone.date)}
             </Text>
-            {daysUntil !== null && daysUntil >= 0 && (
+            {past ? (
+              <View
+                className="rounded-full px-2 py-0.5"
+                style={{ backgroundColor: Colors.success + "20" }}
+              >
+                <Text className="text-xs font-semibold" style={{ color: Colors.success }}>
+                  ✓ achieved
+                </Text>
+              </View>
+            ) : daysUntil !== null && daysUntil >= 0 ? (
               <View
                 className="rounded-full px-2 py-0.5"
                 style={{ backgroundColor: Colors.primary + "20" }}
@@ -196,7 +251,7 @@ function MilestoneNode({ milestone, isFirst, isLast, past = false, onLongPress }
                   {daysUntil === 0 ? "today!" : daysUntil === 1 ? "tomorrow" : `in ${daysUntil} days`}
                 </Text>
               </View>
-            )}
+            ) : null}
           </View>
           {milestone.notes && (
             <Text className="text-xs mt-1" style={{ color: Colors.textMuted }}>
@@ -209,7 +264,12 @@ function MilestoneNode({ milestone, isFirst, isLast, past = false, onLongPress }
   );
 }
 
-function NodeIcon({ category, color }: { category: "milestone" | "win"; color: string }) {
+function NodeIcon({ category, color, past }: { category: "milestone" | "win"; color: string; past?: boolean }) {
+  if (past) {
+    return (
+      <Text style={{ fontSize: 16, color, lineHeight: 20 }}>✓</Text>
+    );
+  }
   return (
     <Text style={{ fontSize: 16, color, lineHeight: 20 }}>
       {category === "milestone" ? "◆" : "★"}

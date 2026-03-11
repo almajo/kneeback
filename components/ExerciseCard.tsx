@@ -1,6 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity, LayoutAnimation, Platform, UIManager } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { Colors } from "../constants/colors";
 import { RestTimer } from "./RestTimer";
 import { SetTracker } from "./SetTracker";
@@ -53,7 +57,11 @@ export function ExerciseCard({ userExercise, log, onUpdate, disabled }: Props) {
     >
       <TouchableOpacity
         className="flex-row items-center px-4 py-4"
-        onPress={() => !disabled && setExpanded(!expanded)}
+        onPress={() => {
+          if (disabled) return;
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+          setExpanded(!expanded);
+        }}
         disabled={disabled}
       >
         <TouchableOpacity

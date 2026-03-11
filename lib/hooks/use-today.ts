@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../supabase";
 import { useAuth } from "../auth-context";
+import { getStreak } from "../achievements";
 import type { UserExercise, DailyLog, ExerciseLog, Content } from "../types";
 
 export function useToday() {
@@ -10,6 +11,7 @@ export function useToday() {
   const [dailyLog, setDailyLog] = useState<DailyLog | null>(null);
   const [exerciseLogs, setExerciseLogs] = useState<ExerciseLog[]>([]);
   const [dailyMessage, setDailyMessage] = useState<Content | null>(null);
+  const [streak, setStreak] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const today = new Date().toISOString().split("T")[0];
@@ -73,6 +75,10 @@ export function useToday() {
       setDailyMessage(messages[dayIndex] as Content);
     }
 
+    // Fetch streak
+    const currentStreak = await getStreak(userId);
+    setStreak(currentStreak);
+
     setLoading(false);
   }, [userId, today]);
 
@@ -100,6 +106,7 @@ export function useToday() {
     dailyLog,
     exerciseLogs,
     dailyMessage,
+    streak,
     refetch: fetchAll,
     updateUserExercise,
   };
