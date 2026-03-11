@@ -87,6 +87,20 @@ export default function PostDetailScreen() {
             <Text style={{ fontSize: 14, fontWeight: "600", color: Colors.textSecondary }}>
               {post.author_username}
             </Text>
+            {!!post.author_phase && (
+              <View
+                style={{
+                  backgroundColor: Colors.secondary + "20",
+                  borderRadius: 100,
+                  paddingHorizontal: 7,
+                  paddingVertical: 2,
+                }}
+              >
+                <Text style={{ fontSize: 10, fontWeight: "600", color: Colors.secondaryDark }}>
+                  {post.author_phase}
+                </Text>
+              </View>
+            )}
           </View>
           <ReactionButton
             count={post.upvote_count}

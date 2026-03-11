@@ -1,3 +1,13 @@
+export function getPhaseFromDate(surgeryDate: string): string {
+  const days = Math.floor(
+    (Date.now() - new Date(surgeryDate).getTime()) / 86400000
+  );
+  if (days <= 14) return "Acute Phase";
+  if (days <= 42) return "Early Rehab";
+  if (days <= 90) return "Strengthening";
+  return "Return to Activity";
+}
+
 export function formatRelativeTime(iso: string): string {
   const now = Date.now();
   const then = new Date(iso).getTime();

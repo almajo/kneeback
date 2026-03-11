@@ -35,6 +35,20 @@ export function CommentItem({ comment }: Props) {
           <Text style={{ fontSize: 13, fontWeight: "600", color: Colors.text }}>
             {comment.author_username}
           </Text>
+          {!!comment.author_phase && (
+            <View
+              style={{
+                backgroundColor: Colors.secondary + "20",
+                borderRadius: 100,
+                paddingHorizontal: 7,
+                paddingVertical: 2,
+              }}
+            >
+              <Text style={{ fontSize: 10, fontWeight: "600", color: Colors.secondaryDark }}>
+                {comment.author_phase}
+              </Text>
+            </View>
+          )}
           <Text style={{ fontSize: 12, color: Colors.textMuted }}>
             {formatRelativeTime(comment.created_at)}
           </Text>

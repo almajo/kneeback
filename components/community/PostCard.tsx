@@ -74,6 +74,20 @@ export function PostCard({ post, onPress, onUpvote }: Props) {
           <Text style={{ fontSize: 13, color: Colors.textSecondary, fontWeight: "500" }}>
             {post.author_username}
           </Text>
+          {!!post.author_phase && (
+            <View
+              style={{
+                backgroundColor: Colors.secondary + "20",
+                borderRadius: 100,
+                paddingHorizontal: 7,
+                paddingVertical: 2,
+              }}
+            >
+              <Text style={{ fontSize: 10, fontWeight: "600", color: Colors.secondaryDark }}>
+                {post.author_phase}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Actions */}

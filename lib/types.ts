@@ -117,6 +117,7 @@ export interface CommunityPost {
   upvote_count: number;
   created_at: string;
   author_username: string;   // joined from profiles
+  author_phase: string;      // computed from surgery_date
   comment_count: number;     // joined count
   has_upvoted: boolean;      // computed per current user
 }
@@ -128,6 +129,7 @@ export interface CommunityComment {
   body: string;
   created_at: string;
   author_username: string;   // joined from profiles
+  author_phase: string;      // computed from surgery_date
 }
 
 export interface CreatePostInput {

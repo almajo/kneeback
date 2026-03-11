@@ -2,17 +2,25 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../supabase";
 import { useAuth } from "../auth-context";
 import type { CommunityPost, CreatePostInput } from "../types";
+import { getPhaseFromDate } from "../utils/format-time";
 
 const PAGE_SIZE = 20;
 
-async function fetchUsernames(userIds: string[]): Promise<Map<string, string>> {
+interface ProfileInfo { username: string; phase: string }
+
+async function fetchProfiles(userIds: string[]): Promise<Map<string, ProfileInfo>> {
   if (userIds.length === 0) return new Map();
   const { data } = await supabase
     .from("profiles")
-    .select("id, username")
+    .select("id, username, surgery_date")
     .in("id", userIds);
-  const map = new Map<string, string>();
-  (data ?? []).forEach((p: any) => map.set(p.id, p.username));
+  const map = new Map<string, ProfileInfo>();
+  (data ?? []).forEach((p: any) =>
+    map.set(p.id, {
+      username: p.username,
+      phase: getPhaseFromDate(p.surgery_date),
+    })
+  );
   return map;
 }
 
@@ -31,7 +39,7 @@ async function fetchPage(
   const postIds = rawPosts.map((p: any) => p.id as string);
   const authorIds = [...new Set(rawPosts.map((p: any) => p.user_id as string))];
 
-  const [{ data: comments }, { data: myReactions }, usernameMap] =
+  const [{ data: comments }, { data: myReactions }, profileMap] =
     await Promise.all([
       supabase
         .from("community_comments")
@@ -42,7 +50,7 @@ async function fetchPage(
         .select("post_id")
         .eq("user_id", userId)
         .in("post_id", postIds),
-      fetchUsernames(authorIds),
+      fetchProfiles(authorIds),
     ]);
 
   const commentCountMap = new Map<string, number>();
@@ -60,7 +68,8 @@ async function fetchPage(
     body: p.body,
     upvote_count: p.upvote_count,
     created_at: p.created_at,
-    author_username: usernameMap.get(p.user_id) ?? "Anonymous",
+    author_username: profileMap.get(p.user_id)?.username ?? "Anonymous",
+    author_phase: profileMap.get(p.user_id)?.phase ?? "",
     comment_count: commentCountMap.get(p.id) ?? 0,
     has_upvoted: upvotedSet.has(p.id),
   }));
@@ -115,15 +124,16 @@ export function useCommunity() {
   async function createPost(input: CreatePostInput) {
     if (!userId) return;
 
+    const { data: myProfile } = await supabase
+      .from("profiles")
+      .select("username, surgery_date")
+      .eq("id", userId)
+      .single();
     const optimisticUsername =
-      (await supabase
-        .from("profiles")
-        .select("username")
-        .eq("id", userId)
-        .single()
-        .then(({ data }) => data?.username)) ??
-      session?.user.email?.split("@")[0] ??
-      "You";
+      myProfile?.username ?? session?.user.email?.split("@")[0] ?? "You";
+    const optimisticPhase = myProfile?.surgery_date
+      ? getPhaseFromDate(myProfile.surgery_date)
+      : "";
 
     const optimistic: CommunityPost = {
       id: `optimistic-${Date.now()}`,
@@ -134,6 +144,7 @@ export function useCommunity() {
       upvote_count: 0,
       created_at: new Date().toISOString(),
       author_username: optimisticUsername,
+      author_phase: optimisticPhase,
       comment_count: 0,
       has_upvoted: false,
     };
@@ -156,6 +167,7 @@ export function useCommunity() {
         upvote_count: data.upvote_count,
         created_at: data.created_at,
         author_username: optimisticUsername,
+        author_phase: optimisticPhase,
         comment_count: 0,
         has_upvoted: false,
       };

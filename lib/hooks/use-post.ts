@@ -2,14 +2,18 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../supabase";
 import { useAuth } from "../auth-context";
 import type { CommunityPost, CommunityComment } from "../types";
+import { getPhaseFromDate } from "../utils/format-time";
 
-async function getUsername(userId: string): Promise<string> {
+async function getProfile(userId: string): Promise<{ username: string; phase: string }> {
   const { data } = await supabase
     .from("profiles")
-    .select("username")
+    .select("username, surgery_date")
     .eq("id", userId)
     .single();
-  return data?.username ?? "Anonymous";
+  return {
+    username: data?.username ?? "Anonymous",
+    phase: data?.surgery_date ? getPhaseFromDate(data.surgery_date) : "",
+  };
 }
 
 export function usePost(postId: string) {
@@ -57,11 +61,14 @@ export function usePost(postId: string) {
 
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, username")
+        .select("id, username, surgery_date")
         .in("id", allUserIds);
 
-      const usernameMap = new Map<string, string>(
-        (profiles ?? []).map((p: any) => [p.id, p.username])
+      const profileMap = new Map(
+        (profiles ?? []).map((p: any) => [
+          p.id,
+          { username: p.username, phase: getPhaseFromDate(p.surgery_date) },
+        ])
       );
 
       setPost({
@@ -72,7 +79,8 @@ export function usePost(postId: string) {
         body: rawPost.body,
         upvote_count: rawPost.upvote_count,
         created_at: rawPost.created_at,
-        author_username: usernameMap.get(rawPost.user_id) ?? "Anonymous",
+        author_username: profileMap.get(rawPost.user_id)?.username ?? "Anonymous",
+        author_phase: profileMap.get(rawPost.user_id)?.phase ?? "",
         comment_count: rawComments?.length ?? 0,
         has_upvoted: !!myReaction,
       });
@@ -84,7 +92,8 @@ export function usePost(postId: string) {
           user_id: c.user_id,
           body: c.body,
           created_at: c.created_at,
-          author_username: usernameMap.get(c.user_id) ?? "Anonymous",
+          author_username: profileMap.get(c.user_id)?.username ?? "Anonymous",
+          author_phase: profileMap.get(c.user_id)?.phase ?? "",
         }))
       );
     }
@@ -99,7 +108,7 @@ export function usePost(postId: string) {
   async function addComment(body: string) {
     if (!userId || !postId || !body.trim()) return;
 
-    const myUsername = await getUsername(userId);
+    const { username: myUsername, phase: myPhase } = await getProfile(userId);
 
     const optimistic: CommunityComment = {
       id: `optimistic-${Date.now()}`,
@@ -108,6 +117,7 @@ export function usePost(postId: string) {
       body: body.trim(),
       created_at: new Date().toISOString(),
       author_username: myUsername,
+      author_phase: myPhase,
     };
 
     setComments((prev) => [...prev, optimistic]);
@@ -130,6 +140,7 @@ export function usePost(postId: string) {
         body: data.body,
         created_at: data.created_at,
         author_username: myUsername,
+        author_phase: myPhase,
       };
       setComments((prev) =>
         prev.map((c) => (c.id === optimistic.id ? real : c))
