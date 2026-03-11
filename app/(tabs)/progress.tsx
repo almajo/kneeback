@@ -13,10 +13,8 @@ import { supabase } from "../../lib/supabase";
 import { Colors } from "../../constants/colors";
 import { RomDualChart } from "../../components/RomDualChart";
 import { QuadStreak } from "../../components/QuadStreak";
-import { CalendarHeatmap } from "../../components/CalendarHeatmap";
-import { MilestoneTimeline } from "../../components/MilestoneTimeline";
-import { AddMilestoneSheet } from "../../components/AddMilestoneSheet";
 import { LogRomSheet } from "../../components/LogRomSheet";
+import { ProgressCalendar } from "../../components/ProgressCalendar";
 import { useMilestones } from "../../lib/hooks/use-milestones";
 import type { RomMeasurement } from "../../lib/types";
 
@@ -30,35 +28,18 @@ function getLast30Dates(): string[] {
   return dates;
 }
 
-function getCurrentMonthDates(): string[] {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const dates: string[] = [];
-  for (let d = 1; d <= daysInMonth; d++) {
-    dates.push(`${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
-  }
-  return dates;
-}
-
 export default function ProgressScreen() {
   const { session } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [milestoneSheetOpen, setMilestoneSheetOpen] = useState(false);
   const [romSheetOpen, setRomSheetOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<RomMeasurement | null>(null);
   const { milestones, addMilestone, deleteMilestone } = useMilestones();
   const [romData, setRomData] = useState<{ date: string; flexion: number | null; extension: number | null }[]>([]);
   const [measurements, setMeasurements] = useState<RomMeasurement[]>([]);
   const [activationDays, setActivationDays] = useState<Set<string>>(new Set());
-  const [heatmapDays, setHeatmapDays] = useState<{ date: string; status: "complete" | "rest" | "partial" | "missed" | "future" }[]>([]);
   const [surgeryDate, setSurgeryDate] = useState<string | null>(null);
 
   const last30 = getLast30Dates();
-  const monthDates = getCurrentMonthDates();
-  const now = new Date().toISOString().split("T")[0];
-  const currentMonth = now.slice(0, 7);
 
   const daysSinceSurgery = surgeryDate
     ? Math.floor((Date.now() - new Date(surgeryDate).getTime()) / 86_400_000)
@@ -96,48 +77,6 @@ export default function ProgressScreen() {
         ));
       }
 
-      // Daily logs for heatmap
-      const { data: logs } = await supabase
-        .from("daily_logs")
-        .select("date, is_rest_day, id")
-        .eq("user_id", userId)
-        .gte("date", `${currentMonth}-01`);
-
-      const logIds = (logs || []).map((l) => l.id);
-      const { data: exLogs } = await supabase
-        .from("exercise_logs")
-        .select("daily_log_id, user_exercise_id, completed")
-        .in("daily_log_id", logIds.length > 0 ? logIds : [""]);
-
-      const logMap = new Map<string, { isRest: boolean; logId: string }>();
-      (logs || []).forEach((l) => logMap.set(l.date, { isRest: l.is_rest_day, logId: l.id }));
-
-      const exerciseStatusMap = new Map<string, boolean>();
-      (exLogs || []).forEach((el) => {
-        const key = `${el.daily_log_id}|${el.user_exercise_id}`;
-        exerciseStatusMap.set(key, (exerciseStatusMap.get(key) ?? false) || el.completed);
-      });
-
-      const completionMap = new Map<string, { total: number; done: number }>();
-      exerciseStatusMap.forEach((isDone, key) => {
-        const dailyLogId = key.split("|")[0];
-        const entry = completionMap.get(dailyLogId) || { total: 0, done: 0 };
-        entry.total++;
-        if (isDone) entry.done++;
-        completionMap.set(dailyLogId, entry);
-      });
-
-      const days = monthDates.map((date) => {
-        if (date > now) return { date, status: "future" as const };
-        const log = logMap.get(date);
-        if (!log) return { date, status: "missed" as const };
-        if (log.isRest) return { date, status: "rest" as const };
-        const comp = completionMap.get(log.logId);
-        if (!comp || comp.total === 0) return { date, status: "missed" as const };
-        if (comp.done === comp.total) return { date, status: "complete" as const };
-        return { date, status: "partial" as const };
-      });
-      setHeatmapDays(days);
       setLoading(false);
     }
 
@@ -212,11 +151,6 @@ export default function ProgressScreen() {
 
   return (
     <>
-      <AddMilestoneSheet
-        visible={milestoneSheetOpen}
-        onClose={() => setMilestoneSheetOpen(false)}
-        onSave={addMilestone}
-      />
       <LogRomSheet
         visible={romSheetOpen}
         onClose={() => { setRomSheetOpen(false); setEditingEntry(null); }}
@@ -224,16 +158,6 @@ export default function ProgressScreen() {
         editingEntry={editingEntry}
       />
       <ScrollView className="flex-1 bg-background" contentContainerStyle={{ paddingTop: 16, paddingBottom: 40 }}>
-        <MilestoneTimeline
-          milestones={milestones}
-          onAdd={() => setMilestoneSheetOpen(true)}
-          onDelete={deleteMilestone}
-        />
-        <View className="mx-4 my-2 border-b border-border" />
-
-        <CalendarHeatmap days={heatmapDays} month={currentMonth} milestones={milestones} />
-        <View className="mx-4 my-2 border-b border-border" />
-
         {/* ROM section */}
         <View className="flex-row items-center justify-between mx-4 mb-3">
           <Text className="text-base font-semibold" style={{ color: Colors.text }}>Log ROM</Text>
@@ -294,6 +218,15 @@ export default function ProgressScreen() {
           </View>
         )}
 
+        <View className="mx-4 my-2 border-b border-border" />
+        <ProgressCalendar
+          milestones={milestones}
+          measurements={measurements}
+          onSaveMilestone={addMilestone}
+          onDeleteMilestone={deleteMilestone}
+          userId={session!.user.id}
+          surgeryDate={surgeryDate}
+        />
         <View className="mx-4 my-2 border-b border-border" />
         <QuadStreak activationDays={activationDays} last30={last30} />
       </ScrollView>
