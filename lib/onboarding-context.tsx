@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import type { GraftType, KneeSide, Exercise } from "./types";
+import { generateUsername } from "./utils/generate-username";
 
 export interface SelectedExercise {
   exerciseId: string;
@@ -33,7 +34,7 @@ const OnboardingContext = createContext<OnboardingContextType>(null!);
 export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<OnboardingData>({
     name: "",
-    username: "",
+    username: generateUsername(),
     surgeryDate: new Date().toISOString().split("T")[0],
     graftType: null,
     kneeSide: null,

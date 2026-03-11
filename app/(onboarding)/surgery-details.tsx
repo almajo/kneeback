@@ -78,7 +78,7 @@ export default function SurgeryDetails() {
       <Text className="text-sm font-semibold mb-2" style={{ color: "#2D2D2D" }}>Username</Text>
       <TextInput
         className="bg-surface border border-border rounded-2xl px-4 py-4 text-base mb-6"
-        placeholder="Your nickname or handle"
+        placeholder="Your username"
         value={data.username}
         onChangeText={(v) => update({ username: v })}
         autoCapitalize="none"
