@@ -51,7 +51,7 @@ export function RestTimer({ seconds, onTimerComplete }: Props) {
   const display = `${mins}:${secs.toString().padStart(2, "0")}`;
 
   const buttonColor = remaining === 0 ? "bg-secondary" : running ? "bg-warning" : "bg-primary";
-  const buttonLabel = remaining === 0 ? "Reset" : running ? "Pause" : "Start";
+  const buttonLabel = remaining === 0 ? "Restart" : running ? "Pause" : "Start";
 
   return (
     <View className="items-center mt-3">

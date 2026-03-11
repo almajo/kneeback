@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import { View, ScrollView, Text, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import DraggableFlatList, { RenderItemParams } from "react-native-draggable-flatlist";
 import { useToday } from "../../lib/hooks/use-today";
 import { useAuth } from "../../lib/auth-context";
 import { DayHeader } from "../../components/DayHeader";
@@ -13,7 +14,7 @@ import { supabase } from "../../lib/supabase";
 import { checkAchievements, getStreak } from "../../lib/achievements";
 import { Colors } from "../../constants/colors";
 import { useMilestones } from "../../lib/hooks/use-milestones";
-import type { Content } from "../../lib/types";
+import type { Content, UserExercise } from "../../lib/types";
 
 export default function TodayScreen() {
   const router = useRouter();
@@ -22,7 +23,7 @@ export default function TodayScreen() {
     loading,
     daysSinceSurgery,
     weekNumber,
-    userExercises,
+    userExercises: initialUserExercises,
     dailyLog,
     exerciseLogs: initialExerciseLogs,
     dailyMessage,
@@ -30,6 +31,7 @@ export default function TodayScreen() {
     refetch,
     updateUserExercise,
   } = useToday();
+  const [userExercises, setUserExercises] = useState<UserExercise[]>([]);
   const [exerciseLogs, setExerciseLogs] = useState<typeof initialExerciseLogs>([]);
   const [pendingAchievement, setPendingAchievement] = useState<Content | null>(null);
   const { todayMilestones, refetch: refetchMilestones } = useMilestones();
@@ -37,6 +39,10 @@ export default function TodayScreen() {
   useEffect(() => {
     setExerciseLogs(initialExerciseLogs);
   }, [initialExerciseLogs]);
+
+  useEffect(() => {
+    setUserExercises(initialUserExercises);
+  }, [initialUserExercises]);
 
   useFocusEffect(useCallback(() => {
     refetchMilestones();
@@ -105,7 +111,6 @@ export default function TodayScreen() {
     const existing = exerciseLogs.find((l) => l.user_exercise_id === userExerciseId);
     const isFirstEver = exerciseLogs.every((l) => !l.completed) && updates.completed === true;
 
-    // Optimistically update local state
     if (existing) {
       setExerciseLogs((prev) =>
         prev.map((l) => (l.id === existing.id ? { ...l, ...updates } : l))
@@ -140,24 +145,30 @@ export default function TodayScreen() {
     }
   }
 
+  async function handleReorder(reordered: UserExercise[]) {
+    setUserExercises(reordered);
+    await Promise.all(
+      reordered.map((ue, index) =>
+        supabase.from("user_exercises").update({ sort_order: index }).eq("id", ue.id)
+      )
+    );
+  }
+
   const completedCount = exerciseLogs.filter((l) => l.completed).length;
   const totalCount = userExercises.length;
+  const allDone = completedCount === totalCount && totalCount > 0;
 
-  return (
+  const listHeader = (
     <>
-    <AchievementPopup achievement={pendingAchievement} onDismiss={() => setPendingAchievement(null)} />
-    <ScrollView className="flex-1 bg-background" contentContainerStyle={{ paddingBottom: 100 }}>
       <DayHeader day={daysSinceSurgery} week={weekNumber} streak={streak} />
       <DailyMessage message={dailyMessage?.body ?? null} />
 
       {todayMilestones.length > 0 && (
         <View className="mx-4 mb-4 rounded-2xl overflow-hidden" style={{ backgroundColor: Colors.primary, shadowColor: Colors.primaryDark, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 6 }}>
-          {/* Decorative top strip */}
           <View style={{ backgroundColor: Colors.primaryDark, paddingHorizontal: 16, paddingVertical: 8, flexDirection: "row", alignItems: "center", gap: 8 }}>
             <Ionicons name="trophy" size={14} color="rgba(255,255,255,0.9)" />
             <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 11, fontWeight: "800", letterSpacing: 1.5 }}>TODAY&apos;S THE DAY</Text>
           </View>
-          {/* Main content */}
           <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16 }}>
             {todayMilestones.map((m, i) => (
               <View key={m.id} style={{ flexDirection: "row", alignItems: "flex-start", gap: 12, marginTop: i > 0 ? 12 : 0 }}>
@@ -178,12 +189,6 @@ export default function TodayScreen() {
 
       <SmartRestToggle isRestDay={isRestDay} onToggle={toggleRestDay} />
 
-      {!isRestDay && (
-        <Text className="mx-4 mt-2 mb-1 text-base font-bold" style={{ color: "#2D2D2D" }}>
-          {"Today's Training"}
-        </Text>
-      )}
-
       {isRestDay ? (
         <View className="mx-4 rounded-2xl p-6 items-center" style={{ backgroundColor: "#7E57C220" }}>
           <Text className="text-lg font-bold mb-2" style={{ color: Colors.rest }}>Rest Day</Text>
@@ -193,13 +198,16 @@ export default function TodayScreen() {
         </View>
       ) : (
         <>
+          <Text className="mx-4 mt-2 mb-1 text-base font-bold" style={{ color: "#2D2D2D" }}>
+            {"Today's Training"}
+          </Text>
           {totalCount > 0 && (
             <View className="mx-4 mb-3">
               <View className="flex-row items-center justify-between mb-1.5">
                 <Text className="text-sm font-semibold" style={{ color: "#6B6B6B" }}>
                   {completedCount}/{totalCount} complete
                 </Text>
-                {completedCount === totalCount && totalCount > 0 && (
+                {allDone && (
                   <Text className="text-sm font-bold" style={{ color: Colors.success }}>
                     🎉 All done!
                   </Text>
@@ -209,53 +217,74 @@ export default function TodayScreen() {
                 <View
                   className="h-2 rounded-full"
                   style={{
-                    backgroundColor: completedCount === totalCount ? Colors.success : Colors.primary,
+                    backgroundColor: allDone ? Colors.success : Colors.primary,
                     width: `${totalCount > 0 ? (completedCount / totalCount) * 100 : 0}%`,
                   }}
                 />
               </View>
             </View>
           )}
-
-          {userExercises.length === 0 ? (
+          {userExercises.length === 0 && (
             <View className="mx-4 bg-surface border border-border rounded-2xl p-6 items-center">
               <Text className="text-base text-center" style={{ color: "#6B6B6B" }}>
                 No exercises yet. Add your first one below.
               </Text>
             </View>
-          ) : completedCount === totalCount && totalCount > 0 ? (
+          )}
+          {allDone && (
             <View className="mx-4 rounded-2xl p-6 items-center mb-3" style={{ backgroundColor: Colors.success + "15", borderColor: Colors.success + "40", borderWidth: 1 }}>
               <Text className="text-3xl mb-2">🎉</Text>
               <Text className="text-base font-bold mb-1" style={{ color: Colors.success }}>
                 Session Complete!
               </Text>
               <Text className="text-sm text-center" style={{ color: "#6B6B6B" }}>
-                Your knee did the work. Come back tomorrow.
+                Your knee did the work. Now cool down and put your leg up for 15–20 min. Come back tomorrow.
               </Text>
             </View>
-          ) : (
-            userExercises.map((ue) => (
-              <ExerciseCard
-                key={ue.id}
-                userExercise={ue}
-                log={exerciseLogs.find((l) => l.user_exercise_id === ue.id) ?? null}
-                onUpdate={(updates) => updateExerciseLog(ue.id, updates)}
-                onExerciseUpdate={updateUserExercise}
-                disabled={isRestDay}
-              />
-            ))
           )}
-
-          <TouchableOpacity
-            className="mx-4 mt-2 py-3 rounded-2xl border border-dashed border-primary items-center flex-row justify-center"
-            onPress={() => router.push("/exercise-picker")}
-          >
-            <Ionicons name="create-outline" size={20} color={Colors.primary} />
-            <Text className="ml-2 text-primary font-bold">Edit Exercises</Text>
-          </TouchableOpacity>
         </>
       )}
-    </ScrollView>
+    </>
+  );
+
+  const listFooter = !isRestDay ? (
+    <TouchableOpacity
+      className="mx-4 mt-2 mb-6 py-3 rounded-2xl border border-dashed border-primary items-center flex-row justify-center"
+      onPress={() => router.push("/exercise-picker")}
+    >
+      <Ionicons name="create-outline" size={20} color={Colors.primary} />
+      <Text className="ml-2 text-primary font-bold">Edit Exercises</Text>
+    </TouchableOpacity>
+  ) : null;
+
+  const renderItem = ({ item: ue, drag, isActive }: RenderItemParams<UserExercise>) => (
+    <View style={{ opacity: isActive ? 0.8 : 1 }}>
+      <ExerciseCard
+        userExercise={ue}
+        log={exerciseLogs.find((l) => l.user_exercise_id === ue.id) ?? null}
+        onUpdate={(updates) => updateExerciseLog(ue.id, updates)}
+        onExerciseUpdate={updateUserExercise}
+        disabled={isRestDay}
+        onDrag={drag}
+      />
+    </View>
+  );
+
+  const exerciseData = isRestDay || allDone ? [] : userExercises;
+
+  return (
+    <>
+      <AchievementPopup achievement={pendingAchievement} onDismiss={() => setPendingAchievement(null)} />
+      <DraggableFlatList
+        data={exerciseData}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        onDragEnd={({ data }) => handleReorder(data)}
+        ListHeaderComponent={listHeader}
+        ListFooterComponent={listFooter}
+        containerStyle={{ flex: 1, backgroundColor: "#FAF8F5" }}
+        contentContainerStyle={{ paddingBottom: 100 }}
+      />
     </>
   );
 }

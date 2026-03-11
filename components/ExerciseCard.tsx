@@ -16,9 +16,10 @@ interface Props {
   onUpdate: (log: Partial<ExerciseLog>) => void;
   onExerciseUpdate?: (updated: UserExercise) => void;
   disabled: boolean;
+  onDrag?: () => void;
 }
 
-export function ExerciseCard({ userExercise, log, onUpdate, disabled }: Props) {
+export function ExerciseCard({ userExercise, log, onUpdate, disabled, onDrag }: Props) {
   const [expanded, setExpanded] = useState(false);
 
   const exercise = userExercise.exercise!;
@@ -33,6 +34,14 @@ export function ExerciseCard({ userExercise, log, onUpdate, disabled }: Props) {
   useEffect(() => {
     currentSetRef.current = currentSet;
   }, [currentSet]);
+
+  // Auto-collapse when exercise is marked complete
+  useEffect(() => {
+    if (isCompleted && expanded) {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setExpanded(false);
+    }
+  }, [isCompleted]);
 
   // Memoize callback to prevent RestTimer from unnecessarily restarting its interval.
   // Uses ref to access current set count, avoiding dependency on log?.actual_sets
@@ -89,6 +98,15 @@ export function ExerciseCard({ userExercise, log, onUpdate, disabled }: Props) {
           size={20}
           color={Colors.textMuted}
         />
+        {onDrag && !disabled && (
+          <TouchableOpacity
+            onLongPress={onDrag}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            className="ml-2"
+          >
+            <Ionicons name="reorder-three" size={22} color={Colors.textMuted} />
+          </TouchableOpacity>
+        )}
       </TouchableOpacity>
 
       {expanded && !disabled && (
