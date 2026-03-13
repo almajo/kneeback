@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from "react-native";
-import { Link } from "expo-router";
+import { Link, useLocalSearchParams } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import * as WebBrowser from "expo-web-browser";
 import { makeRedirectUri } from "expo-auth-session";
@@ -8,6 +8,7 @@ import { makeRedirectUri } from "expo-auth-session";
 WebBrowser.maybeCompleteAuthSession();
 
 export default function SignIn() {
+  const { accountDeleted } = useLocalSearchParams<{ accountDeleted?: string }>();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -55,6 +56,13 @@ export default function SignIn() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 bg-background">
+      {accountDeleted === "true" && (
+        <View className="bg-green-100 border border-green-300 px-4 py-3 mx-4 mt-4 rounded-xl">
+          <Text className="text-green-800 text-sm font-medium text-center">
+            Your account has been deleted. Sorry to see you go.
+          </Text>
+        </View>
+      )}
       <View className="flex-1 justify-center px-8">
         <Text className="text-4xl font-bold text-center text-primary mb-2">KneeBack</Text>
         <Text className="text-base text-center mb-10" style={{ color: "#6B6B6B" }}>Your knee's daily companion</Text>
