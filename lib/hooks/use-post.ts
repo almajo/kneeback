@@ -5,11 +5,14 @@ import type { CommunityPost, CommunityComment } from "../types";
 import { getPhaseFromDate } from "../utils/format-time";
 
 async function getProfile(userId: string): Promise<{ username: string; phase: string }> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("profiles")
     .select("username, surgery_date")
     .eq("id", userId)
     .single();
+  if (error) {
+    console.error("[getProfile] Failed to load profile:", error);
+  }
   return {
     username: data?.username ?? "Anonymous",
     phase: data?.surgery_date ? getPhaseFromDate(data.surgery_date) : "",
@@ -187,15 +190,31 @@ export function usePost(postId: string) {
     );
 
     if (wasUpvoted) {
-      await supabase
+      const { error } = await supabase
         .from("community_reactions")
         .delete()
         .eq("post_id", postId)
         .eq("user_id", userId);
+      if (error) {
+        console.error("[toggleUpvote] Failed to remove reaction:", error);
+        setPost((prev) =>
+          prev
+            ? { ...prev, has_upvoted: wasUpvoted, upvote_count: prev.upvote_count + 1 }
+            : prev
+        );
+      }
     } else {
-      await supabase
+      const { error } = await supabase
         .from("community_reactions")
         .insert({ post_id: postId, user_id: userId });
+      if (error) {
+        console.error("[toggleUpvote] Failed to insert reaction:", error);
+        setPost((prev) =>
+          prev
+            ? { ...prev, has_upvoted: wasUpvoted, upvote_count: prev.upvote_count - 1 }
+            : prev
+        );
+      }
     }
   }
 

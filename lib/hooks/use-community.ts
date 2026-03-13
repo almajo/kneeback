@@ -10,10 +10,13 @@ interface ProfileInfo { username: string; phase: string }
 
 async function fetchProfiles(userIds: string[]): Promise<Map<string, ProfileInfo>> {
   if (userIds.length === 0) return new Map();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("profiles")
     .select("id, username, surgery_date")
     .in("id", userIds);
+  if (error) {
+    console.error("[fetchProfiles] Failed to load profiles:", error);
+  }
   const map = new Map<string, ProfileInfo>();
   (data ?? []).forEach((p: any) =>
     map.set(p.id, {
@@ -200,15 +203,35 @@ export function useCommunity() {
     );
 
     if (wasUpvoted) {
-      await supabase
+      const { error } = await supabase
         .from("community_reactions")
         .delete()
         .eq("post_id", postId)
         .eq("user_id", userId);
+      if (error) {
+        console.error("[toggleUpvote] Failed to remove reaction:", error);
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.id === postId
+              ? { ...p, has_upvoted: wasUpvoted, upvote_count: p.upvote_count + 1 }
+              : p
+          )
+        );
+      }
     } else {
-      await supabase
+      const { error } = await supabase
         .from("community_reactions")
         .insert({ post_id: postId, user_id: userId });
+      if (error) {
+        console.error("[toggleUpvote] Failed to insert reaction:", error);
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.id === postId
+              ? { ...p, has_upvoted: wasUpvoted, upvote_count: p.upvote_count - 1 }
+              : p
+          )
+        );
+      }
     }
   }
 

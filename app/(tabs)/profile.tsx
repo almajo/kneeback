@@ -144,7 +144,7 @@ export default function ProfileScreen() {
           style: "destructive",
           onPress: async () => {
             if (!userId) return;
-            await supabase.from("profiles").delete().eq("id", userId);
+            await supabase.rpc("delete_user");
             await supabase.auth.signOut();
           },
         },
