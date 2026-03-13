@@ -57,6 +57,7 @@ export default function IntroScreen() {
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const startIndexRef = useRef(0);
+  const isProgrammaticScrollRef = useRef(false);
 
   const handleScrollBeginDrag = useCallback(() => {
     startIndexRef.current = currentIndex;
@@ -81,6 +82,11 @@ export default function IntroScreen() {
   const goNext = useCallback(() => {
     const next = currentIndex + 1;
     setCurrentIndex(next);
+    startIndexRef.current = next;
+    if (Platform.OS === "web") {
+      isProgrammaticScrollRef.current = true;
+      setTimeout(() => { isProgrammaticScrollRef.current = false; }, 500);
+    }
     flatListRef.current?.scrollToIndex({ index: next, animated: true });
   }, [currentIndex]);
 
@@ -100,7 +106,7 @@ export default function IntroScreen() {
 
     let timer: ReturnType<typeof setTimeout>;
     const onScroll = () => {
-      if (isSnapping) return;
+      if (isSnapping || isProgrammaticScrollRef.current) return;
       clearTimeout(timer);
       timer = setTimeout(() => {
         const rawIndex = Math.round(node.scrollLeft / width);
