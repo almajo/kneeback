@@ -235,12 +235,31 @@ export function useCommunity() {
     }
   }
 
+  async function deletePost(postId: string) {
+    if (!userId) return;
+    const prevPosts = posts;
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
+
+    const { error } = await supabase
+      .from("community_posts")
+      .delete()
+      .eq("id", postId)
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error("[deletePost] Failed:", error);
+      setPosts(prevPosts);
+    }
+  }
+
   return {
     posts,
     loading,
     refreshing,
     hasMore,
+    userId,
     createPost,
+    deletePost,
     toggleUpvote,
     loadMore,
     refresh,

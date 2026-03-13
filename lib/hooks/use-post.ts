@@ -251,12 +251,91 @@ export function usePost(postId: string) {
     }
   }
 
+  async function deleteComment(commentId: string) {
+    if (!userId) return;
+    const prevComments = comments;
+    const prevPost = post;
+    setComments((prev) => prev.filter((c) => c.id !== commentId));
+    setPost((prev) => prev ? { ...prev, comment_count: prev.comment_count - 1 } : prev);
+
+    const { error } = await supabase
+      .from("community_comments")
+      .delete()
+      .eq("id", commentId)
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error("[deleteComment] Failed:", error);
+      setComments(prevComments);
+      setPost(prevPost);
+    }
+  }
+
+  async function editComment(commentId: string, body: string) {
+    if (!userId || !body.trim()) return;
+    const trimmed = body.trim();
+    setComments((prev) =>
+      prev.map((c) => (c.id === commentId ? { ...c, body: trimmed } : c))
+    );
+
+    const { error } = await supabase
+      .from("community_comments")
+      .update({ body: trimmed })
+      .eq("id", commentId)
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error("[editComment] Failed:", error);
+      fetchPost();
+    }
+  }
+
+  async function deletePost(): Promise<boolean> {
+    if (!userId || !post) return false;
+    const { error } = await supabase
+      .from("community_posts")
+      .delete()
+      .eq("id", postId)
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error("[deletePost] Failed:", error);
+      return false;
+    }
+    return true;
+  }
+
+  async function editPost(title: string, body: string) {
+    if (!userId || !post) return;
+    const trimTitle = title.trim();
+    const trimBody = body.trim();
+    if (!trimTitle || !trimBody) return;
+
+    setPost((prev) => prev ? { ...prev, title: trimTitle, body: trimBody } : prev);
+
+    const { error } = await supabase
+      .from("community_posts")
+      .update({ title: trimTitle, body: trimBody })
+      .eq("id", postId)
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error("[editPost] Failed:", error);
+      fetchPost();
+    }
+  }
+
   return {
     post,
     comments,
     loading,
     submitting,
+    userId,
     addComment,
+    deleteComment,
+    editComment,
+    deletePost,
+    editPost,
     toggleUpvote,
     toggleCommentUpvote,
   };

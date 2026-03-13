@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,15 +22,71 @@ import { formatRelativeTime } from "../../lib/utils/format-time";
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { post, comments, loading, submitting, addComment, toggleUpvote, toggleCommentUpvote } = usePost(id);
+  const {
+    post,
+    comments,
+    loading,
+    submitting,
+    userId,
+    addComment,
+    deleteComment,
+    editComment,
+    deletePost,
+    editPost,
+    toggleUpvote,
+    toggleCommentUpvote,
+  } = usePost(id);
   const [commentText, setCommentText] = useState("");
   const inputRef = useRef<TextInput>(null);
+
+  // Post edit state
+  const [editingPost, setEditingPost] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editBody, setEditBody] = useState("");
+
+  const isPostOwner = !!userId && !!post && post.user_id === userId;
 
   async function handleSend() {
     const text = commentText.trim();
     if (!text || submitting) return;
     setCommentText("");
     await addComment(text);
+  }
+
+  function handlePostMenu() {
+    Alert.alert("Post", undefined, [
+      {
+        text: "Edit",
+        onPress: () => {
+          setEditTitle(post?.title ?? "");
+          setEditBody(post?.body ?? "");
+          setEditingPost(true);
+        },
+      },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          Alert.alert("Delete post?", "This will also remove all replies. This cannot be undone.", [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Delete",
+              style: "destructive",
+              onPress: async () => {
+                const ok = await deletePost();
+                if (ok) router.push("/(tabs)/community");
+              },
+            },
+          ]);
+        },
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  }
+
+  async function handlePostEditSave() {
+    await editPost(editTitle, editBody);
+    setEditingPost(false);
   }
 
   function renderHeader() {
@@ -47,15 +104,78 @@ export default function PostDetailScreen() {
           </Text>
         </View>
 
-        {/* Title */}
-        <Text style={{ fontSize: 22, fontWeight: "800", color: Colors.text, marginBottom: 10, lineHeight: 30 }}>
-          {post.title}
-        </Text>
+        {editingPost ? (
+          <View style={{ marginBottom: 16 }}>
+            <TextInput
+              value={editTitle}
+              onChangeText={setEditTitle}
+              style={{
+                fontSize: 20,
+                fontWeight: "800",
+                color: Colors.text,
+                borderWidth: 1,
+                borderColor: Colors.border,
+                borderRadius: 8,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                marginBottom: 10,
+                backgroundColor: Colors.background,
+              }}
+              placeholder="Title"
+              placeholderTextColor={Colors.textMuted}
+              maxLength={200}
+            />
+            <TextInput
+              value={editBody}
+              onChangeText={setEditBody}
+              style={{
+                fontSize: 15,
+                color: Colors.textSecondary,
+                lineHeight: 23,
+                borderWidth: 1,
+                borderColor: Colors.border,
+                borderRadius: 8,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                marginBottom: 10,
+                backgroundColor: Colors.background,
+                minHeight: 80,
+              }}
+              placeholder="Body"
+              placeholderTextColor={Colors.textMuted}
+              multiline
+              maxLength={5000}
+            />
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <TouchableOpacity
+                onPress={handlePostEditSave}
+                style={{
+                  backgroundColor: Colors.primary,
+                  borderRadius: 8,
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                }}
+              >
+                <Text style={{ color: "#fff", fontWeight: "600", fontSize: 14 }}>Save</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setEditingPost(false)}>
+                <Text style={{ color: Colors.textMuted, fontSize: 14, paddingVertical: 8 }}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <>
+            {/* Title */}
+            <Text style={{ fontSize: 22, fontWeight: "800", color: Colors.text, marginBottom: 10, lineHeight: 30 }}>
+              {post.title}
+            </Text>
 
-        {/* Body */}
-        <Text style={{ fontSize: 15, color: Colors.textSecondary, lineHeight: 23, marginBottom: 16 }}>
-          {post.body}
-        </Text>
+            {/* Body */}
+            <Text style={{ fontSize: 15, color: Colors.textSecondary, lineHeight: 23, marginBottom: 16 }}>
+              {post.body}
+            </Text>
+          </>
+        )}
 
         {/* Author + upvote row */}
         <View
@@ -145,6 +265,7 @@ export default function PostDetailScreen() {
         style={{
           flexDirection: "row",
           alignItems: "center",
+          justifyContent: "space-between",
           paddingHorizontal: 8,
           paddingVertical: 10,
           borderBottomWidth: 1,
@@ -161,14 +282,26 @@ export default function PostDetailScreen() {
             Community
           </Text>
         </TouchableOpacity>
+
+        {isPostOwner && (
+          <TouchableOpacity onPress={handlePostMenu} style={{ padding: 8 }}>
+            <Ionicons name="ellipsis-horizontal" size={22} color={Colors.textMuted} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <FlatList
         data={comments}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-            <CommentItem comment={item} onUpvote={() => toggleCommentUpvote(item.id)} />
-          )}
+          <CommentItem
+            comment={item}
+            currentUserId={userId}
+            onUpvote={() => toggleCommentUpvote(item.id)}
+            onDelete={() => deleteComment(item.id)}
+            onEdit={(body) => editComment(item.id, body)}
+          />
+        )}
         ListHeaderComponent={renderHeader}
         contentContainerStyle={{ paddingBottom: 16 }}
         ItemSeparatorComponent={() => (

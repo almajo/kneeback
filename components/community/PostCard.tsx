@@ -1,4 +1,4 @@
-import { TouchableOpacity, View, Text } from "react-native";
+import { TouchableOpacity, View, Text, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { formatRelativeTime } from "../../lib/utils/format-time";
@@ -8,12 +8,31 @@ import type { CommunityPost } from "../../lib/types";
 
 interface Props {
   post: CommunityPost;
+  currentUserId?: string;
   onPress: () => void;
   onUpvote: () => void;
+  onDelete?: () => void;
 }
 
-export function PostCard({ post, onPress, onUpvote }: Props) {
+export function PostCard({ post, currentUserId, onPress, onUpvote, onDelete }: Props) {
   const initial = (post.author_username?.[0] ?? "?").toUpperCase();
+  const isOwner = !!currentUserId && post.user_id === currentUserId;
+
+  function handleMenuPress() {
+    Alert.alert("Post", undefined, [
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          Alert.alert("Delete post?", "This will also remove all replies. This cannot be undone.", [
+            { text: "Cancel", style: "cancel" },
+            { text: "Delete", style: "destructive", onPress: onDelete },
+          ]);
+        },
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  }
 
   return (
     <TouchableOpacity
@@ -32,9 +51,19 @@ export function PostCard({ post, onPress, onUpvote }: Props) {
       {/* Header row */}
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
         <PostTypeBadge type={post.post_type} />
-        <Text style={{ fontSize: 12, color: Colors.textMuted }}>
-          {formatRelativeTime(post.created_at)}
-        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Text style={{ fontSize: 12, color: Colors.textMuted }}>
+            {formatRelativeTime(post.created_at)}
+          </Text>
+          {isOwner && (
+            <TouchableOpacity
+              onPress={(e) => { e.stopPropagation(); handleMenuPress(); }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="ellipsis-horizontal" size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Title */}
