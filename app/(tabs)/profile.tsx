@@ -18,6 +18,7 @@ import { supabase } from "../../lib/supabase";
 import { registerForPushNotifications, scheduleDailyReminder } from "../../lib/notifications";
 import { Colors } from "../../constants/colors";
 import type { Profile, NotificationPreferences, GraftType } from "../../lib/types";
+import { PrivacyPolicyModal } from "../../components/PrivacyPolicyModal";
 
 const GRAFT_TYPE_OPTIONS: { value: GraftType; label: string }[] = [
   { value: "patellar", label: "Patellar Tendon" },
@@ -40,6 +41,7 @@ export default function ProfileScreen() {
   const [editingReminder, setEditingReminder] = useState(false);
   const [editingGraftType, setEditingGraftType] = useState(false);
   const [savingGraftType, setSavingGraftType] = useState(false);
+  const [privacyVisible, setPrivacyVisible] = useState(false);
   const [reminderHour, setReminderHour] = useState(8);
   const [reminderMinute, setReminderMinute] = useState(0);
   const [reminderDate, setReminderDate] = useState(() => {
@@ -357,6 +359,11 @@ export default function ProfileScreen() {
           onPress={handleExportData}
         />
         <ActionRow
+          icon="shield-checkmark-outline"
+          label="Privacy Policy"
+          onPress={() => setPrivacyVisible(true)}
+        />
+        <ActionRow
           icon="log-out-outline"
           label="Sign Out"
           onPress={handleSignOut}
@@ -369,6 +376,8 @@ export default function ProfileScreen() {
           last
         />
       </View>
+
+      <PrivacyPolicyModal visible={privacyVisible} onClose={() => setPrivacyVisible(false)} />
     </ScrollView>
   );
 }

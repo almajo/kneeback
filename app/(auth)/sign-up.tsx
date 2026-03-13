@@ -4,6 +4,7 @@ import { Link } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import * as WebBrowser from "expo-web-browser";
 import { makeRedirectUri } from "expo-auth-session";
+import { PrivacyPolicyModal } from "../../components/PrivacyPolicyModal";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -28,6 +29,7 @@ export default function SignUp() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [privacyVisible, setPrivacyVisible] = useState(false);
 
   async function handleSignUp() {
     const emailError = validateEmail(email);
@@ -102,12 +104,24 @@ export default function SignUp() {
         {errors.password ? <Text className="text-red-500 text-sm mb-5 ml-1">{errors.password}</Text> : null}
 
         <TouchableOpacity
-          className={`bg-primary rounded-2xl py-4 items-center mb-4 ${loading ? "opacity-50" : ""}`}
+          className={`bg-primary rounded-2xl py-4 items-center mb-3 ${loading ? "opacity-50" : ""}`}
           onPress={handleSignUp}
           disabled={loading}
         >
           <Text className="text-white font-bold text-lg">Create Account</Text>
         </TouchableOpacity>
+
+        <Text className="text-xs text-center mb-4" style={{ color: "#A0A0A0" }}>
+          By creating an account, you agree to our{" "}
+          <Text
+            className="font-semibold"
+            style={{ color: "#6B6B6B", textDecorationLine: "underline" }}
+            onPress={() => setPrivacyVisible(true)}
+          >
+            Privacy Policy
+          </Text>
+          .
+        </Text>
 
         <View className="flex-row items-center my-4">
           <View className="flex-1 h-px bg-border" />
@@ -116,12 +130,24 @@ export default function SignUp() {
         </View>
 
         <TouchableOpacity
-          className={`bg-surface border border-border rounded-2xl py-4 items-center mb-6 ${loading ? "opacity-50" : ""}`}
+          className={`bg-surface border border-border rounded-2xl py-4 items-center mb-3 ${loading ? "opacity-50" : ""}`}
           onPress={handleGoogleSignIn}
           disabled={loading}
         >
           <Text className="font-bold text-base" style={{ color: "#2D2D2D" }}>Continue with Google</Text>
         </TouchableOpacity>
+
+        <Text className="text-xs text-center mb-6" style={{ color: "#A0A0A0" }}>
+          By continuing, you agree to our{" "}
+          <Text
+            className="font-semibold"
+            style={{ color: "#6B6B6B", textDecorationLine: "underline" }}
+            onPress={() => setPrivacyVisible(true)}
+          >
+            Privacy Policy
+          </Text>
+          .
+        </Text>
 
         <View className="flex-row justify-center">
           <Text style={{ color: "#6B6B6B" }}>Already have an account? </Text>
@@ -130,6 +156,7 @@ export default function SignUp() {
           </Link>
         </View>
       </View>
+      <PrivacyPolicyModal visible={privacyVisible} onClose={() => setPrivacyVisible(false)} />
     </KeyboardAvoidingView>
   );
 }
