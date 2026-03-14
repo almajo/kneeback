@@ -182,11 +182,7 @@ export function PhaseGateCard({ gateProgress, surgeryStatus, onViewDetail }: Pro
     return null;
   }
 
-  return (
-    <>
-      {gateProgress.map((gp) => (
-        <GateCard key={gp.gate.gateKey} gateProgress={gp} onViewDetail={onViewDetail} />
-      ))}
-    </>
-  );
+  const nextGate = gateProgress.find((gp) => !gp.allMet) ?? gateProgress[gateProgress.length - 1];
+
+  return <GateCard gateProgress={nextGate} onViewDetail={onViewDetail} />;
 }
