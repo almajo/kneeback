@@ -16,9 +16,11 @@ import { supabase } from "../../lib/supabase";
 import { checkAchievements, getStreak } from "../../lib/achievements";
 import { Colors } from "../../constants/colors";
 import { useMilestones } from "../../lib/hooks/use-milestones";
+import { useKeepAwake } from "../../lib/hooks/use-keep-awake";
 import type { Content, UserExercise } from "../../lib/types";
 
 export default function TodayScreen() {
+  useKeepAwake();
   const router = useRouter();
   const { session } = useAuth();
   const {
