@@ -91,7 +91,7 @@ export function usePost(postId: string) {
       setPost({
         id: rawPost.id,
         user_id: rawPost.user_id,
-        post_type: rawPost.post_type,
+        post_type: rawPost.post_type as CommunityPost["post_type"],
         title: rawPost.title,
         body: rawPost.body,
         upvote_count: rawPost.upvote_count,

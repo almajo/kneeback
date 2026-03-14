@@ -1,9 +1,11 @@
-import { TouchableOpacity, View, Text, Alert } from "react-native";
+import { TouchableOpacity, View, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { formatRelativeTime } from "../../lib/utils/format-time";
 import { PostTypeBadge } from "./PostTypeBadge";
 import { ReactionButton } from "./ReactionButton";
+import { OptionsMenu } from "./OptionsMenu";
+import { confirmAlert } from "../../lib/utils/confirm";
 import type { CommunityPost } from "../../lib/types";
 
 interface Props {
@@ -17,22 +19,6 @@ interface Props {
 export function PostCard({ post, currentUserId, onPress, onUpvote, onDelete }: Props) {
   const initial = (post.author_username?.[0] ?? "?").toUpperCase();
   const isOwner = !!currentUserId && post.user_id === currentUserId;
-
-  function handleMenuPress() {
-    Alert.alert("Post", undefined, [
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => {
-          Alert.alert("Delete post?", "This will also remove all replies. This cannot be undone.", [
-            { text: "Cancel", style: "cancel" },
-            { text: "Delete", style: "destructive", onPress: onDelete },
-          ]);
-        },
-      },
-      { text: "Cancel", style: "cancel" },
-    ]);
-  }
 
   return (
     <TouchableOpacity
@@ -56,12 +42,22 @@ export function PostCard({ post, currentUserId, onPress, onUpvote, onDelete }: P
             {formatRelativeTime(post.created_at)}
           </Text>
           {isOwner && (
-            <TouchableOpacity
-              onPress={(e) => { e.stopPropagation(); handleMenuPress(); }}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="ellipsis-horizontal" size={16} color={Colors.textMuted} />
-            </TouchableOpacity>
+            <OptionsMenu
+              stopPropagation
+              items={[
+                {
+                  label: "Delete",
+                  destructive: true,
+                  onPress: () =>
+                    confirmAlert(
+                      "Delete post?",
+                      "This will also remove all replies. This cannot be undone.",
+                      "Delete",
+                      () => onDelete?.(),
+                    ),
+                },
+              ]}
+            />
           )}
         </View>
       </View>

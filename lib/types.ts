@@ -183,20 +183,3 @@ export interface CreatePostInput {
   body: string;
 }
 
-// Supabase Database type (simplified, generate full version later)
-export interface Database {
-  public: {
-    Tables: {
-      profiles: { Row: Profile; Insert: Omit<Profile, "created_at">; Update: Partial<Profile> };
-      exercises: { Row: Exercise; Insert: Omit<Exercise, "id">; Update: Partial<Exercise> };
-      user_exercises: { Row: UserExercise; Insert: Omit<UserExercise, "id">; Update: Partial<UserExercise> };
-      daily_logs: { Row: DailyLog; Insert: Omit<DailyLog, "id" | "created_at">; Update: Partial<DailyLog> };
-      exercise_logs: { Row: ExerciseLog; Insert: Omit<ExerciseLog, "id">; Update: Partial<ExerciseLog> };
-      rom_measurements: { Row: RomMeasurement; Insert: Omit<RomMeasurement, "id">; Update: Partial<RomMeasurement> };
-      content: { Row: Content; Insert: Omit<Content, "id">; Update: Partial<Content> };
-      user_achievements: { Row: UserAchievement; Insert: Omit<UserAchievement, "id">; Update: Partial<UserAchievement> };
-      notification_preferences: { Row: NotificationPreferences; Insert: Omit<NotificationPreferences, "id">; Update: Partial<NotificationPreferences> };
-      milestones: { Row: Milestone; Insert: Omit<Milestone, "id" | "created_at">; Update: Partial<Milestone> };
-    };
-  };
-}

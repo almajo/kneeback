@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { View, Text, TouchableOpacity, TextInput, Alert } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { View, Text, TouchableOpacity, TextInput } from "react-native";
 import { Colors } from "../../constants/colors";
 import { formatRelativeTime } from "../../lib/utils/format-time";
 import { ReactionButton } from "./ReactionButton";
+import { OptionsMenu } from "./OptionsMenu";
+import { confirmAlert } from "../../lib/utils/confirm";
 import type { CommunityComment } from "../../lib/types";
 
 interface Props {
@@ -19,29 +20,6 @@ export function CommentItem({ comment, currentUserId, onUpvote, onDelete, onEdit
   const isOwner = !!currentUserId && comment.user_id === currentUserId;
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(comment.body);
-
-  function handleMenuPress() {
-    Alert.alert("Comment", undefined, [
-      {
-        text: "Edit",
-        onPress: () => {
-          setEditText(comment.body);
-          setEditing(true);
-        },
-      },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => {
-          Alert.alert("Delete comment?", "This cannot be undone.", [
-            { text: "Cancel", style: "cancel" },
-            { text: "Delete", style: "destructive", onPress: onDelete },
-          ]);
-        },
-      },
-      { text: "Cancel", style: "cancel" },
-    ]);
-  }
 
   function handleEditSave() {
     if (editText.trim() && editText.trim() !== comment.body) {
@@ -133,9 +111,28 @@ export function CommentItem({ comment, currentUserId, onUpvote, onDelete, onEdit
       {/* Actions column */}
       <View style={{ alignItems: "flex-end", gap: 6 }}>
         {isOwner && !editing && (
-          <TouchableOpacity onPress={handleMenuPress} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Ionicons name="ellipsis-horizontal" size={16} color={Colors.textMuted} />
-          </TouchableOpacity>
+          <OptionsMenu
+            items={[
+              {
+                label: "Edit",
+                onPress: () => {
+                  setEditText(comment.body);
+                  setEditing(true);
+                },
+              },
+              {
+                label: "Delete",
+                destructive: true,
+                onPress: () =>
+                  confirmAlert(
+                    "Delete comment?",
+                    "This cannot be undone.",
+                    "Delete",
+                    () => onDelete?.(),
+                  ),
+              },
+            ]}
+          />
         )}
         <ReactionButton
           count={comment.upvote_count}

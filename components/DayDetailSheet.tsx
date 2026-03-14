@@ -87,6 +87,7 @@ export function DayDetailSheet({
     let cancelled = false;
 
     async function fetchExercises() {
+      if (!date) return;
       setLoading(true);
       setExercises([]);
       setHasLog(false);

@@ -164,7 +164,7 @@ export function useCommunity() {
       const real: CommunityPost = {
         id: data.id,
         user_id: data.user_id,
-        post_type: data.post_type,
+        post_type: data.post_type as CommunityPost["post_type"],
         title: data.title,
         body: data.body,
         upvote_count: data.upvote_count,
