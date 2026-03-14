@@ -150,6 +150,130 @@ To be transparent: the research is most specific at the two ends (early post-op 
 
 ---
 
+## Session Length, Frequency, and Volume: What the Studies Say
+
+> **Critical context:** A 2022 scoping review by **Gee et al.** in *JOSPT* examined 117 exercises across 41 published ACL rehabilitation studies and found that **sets, repetitions, load, rest periods, and tempo are systematically absent** from most published protocols. Only exercise name, number of exercises, session frequency, and total program duration are commonly reported. This is an acknowledged failure of reporting standards in the ACL literature — not a gap in this document. What follows is everything the research does define.
+
+---
+
+### Prehabilitation Sessions
+
+**Source:** Cunha & Solomon (2022); Zakharia et al. (2025) systematic review aggregate data.
+
+| Parameter | Value |
+|-----------|-------|
+| Program duration | 4–6 weeks (mean 4.8 weeks across studies) |
+| Frequency | 2–4 sessions per week (mean: 3×/week) |
+| Session length | 75–120 minutes |
+| Exercise components | Lower limb OKC + CKC strengthening, neuromuscular/proprioceptive training, ROM work, stretching |
+
+---
+
+### Post-Operative PT Visit Frequency
+
+**Source:** MOON Knee Group guidelines (Spindler et al., 2015 — *American Journal of Sports Medicine*).
+
+| Parameter | Value |
+|-----------|-------|
+| Recommended PT visits | 16–24 total visits |
+| Early phase frequency | Twice per week (BIW) for the first 6 weeks |
+| Format | Supervised PT sessions + daily home exercise program |
+
+> The MOON guidelines specifically state that the majority of visits should be front-loaded in the early phase, then tapered as the patient progresses.
+
+---
+
+### Strength Training Volume (Applied ACSM Standards)
+
+No ACL-specific study has defined a universally validated set/rep prescription. The Gee et al. (2022) scoping review confirmed this gap explicitly. The best available guidance applies **ACSM hypertrophy and strength guidelines** to ACL rehab, as referenced in the ACL rehabilitation literature:
+
+| Goal | Sets | Reps | Load | Rest | Frequency |
+|------|------|------|------|------|-----------|
+| Muscle hypertrophy (early–mid rehab) | 2–4 | 6–12 | 60–80% 1RM | 60–120 s | 2–4×/week |
+| Strength/force production (mid–late rehab) | 3–5 | 3–6 | 80–90% 1RM | 2–5 min | 2–3×/week |
+| Muscular endurance (early phase, high rep) | 1–3 | 12–20 | <60% 1RM | <60 s | 2–3×/week |
+
+> **Important:** These are ACSM-derived standards. No individual ACL RCT has validated a specific set/rep protocol for graft outcomes. The recommendation to train at 60–80% 1RM for hypertrophy is the most commonly cited reference in the ACL strength literature.
+
+---
+
+### Cardiovascular Training Volume
+
+**Source:** Multiple published ACL protocols (MOON, Brigham & Women's, general consensus).
+
+| Phase | Mode | Duration | Frequency |
+|-------|------|----------|-----------|
+| Phase 1 (weeks 0–2) | Stationary bike (no resistance, ROM only) | 10–15 min/day | Daily |
+| Phase 2 (weeks 2–6) | Stationary bike (light resistance) | 15–20 min | Daily |
+| Phase 3+ | Bike, elliptical, pool | 20–30 min | 3–5×/week |
+
+---
+
+### Balance and Proprioception Volume
+
+**Source:** Multiple published protocols; MOON guidelines.
+
+| Exercise Type | Sets | Duration | Frequency |
+|---------------|------|----------|-----------|
+| Single-leg balance (static) | 3 | 30–60 seconds | Daily |
+| Single-leg balance (with perturbation) | 3 | 30–60 seconds | Daily |
+| Wobble board / balance disc | 3 | 30–60 seconds | Daily |
+
+---
+
+### Plyometric Session Structure — Buckthorpe & Villa (2021)
+
+**Source:** Buckthorpe & Villa (2021) — *"Recommendations for Plyometric Training After ACL Reconstruction"*, IJSPT.
+
+The paper defines progression in terms of **intensity markers** rather than fixed sets and reps. The key published parameters are:
+
+| Parameter | Stage 1–2 | Stage 3–4 |
+|-----------|-----------|-----------|
+| Ground contact time (GCT) target | 1–2 seconds (controlled, slow) | 0.25–0.4 seconds (reactive, fast) |
+| Frequency | 2 sessions/week | 2 sessions/week |
+| Task complexity | Bilateral → unilateral | Unilateral → multi-planar, reactive |
+| Intensity progression | Vertical → horizontal → lateral loading | Linear → sport-specific cutting/pivoting |
+
+> **What Buckthorpe defines clearly:** *How* to progress intensity (GCT, loading direction, bilateral→unilateral, planned→reactive). **What is not published in accessible tables:** specific sets, reps, or total ground contacts per session for each stage. The full volume table (Table 3 in the original paper) requires access to the full IJSPT article.
+
+---
+
+### The Soreness Monitoring Rule — The Practical Session Governor
+
+This is the most consistently applied session volume regulator across all published protocols. While not tied to a single landmark RCT, it appears in the MOON guidelines, Buckthorpe (2020), and multiple clinical consensus documents:
+
+**The 24/48-hour soreness rule:**
+
+| Symptom | Acceptable? | Action |
+|---------|-------------|--------|
+| Muscle soreness (DOMS) resolving within 24 h | ✅ Yes | Continue as planned |
+| Muscle soreness lasting 24–48 h | ⚠️ Borderline | Reduce volume next session |
+| Muscle soreness lasting >48 h | ❌ No | Significant load reduction required |
+| Joint pain during exercise (>2/10 VAS) | ❌ Never acceptable | Stop exercise, reassess |
+| Swelling increase >1 cm at patella after session | ❌ Never acceptable | Reduce load, apply ice/elevation |
+| Any increase in effusion post-session | ❌ Never acceptable | Load was too high — back off |
+
+> **Buckthorpe (2020):** "Progression through tasks is allowed only when there is no pain or swelling increase as a response to previous tasks." This is the primary session-to-session feedback mechanism — more reliable in practice than any fixed set/rep target.
+
+---
+
+### Summary: What to Practically Apply
+
+Given the reporting gap in the literature, here is the most defensible session structure drawing from all available sources:
+
+| Phase | PT Visits | Home Sessions | Strength Volume | Cardio | Session Length |
+|-------|-----------|---------------|-----------------|--------|----------------|
+| Prehab | — | 3×/week | 2–4 sets × 8–15 reps | 20–30 min bike | 75–120 min |
+| Phase 1 (0–2 wk) | 2×/week | Daily | 1–3 sets × 12–20 reps (isometric/low load) | 10–15 min bike | 30–45 min |
+| Phase 2 (2–6 wk) | 2×/week | Daily | 2–4 sets × 8–15 reps | 15–20 min | 45–60 min |
+| Phase 3 (6–12 wk) | 1–2×/week | 3–4×/week | 3–5 sets × 6–12 reps | 20–30 min | 60–75 min |
+| Phase 4 (3–6 mo) | 1×/week | 4×/week | 3–5 sets × 4–8 reps (heavy) + plyos 2×/week | 20–30 min + running | 60–90 min |
+| Phase 5 (6–9+ mo) | As needed | 5×/week | Maintenance strength + sport training | Sport-specific | 90–120 min |
+
+> **The single most important volume rule in all published protocols:** If the knee is more swollen or painful after a session than before it, load was too high. Reduce it. This takes priority over any fixed set/rep prescription.
+
+---
+
 ## Executive Summary
 
 ACL graft failure occurs in roughly 5–25% of patients, and revision surgery means another 9–12 months of recovery. The research is clear: how you rehabilitate matters as much as the surgery itself. Two landmark findings frame every phase of this guide:

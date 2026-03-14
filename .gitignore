@@ -49,3 +49,4 @@ app-example
 .playwright-mcp/
 .vercel
 artifacts
+e2e

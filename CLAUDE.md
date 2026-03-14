@@ -11,3 +11,7 @@
 - After adding a new feature, make sure to test it using playwright
 - Code must adhere to liniting and formatting best practices
 - Save screenshots under `/artifacts`. Especially those made with playwright
+
+## Console
+
+- I use zsh so always put paths in "" when using the console, e.g. for git commands

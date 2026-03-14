@@ -8,7 +8,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,6 +16,8 @@ import { usePost } from "../../lib/hooks/use-post";
 import { PostTypeBadge } from "../../components/community/PostTypeBadge";
 import { ReactionButton } from "../../components/community/ReactionButton";
 import { CommentItem } from "../../components/community/CommentItem";
+import { OptionsMenu } from "../../components/community/OptionsMenu";
+import { confirmAlert } from "../../lib/utils/confirm";
 import { formatRelativeTime } from "../../lib/utils/format-time";
 
 export default function PostDetailScreen() {
@@ -51,37 +52,6 @@ export default function PostDetailScreen() {
     if (!text || submitting) return;
     setCommentText("");
     await addComment(text);
-  }
-
-  function handlePostMenu() {
-    Alert.alert("Post", undefined, [
-      {
-        text: "Edit",
-        onPress: () => {
-          setEditTitle(post?.title ?? "");
-          setEditBody(post?.body ?? "");
-          setEditingPost(true);
-        },
-      },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => {
-          Alert.alert("Delete post?", "This will also remove all replies. This cannot be undone.", [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Delete",
-              style: "destructive",
-              onPress: async () => {
-                const ok = await deletePost();
-                if (ok) router.push("/(tabs)/community");
-              },
-            },
-          ]);
-        },
-      },
-      { text: "Cancel", style: "cancel" },
-    ]);
   }
 
   async function handlePostEditSave() {
@@ -284,9 +254,33 @@ export default function PostDetailScreen() {
         </TouchableOpacity>
 
         {isPostOwner && (
-          <TouchableOpacity onPress={handlePostMenu} style={{ padding: 8 }}>
-            <Ionicons name="ellipsis-horizontal" size={22} color={Colors.textMuted} />
-          </TouchableOpacity>
+          <OptionsMenu
+            iconSize={22}
+            items={[
+              {
+                label: "Edit",
+                onPress: () => {
+                  setEditTitle(post?.title ?? "");
+                  setEditBody(post?.body ?? "");
+                  setEditingPost(true);
+                },
+              },
+              {
+                label: "Delete",
+                destructive: true,
+                onPress: () =>
+                  confirmAlert(
+                    "Delete post?",
+                    "This will also remove all replies. This cannot be undone.",
+                    "Delete",
+                    async () => {
+                      const ok = await deletePost();
+                      if (ok) router.push("/(tabs)/community");
+                    },
+                  ),
+              },
+            ]}
+          />
         )}
       </View>
 
