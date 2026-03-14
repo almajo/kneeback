@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../constants/colors";
 
 const LAST_UPDATED = "13 March 2026";
-const CONTACT_EMAIL = "privacy@kneeback.app";
+const CONTACT_EMAIL = "kneebackapp@gmail.com";
 
 export function PrivacyPolicyModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   return (
