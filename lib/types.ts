@@ -1,6 +1,49 @@
 export type GraftType = "patellar" | "hamstring" | "quad" | "allograft";
 export type KneeSide = "left" | "right";
-export type ExercisePhase = "acute" | "early_active" | "strengthening" | "return_to_sport";
+export type ExercisePhase = "prehab" | "acute" | "early_active" | "strengthening" | "advanced_strengthening" | "return_to_sport";
+
+// Gate system types
+export type GateCriterionType = "auto_days" | "auto_rom" | "self_report";
+
+export interface GateCriterion {
+  key: string;
+  label: string;
+  plainLabel: string; // non-technical version for users
+  type: GateCriterionType;
+  // For auto_days: minimum days since surgery
+  minDays?: number;
+  // For auto_rom: minimum flexion degrees
+  minFlexionDegrees?: number;
+  source: string;
+}
+
+export interface GateDefinition {
+  gateKey: string; // e.g. 'gate_3'
+  fromPhase: ExercisePhase;
+  toPhase: ExercisePhase;
+  title: string;
+  researchGap?: boolean; // true if no gate (Phase 2→3)
+  informationalOnly?: boolean; // true if Phase 1→2 (show criteria but don't warn)
+  criteria: GateCriterion[];
+  warningMessage: string; // shown in soft gate warning
+  source: string;
+}
+
+export interface UserGateCriteria {
+  id: string;
+  user_id: string;
+  gate_key: string;
+  criterion_key: string;
+  confirmed_at: string;
+}
+
+export interface GateProgress {
+  gate: GateDefinition;
+  metCount: number;
+  totalCount: number;
+  allMet: boolean;
+  criteriaStatus: { criterion: GateCriterion; met: boolean }[];
+}
 export type ExerciseCategory = "rom" | "strengthening" | "activation";
 export type ContentType = "achievement" | "daily_message" | "crutch_hack";
 export type ExerciseStatus = "approved" | "pending";

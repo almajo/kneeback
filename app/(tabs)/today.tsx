@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import DraggableFlatList, { RenderItemParams } from "react-native-draggable-flatlist";
 import { useToday } from "../../lib/hooks/use-today";
 import { useAuth } from "../../lib/auth-context";
@@ -10,6 +11,7 @@ import { DailyMessage } from "../../components/DailyMessage";
 import { SmartRestToggle } from "../../components/SmartRestToggle";
 import { ExerciseCard } from "../../components/ExerciseCard";
 import { AchievementPopup } from "../../components/AchievementPopup";
+import { PhaseOverviewModal } from "../../components/PhaseOverviewModal";
 import { supabase } from "../../lib/supabase";
 import { checkAchievements, getStreak } from "../../lib/achievements";
 import { Colors } from "../../constants/colors";
@@ -36,6 +38,7 @@ export default function TodayScreen() {
   const [userExercises, setUserExercises] = useState<UserExercise[]>([]);
   const [exerciseLogs, setExerciseLogs] = useState<typeof initialExerciseLogs>([]);
   const [pendingAchievement, setPendingAchievement] = useState<Content | null>(null);
+  const [showPhaseOverview, setShowPhaseOverview] = useState(false);
   const { todayMilestones, refetch: refetchMilestones } = useMilestones();
 
   useEffect(() => {
@@ -46,9 +49,22 @@ export default function TodayScreen() {
     setUserExercises(initialUserExercises);
   }, [initialUserExercises]);
 
+  useEffect(() => {
+    AsyncStorage.getItem("has_seen_phase_overview").then((value) => {
+      if (value !== "true") {
+        setShowPhaseOverview(true);
+      }
+    });
+  }, []);
+
   useFocusEffect(useCallback(() => {
     refetchMilestones();
   }, [refetchMilestones]));
+
+  async function handleDismissPhaseOverview() {
+    await AsyncStorage.setItem("has_seen_phase_overview", "true");
+    setShowPhaseOverview(false);
+  }
 
   if (loading) {
     return (
@@ -282,6 +298,10 @@ export default function TodayScreen() {
 
   return (
     <>
+      <PhaseOverviewModal
+        visible={showPhaseOverview}
+        onDismiss={handleDismissPhaseOverview}
+      />
       <AchievementPopup achievement={pendingAchievement} onDismiss={() => setPendingAchievement(null)} />
       <DraggableFlatList
         data={exerciseData}

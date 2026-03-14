@@ -16,6 +16,9 @@ import { QuadStreak } from "../../components/QuadStreak";
 import { LogRomSheet } from "../../components/LogRomSheet";
 import { ProgressCalendar } from "../../components/ProgressCalendar";
 import { useMilestones } from "../../lib/hooks/use-milestones";
+import { PhaseGateCard } from "../../components/PhaseGateCard";
+import { PhaseGateDetail } from "../../components/PhaseGateDetail";
+import { usePhaseGate } from "../../lib/hooks/use-phase-gate";
 import type { RomMeasurement } from "../../lib/types";
 
 function getLast30Dates(): string[] {
@@ -37,12 +40,21 @@ export default function ProgressScreen() {
   const [measurements, setMeasurements] = useState<RomMeasurement[]>([]);
   const [activationDays, setActivationDays] = useState<Set<string>>(new Set());
   const [surgeryDate, setSurgeryDate] = useState<string | null>(null);
+  const [gateDetailKey, setGateDetailKey] = useState<string | null>(null);
+  const [surgeryStatus, setSurgeryStatus] = useState<"no_date" | "pre_surgery" | "post_surgery">("no_date");
 
   const last30 = getLast30Dates();
 
   const daysSinceSurgery = surgeryDate
     ? Math.floor((Date.now() - new Date(surgeryDate).getTime()) / 86_400_000)
     : 0;
+
+  const latestFlexion = romData.length > 0 ? romData[romData.length - 1].flexion : null;
+  const { gateProgress, confirmedCriteria, toggleCriterion } = usePhaseGate(
+    daysSinceSurgery,
+    surgeryStatus,
+    latestFlexion
+  );
 
   useEffect(() => {
     if (!session) return;
@@ -55,7 +67,11 @@ export default function ProgressScreen() {
         .select("surgery_date")
         .eq("id", userId)
         .single();
-      if (profile?.surgery_date) setSurgeryDate(profile.surgery_date);
+      if (profile?.surgery_date) {
+        setSurgeryDate(profile.surgery_date);
+        const diff = Math.floor((Date.now() - new Date(profile.surgery_date).getTime()) / 86_400_000);
+        setSurgeryStatus(diff >= 0 ? "post_surgery" : "pre_surgery");
+      }
 
       // ROM measurements
       const { data: romRows } = await supabase
@@ -134,6 +150,16 @@ export default function ProgressScreen() {
 
   return (
     <>
+      <PhaseGateDetail
+        visible={gateDetailKey !== null}
+        gateKey={gateDetailKey}
+        gateProgress={gateProgress}
+        confirmedCriteria={confirmedCriteria}
+        daysSinceSurgery={daysSinceSurgery}
+        latestFlexion={latestFlexion}
+        onToggleCriterion={toggleCriterion}
+        onClose={() => setGateDetailKey(null)}
+      />
       <LogRomSheet
         visible={romSheetOpen}
         onClose={() => setRomSheetOpen(false)}
@@ -141,6 +167,13 @@ export default function ProgressScreen() {
         editingEntry={null}
       />
       <ScrollView className="flex-1 bg-background" contentContainerStyle={{ paddingTop: 16, paddingBottom: 40 }}>
+        <PhaseGateCard
+          gateProgress={gateProgress}
+          daysSinceSurgery={daysSinceSurgery}
+          surgeryStatus={surgeryStatus}
+          onViewDetail={(key) => setGateDetailKey(key)}
+        />
+
         {/* ROM section */}
         <View className="flex-row items-center justify-between mx-4 mb-3">
           <Text className="text-base font-semibold" style={{ color: Colors.text }}>Log ROM</Text>

@@ -9,10 +9,12 @@ import { Colors } from "../../constants/colors";
 import type { Exercise, ExercisePhase } from "../../lib/types";
 
 const PHASES: { key: ExercisePhase; label: string; weekRange: string; unlockDay: number }[] = [
-  { key: "acute",           label: "Acute",           weekRange: "Weeks 0–2",  unlockDay: 0  },
-  { key: "early_active",    label: "Early Active",    weekRange: "Weeks 2–6",  unlockDay: 14 },
-  { key: "strengthening",   label: "Strengthening",   weekRange: "Weeks 6–12", unlockDay: 42 },
-  { key: "return_to_sport", label: "Return to Sport", weekRange: "Week 12+",   unlockDay: 84 },
+  { key: "prehab",                 label: "Prehabilitation",         weekRange: "Pre-Surgery",  unlockDay: -Infinity },
+  { key: "acute",                  label: "Immediate Post-Op",       weekRange: "Weeks 0–2",    unlockDay: 0  },
+  { key: "early_active",           label: "Early Rehabilitation",    weekRange: "Weeks 2–6",    unlockDay: 14 },
+  { key: "strengthening",          label: "Progressive Strengthening", weekRange: "Weeks 6–12", unlockDay: 42 },
+  { key: "advanced_strengthening", label: "Advanced Strengthening",  weekRange: "Months 3–6",   unlockDay: 84 },
+  { key: "return_to_sport",        label: "Return to Sport",         weekRange: "Months 6–9+",  unlockDay: 168 },
 ];
 
 function daysSince(dateStr: string | null): number {
@@ -75,11 +77,13 @@ export default function PickExercises() {
     );
   }
 
+  // Pre-surgery: only show prehab. Post-surgery: show phases based on days.
+  const isPre = days <= 0 && data.surgeryDate !== null && new Date(data.surgeryDate) > new Date();
   const sections = PHASES.map((phase) => ({
     phase,
     data: exercisesByPhase[phase.key] || [],
-    locked: days < phase.unlockDay,
-  })).filter((s) => s.data.length > 0 || s.phase.key === "strengthening" || s.phase.key === "return_to_sport");
+    locked: isPre ? phase.key !== "prehab" : days < phase.unlockDay,
+  })).filter((s) => s.data.length > 0);
 
   return (
     <View className="flex-1 bg-background">
@@ -109,10 +113,10 @@ export default function PickExercises() {
                   {phase.weekRange}
                 </Text>
               </View>
-              {locked && (
+              {locked && phase.unlockDay !== -Infinity && (
                 <View className="bg-surface border border-border rounded-full px-3 py-1">
                   <Text className="text-xs" style={{ color: "#A0A0A0" }}>
-                    Unlocks at week {phase.unlockDay / 7}
+                    Unlocks at week {Math.floor(phase.unlockDay / 7)}
                   </Text>
                 </View>
               )}

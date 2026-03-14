@@ -1,18 +1,22 @@
 import { useState, useEffect } from "react";
-import { View, Text, TextInput, SectionList, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, TextInput, SectionList, TouchableOpacity, ActivityIndicator, Modal, SafeAreaView } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth-context";
 import { ExerciseStepper } from "../components/ExerciseStepper";
 import { Colors } from "../constants/colors";
-import type { Exercise, ExercisePhase, UserExercise } from "../lib/types";
+import { usePhaseGate } from "../lib/hooks/use-phase-gate";
+import { GATE_DEFINITIONS, PHASES_ORDERED, PHASE_COLORS } from "../lib/phase-gates";
+import type { Exercise, ExercisePhase, UserExercise, GateDefinition } from "../lib/types";
 
 const PHASES: { key: ExercisePhase; label: string; weekRange: string; unlockDay: number }[] = [
-  { key: "acute",           label: "Acute",           weekRange: "Weeks 0–2",  unlockDay: 0  },
-  { key: "early_active",    label: "Early Active",    weekRange: "Weeks 2–6",  unlockDay: 14 },
-  { key: "strengthening",   label: "Strengthening",   weekRange: "Weeks 6–12", unlockDay: 42 },
-  { key: "return_to_sport", label: "Return to Sport", weekRange: "Week 12+",   unlockDay: 84 },
+  { key: "prehab",                 label: "Prehabilitation",           weekRange: "Pre-Surgery",  unlockDay: -Infinity },
+  { key: "acute",                  label: "Immediate Post-Op",         weekRange: "Weeks 0–2",    unlockDay: 0  },
+  { key: "early_active",           label: "Early Rehabilitation",      weekRange: "Weeks 2–6",    unlockDay: 14 },
+  { key: "strengthening",          label: "Progressive Strengthening", weekRange: "Weeks 6–12",   unlockDay: 42 },
+  { key: "advanced_strengthening", label: "Advanced Strengthening",    weekRange: "Months 3–6",   unlockDay: 84 },
+  { key: "return_to_sport",        label: "Return to Sport",           weekRange: "Months 6–9+",  unlockDay: 168 },
 ];
 
 export default function ExercisePicker() {
@@ -23,7 +27,11 @@ export default function ExercisePicker() {
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [daysSinceSurgery, setDaysSinceSurgery] = useState(0);
+  const [surgeryStatus, setSurgeryStatus] = useState<"no_date" | "pre_surgery" | "post_surgery">("no_date");
   const [loading, setLoading] = useState(true);
+  const [gateWarning, setGateWarning] = useState<{ exercise: Exercise; gate: GateDefinition } | null>(null);
+
+  const { gateProgress, confirmedCriteria, toggleCriterion } = usePhaseGate(daysSinceSurgery, surgeryStatus, null);
 
   useEffect(() => {
     if (!session) return;
@@ -43,14 +51,48 @@ export default function ExercisePicker() {
       if (profile?.surgery_date) {
         const surgery = new Date(profile.surgery_date);
         const today = new Date();
-        setDaysSinceSurgery(Math.floor((today.getTime() - surgery.getTime()) / 86400000));
+        const diff = Math.floor((today.getTime() - surgery.getTime()) / 86400000);
+        if (diff >= 0) {
+          setDaysSinceSurgery(diff);
+          setSurgeryStatus("post_surgery");
+        } else {
+          setSurgeryStatus("pre_surgery");
+        }
       }
 
       setLoading(false);
     });
   }, [session]);
 
-  async function onToggle(exercise: Exercise) {
+  function getCurrentPhaseKey(): ExercisePhase {
+    if (surgeryStatus === "pre_surgery" || surgeryStatus === "no_date") return "prehab";
+    const reversed = PHASES_ORDERED.slice().reverse();
+    const match = reversed.find((p) => daysSinceSurgery >= (p.unlockDay === -Infinity ? -Infinity : p.unlockDay));
+    return match?.key ?? "prehab";
+  }
+
+  function getRequiredGate(exercise: Exercise): GateDefinition | null {
+    const phaseIndex = PHASES_ORDERED.findIndex((p) => p.key === exercise.phase);
+    const currentPhaseKey = getCurrentPhaseKey();
+    const currentPhaseIndex = PHASES_ORDERED.findIndex((p) => p.key === currentPhaseKey);
+
+    if (phaseIndex <= currentPhaseIndex) return null;
+
+    for (let i = currentPhaseIndex; i < phaseIndex; i++) {
+      const fromPhase = PHASES_ORDERED[i].key;
+      const matchingGate = GATE_DEFINITIONS.find(
+        (g) => g.fromPhase === fromPhase && !g.researchGap && !g.informationalOnly
+      );
+      if (matchingGate) {
+        const gp = gateProgress.find((p) => p.gate.gateKey === matchingGate.gateKey);
+        if (gp && !gp.allMet) return matchingGate as GateDefinition;
+      }
+    }
+
+    return null;
+  }
+
+  async function performToggle(exercise: Exercise) {
     if (!session) return;
     const exerciseId = exercise.id;
     setSaving((prev) => new Set(prev).add(exerciseId));
@@ -102,6 +144,22 @@ export default function ExercisePicker() {
     });
   }
 
+  async function onToggle(exercise: Exercise) {
+    const existing = userExercisesMap.get(exercise.id);
+    const isCurrentlyActive = existing?.is_active ?? false;
+
+    // Only show gate warning when ACTIVATING an exercise (not deactivating)
+    if (!isCurrentlyActive) {
+      const requiredGate = getRequiredGate(exercise);
+      if (requiredGate) {
+        setGateWarning({ exercise, gate: requiredGate });
+        return;
+      }
+    }
+
+    await performToggle(exercise);
+  }
+
   async function onStepperChange(exerciseId: string, field: "sets" | "reps" | "hold_seconds", value: number) {
     const existing = userExercisesMap.get(exerciseId);
     if (!existing) return;
@@ -126,11 +184,20 @@ export default function ExercisePicker() {
     exercisesByPhase[ex.phase].push(ex);
   }
 
-  const sections = PHASES.map((phase) => ({
-    phase,
-    data: exercisesByPhase[phase.key] || [],
-    locked: daysSinceSurgery < phase.unlockDay,
-  })).filter((s) => s.data.length > 0);
+  const sections = PHASES.map((phase) => {
+    const locked =
+      phase.key === "prehab"
+        ? surgeryStatus === "post_surgery"
+        : phase.unlockDay === -Infinity
+        ? false
+        : daysSinceSurgery < phase.unlockDay;
+
+    return {
+      phase,
+      data: exercisesByPhase[phase.key] || [],
+      locked,
+    };
+  }).filter((s) => s.data.length > 0);
 
   if (loading) {
     return (
@@ -139,6 +206,16 @@ export default function ExercisePicker() {
       </View>
     );
   }
+
+  const warningGateProgress = gateWarning
+    ? gateProgress.find((p) => p.gate.gateKey === gateWarning.gate.gateKey)
+    : null;
+
+  const unmetCriteria = warningGateProgress
+    ? warningGateProgress.criteriaStatus
+        .filter((cs) => !cs.met)
+        .slice(0, 3)
+    : [];
 
   return (
     <View className="flex-1 bg-background">
@@ -162,6 +239,7 @@ export default function ExercisePicker() {
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
         renderSectionHeader={({ section }) => {
           const { phase, locked } = section;
+          const showUnlockBadge = phase.unlockDay !== -Infinity && locked;
           return (
             <View className="flex-row items-center justify-between py-3 mt-2">
               <View>
@@ -170,7 +248,7 @@ export default function ExercisePicker() {
                 </Text>
                 <Text className="text-xs" style={{ color: "#A0A0A0" }}>{phase.weekRange}</Text>
               </View>
-              {locked && (
+              {showUnlockBadge && (
                 <View className="bg-surface border border-border rounded-full px-3 py-1">
                   <Text className="text-xs" style={{ color: "#A0A0A0" }}>
                     Unlocks at week {phase.unlockDay / 7}
@@ -272,6 +350,95 @@ export default function ExercisePicker() {
           </View>
         }
       />
+
+      <Modal
+        animationType="slide"
+        transparent
+        visible={gateWarning !== null}
+        onRequestClose={() => setGateWarning(null)}
+      >
+        <View style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.4)" }}>
+          <SafeAreaView style={{ backgroundColor: Colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
+            <View style={{ padding: 24 }}>
+              {/* Header */}
+              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+                <Ionicons name="warning-outline" size={22} color={Colors.warning} style={{ marginRight: 8 }} />
+                <Text style={{ fontSize: 18, fontWeight: "700", color: Colors.text }}>
+                  Research Advisory
+                </Text>
+              </View>
+
+              {/* Warning message */}
+              <Text style={{ fontSize: 14, color: Colors.textSecondary, lineHeight: 20, marginBottom: 16 }}>
+                {gateWarning?.gate.warningMessage}
+              </Text>
+
+              {/* Unmet criteria */}
+              {unmetCriteria.length > 0 && (
+                <View style={{ backgroundColor: Colors.surfaceAlt, borderRadius: 12, padding: 14, marginBottom: 16 }}>
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: Colors.text, marginBottom: 8 }}>
+                    Criteria not yet confirmed:
+                  </Text>
+                  {unmetCriteria.map((cs) => (
+                    <View key={cs.criterion.key} style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: 6 }}>
+                      <Ionicons name="close-circle-outline" size={16} color={Colors.error} style={{ marginRight: 6, marginTop: 1 }} />
+                      <Text style={{ fontSize: 13, color: Colors.textSecondary, flex: 1 }}>
+                        {cs.criterion.plainLabel}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Source citation */}
+              {gateWarning?.gate.source && (
+                <Text style={{ fontSize: 11, color: Colors.textMuted, marginBottom: 20, fontStyle: "italic" }}>
+                  Source: {gateWarning.gate.source}
+                </Text>
+              )}
+
+              {/* Buttons */}
+              <TouchableOpacity
+                style={{
+                  borderRadius: 14,
+                  paddingVertical: 14,
+                  alignItems: "center",
+                  backgroundColor: Colors.primary,
+                  marginBottom: 10,
+                }}
+                onPress={() => setGateWarning(null)}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 15 }}>Not yet</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{
+                  borderRadius: 14,
+                  paddingVertical: 14,
+                  alignItems: "center",
+                  borderWidth: 1.5,
+                  borderColor: Colors.border,
+                  backgroundColor: Colors.surface,
+                  marginBottom: 4,
+                }}
+                onPress={async () => {
+                  const pending = gateWarning?.exercise;
+                  setGateWarning(null);
+                  if (pending) {
+                    await performToggle(pending);
+                  }
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: Colors.textSecondary, fontWeight: "600", fontSize: 15 }}>
+                  I understand, add anyway
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+        </View>
+      </Modal>
     </View>
   );
 }

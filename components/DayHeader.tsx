@@ -1,6 +1,7 @@
 import { View, Text } from "react-native";
 import { Colors } from "../constants/colors";
 import type { SurgeryStatus } from "../lib/hooks/use-today";
+import { getPhaseFromDays, PHASE_DISPLAY_NAMES, PHASE_COLORS } from "../lib/phase-gates";
 
 interface Props {
   day: number;
@@ -11,11 +12,10 @@ interface Props {
   daysUntilSurgery?: number | null;
 }
 
-function getPhase(daysSinceSurgery: number): string {
-  if (daysSinceSurgery <= 14) return "Acute Phase";
-  if (daysSinceSurgery <= 42) return "Early Rehab";
-  if (daysSinceSurgery <= 90) return "Strengthening";
-  return "Return to Activity";
+function getPhaseLabel(daysSinceSurgery: number, surgeryStatus: SurgeryStatus): { label: string; color: string } {
+  const phaseKey = getPhaseFromDays(daysSinceSurgery, surgeryStatus);
+  const info = PHASE_DISPLAY_NAMES[phaseKey];
+  return { label: info.label, color: PHASE_COLORS[phaseKey] };
 }
 
 export function DayHeader({ day, week, streak = 0, phase, surgeryStatus = "post_surgery", daysUntilSurgery }: Props) {
@@ -39,7 +39,7 @@ export function DayHeader({ day, week, streak = 0, phase, surgeryStatus = "post_
     return null;
   }
 
-  const phaseName = phase ?? getPhase(day);
+  const { label: phaseName, color: phaseColor } = getPhaseLabel(day, surgeryStatus);
 
   return (
     <View className="items-center py-6 mx-4 mb-2 border-b border-border">
@@ -50,9 +50,9 @@ export function DayHeader({ day, week, streak = 0, phase, surgeryStatus = "post_
         {/* Phase badge */}
         <View
           className="rounded-full px-3 py-1"
-          style={{ backgroundColor: Colors.secondary + "20" }}
+          style={{ backgroundColor: phaseColor + "20" }}
         >
-          <Text className="text-xs font-semibold" style={{ color: Colors.secondaryDark }}>
+          <Text className="text-xs font-semibold" style={{ color: phaseColor }}>
             {phaseName}
           </Text>
         </View>
