@@ -4,9 +4,11 @@ import { useAuth } from "../auth-context";
 import { getStreak } from "../achievements";
 import type { UserExercise, DailyLog, ExerciseLog, Content } from "../types";
 
+export type SurgeryStatus = "no_date" | "pre_surgery" | "post_surgery";
+
 export function useToday() {
   const { session } = useAuth();
-  const [profile, setProfile] = useState<{ surgery_date: string } | null>(null);
+  const [profile, setProfile] = useState<{ surgery_date: string | null } | null>(null);
   const [userExercises, setUserExercises] = useState<UserExercise[]>([]);
   const [dailyLog, setDailyLog] = useState<DailyLog | null>(null);
   const [exerciseLogs, setExerciseLogs] = useState<ExerciseLog[]>([]);
@@ -86,11 +88,24 @@ export function useToday() {
     fetchAll();
   }, [fetchAll]);
 
-  const daysSinceSurgery = profile
-    ? Math.max(0, Math.floor(
-        (new Date(today).getTime() - new Date(profile.surgery_date).getTime()) / 86400000
-      ))
-    : 0;
+  const surgeryDate = profile?.surgery_date ?? null;
+
+  let surgeryStatus: SurgeryStatus = "no_date";
+  let daysSinceSurgery = 0;
+  let daysUntilSurgery: number | null = null;
+
+  if (surgeryDate) {
+    const surgeryMs = new Date(surgeryDate).getTime();
+    const todayMs = new Date(today).getTime();
+    const diffDays = Math.floor((todayMs - surgeryMs) / 86400000);
+    if (diffDays >= 0) {
+      surgeryStatus = "post_surgery";
+      daysSinceSurgery = diffDays;
+    } else {
+      surgeryStatus = "pre_surgery";
+      daysUntilSurgery = Math.abs(diffDays);
+    }
+  }
 
   const weekNumber = Math.floor(daysSinceSurgery / 7) + 1;
 
@@ -100,7 +115,9 @@ export function useToday() {
 
   return {
     loading,
+    surgeryStatus,
     daysSinceSurgery,
+    daysUntilSurgery,
     weekNumber,
     userExercises,
     dailyLog,

@@ -41,6 +41,9 @@ export default function ProfileScreen() {
   const [editingReminder, setEditingReminder] = useState(false);
   const [editingGraftType, setEditingGraftType] = useState(false);
   const [savingGraftType, setSavingGraftType] = useState(false);
+  const [editingSurgeryDate, setEditingSurgeryDate] = useState(false);
+  const [surgeryDateValue, setSurgeryDateValue] = useState<Date>(new Date());
+  const [savingSurgeryDate, setSavingSurgeryDate] = useState(false);
   const [privacyVisible, setPrivacyVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -133,6 +136,16 @@ export default function ProfileScreen() {
     setSavingGraftType(false);
   }
 
+  async function saveSurgeryDate(date: Date) {
+    if (!userId || !profile) return;
+    setSavingSurgeryDate(true);
+    const dateStr = date.toISOString().split("T")[0];
+    await supabase.from("profiles").update({ surgery_date: dateStr }).eq("id", userId);
+    setProfile({ ...profile, surgery_date: dateStr });
+    setEditingSurgeryDate(false);
+    setSavingSurgeryDate(false);
+  }
+
   async function handleSignOut() {
     await supabase.auth.signOut();
   }
@@ -157,9 +170,7 @@ export default function ProfileScreen() {
   }
 
   function daysSince(dateStr: string): number {
-    return Math.max(0, Math.floor(
-      (Date.now() - new Date(dateStr).getTime()) / 86400000
-    ));
+    return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
   }
 
   if (loading) {
@@ -185,9 +196,19 @@ export default function ProfileScreen() {
         <Text className="text-xl font-bold" style={{ color: "#2D2D2D" }}>
           {profile?.username ?? "—"}
         </Text>
-        {profile?.surgery_date && (
+        {profile?.surgery_date && daysSince(profile.surgery_date) >= 0 && (
           <Text className="text-sm mt-1" style={{ color: "#6B6B6B" }}>
             Day {daysSince(profile.surgery_date)} of recovery
+          </Text>
+        )}
+        {profile?.surgery_date && daysSince(profile.surgery_date) < 0 && (
+          <Text className="text-sm mt-1" style={{ color: "#6B6B6B" }}>
+            Surgery in {Math.abs(daysSince(profile.surgery_date))} days
+          </Text>
+        )}
+        {!profile?.surgery_date && (
+          <Text className="text-sm mt-1" style={{ color: "#6B6B6B" }}>
+            Surgery date not set
           </Text>
         )}
       </View>
@@ -195,7 +216,99 @@ export default function ProfileScreen() {
       {/* Surgery Info */}
       <View className="bg-surface border border-border rounded-2xl p-4 mb-4">
         <Text className="text-base font-semibold mb-3" style={{ color: "#2D2D2D" }}>Surgery Details</Text>
-        <InfoRow label="Surgery Date" value={profile?.surgery_date ? surgeryDateLabel(profile.surgery_date) : "—"} />
+
+        {/* Surgery Date — editable when null or in the future */}
+        {isSurgeryDateEditable(profile?.surgery_date) ? (
+          <>
+            <TouchableOpacity
+              className="flex-row justify-between items-center py-3 border-b border-border"
+              onPress={() => {
+                setSurgeryDateValue(profile?.surgery_date ? new Date(profile.surgery_date + "T12:00:00") : new Date());
+                setEditingSurgeryDate((v) => !v);
+              }}
+            >
+              <Text style={{ color: "#6B6B6B" }}>Surgery Date</Text>
+              <View className="flex-row items-center gap-2">
+                <Text className="font-semibold" style={{ color: "#2D2D2D" }}>
+                  {profile?.surgery_date ? surgeryDateLabel(profile.surgery_date) : "Not set"}
+                </Text>
+                <Ionicons
+                  name={editingSurgeryDate ? "chevron-up" : "chevron-down"}
+                  size={14}
+                  color="#A0A0A0"
+                />
+              </View>
+            </TouchableOpacity>
+            {editingSurgeryDate && (
+              <View className="pb-2 pt-2">
+                {Platform.OS === "web" ? (
+                  <>
+                    <input
+                      type="date"
+                      value={surgeryDateValue.toISOString().split("T")[0]}
+                      onChange={(e) => {
+                        if (e.target.value) setSurgeryDateValue(new Date(e.target.value + "T12:00:00"));
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "12px 16px",
+                        fontSize: 16,
+                        border: "1px solid #E5E7EB",
+                        borderRadius: 12,
+                        marginBottom: 8,
+                        outline: "none",
+                        boxSizing: "border-box",
+                        backgroundColor: "transparent",
+                      }}
+                    />
+                    <TouchableOpacity
+                      className={`bg-primary rounded-xl py-3 items-center ${savingSurgeryDate ? "opacity-50" : ""}`}
+                      onPress={() => saveSurgeryDate(surgeryDateValue)}
+                      disabled={savingSurgeryDate}
+                    >
+                      {savingSurgeryDate ? (
+                        <ActivityIndicator color="white" />
+                      ) : (
+                        <Text className="text-white font-semibold">Save</Text>
+                      )}
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <View className="items-center">
+                      <DateTimePicker
+                        value={surgeryDateValue}
+                        mode="date"
+                        display={Platform.OS === "ios" ? "spinner" : "default"}
+                        onChange={(_, selected) => {
+                          if (!selected) return;
+                          setSurgeryDateValue(selected);
+                          if (Platform.OS === "android") saveSurgeryDate(selected);
+                        }}
+                        style={{ width: "100%" }}
+                      />
+                    </View>
+                    {Platform.OS !== "android" && (
+                      <TouchableOpacity
+                        className={`bg-primary rounded-xl py-3 items-center mt-2 ${savingSurgeryDate ? "opacity-50" : ""}`}
+                        onPress={() => saveSurgeryDate(surgeryDateValue)}
+                        disabled={savingSurgeryDate}
+                      >
+                        {savingSurgeryDate ? (
+                          <ActivityIndicator color="white" />
+                        ) : (
+                          <Text className="text-white font-semibold">Save</Text>
+                        )}
+                      </TouchableOpacity>
+                    )}
+                  </>
+                )}
+              </View>
+            )}
+          </>
+        ) : (
+          <InfoRow label="Surgery Date" value={profile?.surgery_date ? surgeryDateLabel(profile.surgery_date) : "—"} />
+        )}
 
         {/* Editable Graft Type */}
         <TouchableOpacity
@@ -412,6 +525,11 @@ export default function ProfileScreen() {
       </Modal>
     </ScrollView>
   );
+}
+
+function isSurgeryDateEditable(dateStr: string | null | undefined): boolean {
+  if (!dateStr) return true;
+  return new Date(dateStr).getTime() > Date.now();
 }
 
 function capitalize(s: string) {

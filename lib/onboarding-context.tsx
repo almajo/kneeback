@@ -12,7 +12,7 @@ export interface SelectedExercise {
 interface OnboardingData {
   name: string;
   username: string;
-  surgeryDate: string;
+  surgeryDate: string | null;
   graftType: GraftType | null;
   kneeSide: KneeSide | null;
   selectedExercises: SelectedExercise[];
@@ -35,7 +35,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<OnboardingData>({
     name: "",
     username: generateUsername(),
-    surgeryDate: new Date().toISOString().split("T")[0],
+    surgeryDate: null,
     graftType: null,
     kneeSide: null,
     selectedExercises: [],

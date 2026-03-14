@@ -22,6 +22,8 @@ export default function TodayScreen() {
   const {
     loading,
     daysSinceSurgery,
+    daysUntilSurgery,
+    surgeryStatus,
     weekNumber,
     userExercises: initialUserExercises,
     dailyLog,
@@ -160,7 +162,13 @@ export default function TodayScreen() {
 
   const listHeader = (
     <>
-      <DayHeader day={daysSinceSurgery} week={weekNumber} streak={streak} />
+      <DayHeader
+        day={daysSinceSurgery}
+        week={weekNumber}
+        streak={streak}
+        surgeryStatus={surgeryStatus}
+        daysUntilSurgery={daysUntilSurgery}
+      />
       <DailyMessage message={dailyMessage?.body ?? null} />
 
       {todayMilestones.length > 0 && (

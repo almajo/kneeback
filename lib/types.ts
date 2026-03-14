@@ -8,7 +8,7 @@ export type ExerciseStatus = "approved" | "pending";
 export interface Profile {
   id: string;
   username: string;
-  surgery_date: string;
+  surgery_date: string | null;
   graft_type: GraftType;
   knee_side: KneeSide;
   expo_push_token: string | null;

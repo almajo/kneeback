@@ -15,10 +15,12 @@ const PHASES: { key: ExercisePhase; label: string; weekRange: string; unlockDay:
   { key: "return_to_sport", label: "Return to Sport", weekRange: "Week 12+",   unlockDay: 84 },
 ];
 
-function daysSince(dateStr: string): number {
+function daysSince(dateStr: string | null): number {
+  if (!dateStr) return 0;
   const surgery = new Date(dateStr);
   const today = new Date();
-  return Math.floor((today.getTime() - surgery.getTime()) / (1000 * 60 * 60 * 24));
+  const diff = Math.floor((today.getTime() - surgery.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.max(0, diff);
 }
 
 export default function PickExercises() {

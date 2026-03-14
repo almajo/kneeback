@@ -17,7 +17,8 @@ const KNEE_SIDES: { value: KneeSide; label: string }[] = [
   { value: "right", label: "Right" },
 ];
 
-function parseDateSafe(str: string): Date {
+function parseDateSafe(str: string | null): Date {
+  if (!str) return new Date();
   const d = new Date(str);
   return isNaN(d.getTime()) ? new Date() : d;
 }
@@ -25,6 +26,7 @@ function parseDateSafe(str: string): Date {
 export default function SurgeryDetails() {
   const router = useRouter();
   const { data, update } = useOnboarding();
+  const [dateNotSetYet, setDateNotSetYet] = useState(data.surgeryDate === null);
   const [surgeryDate, setSurgeryDate] = useState(parseDateSafe(data.surgeryDate));
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -53,8 +55,18 @@ export default function SurgeryDetails() {
       Alert.alert("Missing info", "Please select which knee.");
       return;
     }
-    update({ surgeryDate: formatDate(surgeryDate) });
+    update({ surgeryDate: dateNotSetYet ? null : formatDate(surgeryDate) });
     router.push("/(onboarding)/pick-exercises");
+  }
+
+  function toggleDateNotSet() {
+    setDateNotSetYet((prev) => {
+      if (!prev) {
+        // switching to "not set" — clear context date
+        update({ surgeryDate: null });
+      }
+      return !prev;
+    });
   }
 
   return (
@@ -86,57 +98,83 @@ export default function SurgeryDetails() {
       />
 
       <Text className="text-sm font-semibold mb-2" style={{ color: "#2D2D2D" }}>Surgery Date</Text>
-      {Platform.OS === "web" ? (
-        <input
-          type="date"
-          value={formatDate(surgeryDate)}
-          max={formatDate(new Date())}
-          onChange={(e) => { if (e.target.value) setSurgeryDate(new Date(e.target.value + "T12:00:00")); }}
-          style={{
-            width: "100%",
-            backgroundColor: "#FFFFFF",
-            border: "1px solid #E5E5E5",
-            borderRadius: 16,
-            padding: "16px",
-            fontSize: 16,
-            color: "#2D2D2D",
-            outline: "none",
-            boxSizing: "border-box",
-            marginBottom: 24,
-          }}
-        />
-      ) : Platform.OS === "android" ? (
-        <>
-          <TouchableOpacity
-            className="bg-surface border border-border rounded-2xl px-4 py-4 mb-6"
-            onPress={() => setShowDatePicker(true)}
-          >
-            <Text className="text-base" style={{ color: "#2D2D2D" }}>{displayDate(surgeryDate)}</Text>
-          </TouchableOpacity>
-          {showDatePicker && (
+
+      {/* "Date not set yet" toggle */}
+      <TouchableOpacity
+        className="flex-row items-center gap-3 mb-4"
+        onPress={toggleDateNotSet}
+        activeOpacity={0.7}
+      >
+        <View
+          className={`w-5 h-5 rounded border-2 items-center justify-center ${
+            dateNotSetYet ? "bg-primary border-primary" : "bg-surface border-border"
+          }`}
+        >
+          {dateNotSetYet && <Text className="text-white text-xs font-bold">✓</Text>}
+        </View>
+        <Text className="text-sm" style={{ color: "#6B6B6B" }}>
+          I don't have a surgery date yet
+        </Text>
+      </TouchableOpacity>
+
+      {!dateNotSetYet && (
+        Platform.OS === "web" ? (
+          <input
+            type="date"
+            value={formatDate(surgeryDate)}
+            onChange={(e) => { if (e.target.value) setSurgeryDate(new Date(e.target.value + "T12:00:00")); }}
+            style={{
+              width: "100%",
+              backgroundColor: "#FFFFFF",
+              border: "1px solid #E5E5E5",
+              borderRadius: 16,
+              padding: "16px",
+              fontSize: 16,
+              color: "#2D2D2D",
+              outline: "none",
+              boxSizing: "border-box",
+              marginBottom: 24,
+            }}
+          />
+        ) : Platform.OS === "android" ? (
+          <>
+            <TouchableOpacity
+              className="bg-surface border border-border rounded-2xl px-4 py-4 mb-6"
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Text className="text-base" style={{ color: "#2D2D2D" }}>{displayDate(surgeryDate)}</Text>
+            </TouchableOpacity>
+            {showDatePicker && (
+              <DateTimePicker
+                value={surgeryDate}
+                mode="date"
+                onChange={(_, selected) => {
+                  setShowDatePicker(false);
+                  if (selected) setSurgeryDate(selected);
+                }}
+              />
+            )}
+          </>
+        ) : (
+          <View className="bg-surface border border-border rounded-2xl px-2 mb-6 items-center">
             <DateTimePicker
               value={surgeryDate}
               mode="date"
-              maximumDate={new Date()}
+              display="spinner"
               onChange={(_, selected) => {
-                setShowDatePicker(false);
                 if (selected) setSurgeryDate(selected);
               }}
+              style={{ width: "100%" }}
             />
-          )}
-        </>
-      ) : (
-        <View className="bg-surface border border-border rounded-2xl px-2 mb-6 items-center">
-          <DateTimePicker
-            value={surgeryDate}
-            mode="date"
-            display="spinner"
-            maximumDate={new Date()}
-            onChange={(_, selected) => {
-              if (selected) setSurgeryDate(selected);
-            }}
-            style={{ width: "100%" }}
-          />
+          </View>
+        )
+      )}
+
+      {dateNotSetYet && (
+        <View className="bg-surface border border-border rounded-2xl px-4 py-4 mb-6">
+          <Text className="text-sm" style={{ color: "#6B6B6B" }}>
+            You can set your surgery date later in your profile once it's scheduled.
+          </Text>
         </View>
       )}
 
