@@ -131,35 +131,50 @@ export default function TodayScreen() {
     const existing = exerciseLogs.find((l) => l.user_exercise_id === userExerciseId);
     const isFirstEver = exerciseLogs.every((l) => !l.completed) && updates.completed === true;
 
+    // Optimistic update
     if (existing) {
       setExerciseLogs((prev) =>
-        prev.map((l) => (l.id === existing.id ? { ...l, ...updates } : l))
+        prev.map((l) => (l.user_exercise_id === userExerciseId ? { ...l, ...updates } : l))
       );
     } else {
-      const newLog = {
-        id: `temp-${userExerciseId}`,
-        daily_log_id: dailyLog.id,
-        user_exercise_id: userExerciseId,
-        completed: false,
-        actual_sets: 0,
-        actual_reps: 0,
-        ...updates,
-      };
-      setExerciseLogs((prev) => [...prev, newLog]);
+      setExerciseLogs((prev) => [
+        ...prev,
+        {
+          id: `temp-${userExerciseId}`,
+          daily_log_id: dailyLog.id,
+          user_exercise_id: userExerciseId,
+          completed: false,
+          actual_sets: 0,
+          actual_reps: 0,
+          ...updates,
+        },
+      ]);
     }
 
-    if (existing) {
-      await supabase.from("exercise_logs").update(updates).eq("id", existing.id);
-    } else {
-      await supabase.from("exercise_logs").insert({
-        daily_log_id: dailyLog.id,
-        user_exercise_id: userExerciseId,
-        completed: false,
-        actual_sets: 0,
-        actual_reps: 0,
-        ...updates,
-      });
+    // Upsert handles both insert and update atomically — no temp-ID mismatch possible
+    const { data } = await supabase
+      .from("exercise_logs")
+      .upsert(
+        {
+          daily_log_id: dailyLog.id,
+          user_exercise_id: userExerciseId,
+          completed: existing?.completed ?? false,
+          actual_sets: existing?.actual_sets ?? 0,
+          actual_reps: existing?.actual_reps ?? 0,
+          ...updates,
+        },
+        { onConflict: "daily_log_id,user_exercise_id" }
+      )
+      .select()
+      .single();
+
+    // Replace temp ID with the real DB id after first insert
+    if (data && !existing) {
+      setExerciseLogs((prev) =>
+        prev.map((l) => (l.user_exercise_id === userExerciseId ? data : l))
+      );
     }
+
     if (updates.completed === true) {
       await runAchievementCheck({ isFirstExercise: isFirstEver });
     }
