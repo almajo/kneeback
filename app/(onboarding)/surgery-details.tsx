@@ -56,7 +56,7 @@ export default function SurgeryDetails() {
       return;
     }
     update({ surgeryDate: dateNotSetYet ? null : formatDate(surgeryDate) });
-    router.push("/(onboarding)/pick-exercises");
+    router.push('/(onboarding)/quick-setup');
   }
 
   function toggleDateNotSet() {
