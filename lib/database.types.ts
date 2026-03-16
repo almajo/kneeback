@@ -241,8 +241,14 @@ export type Database = {
           default_sets: number
           description: string
           id: string
+          muscle_groups:
+            | Database["public"]["Enums"]["exercise_muscle_group"][]
+            | null
           name: string
-          phase: Database["public"]["Enums"]["exercise_phase"]
+          phase_end: string | null
+          phase_start: string
+          primary_exercise_id: string | null
+          role: Database["public"]["Enums"]["exercise_role"]
           sort_order: number
           status: Database["public"]["Enums"]["exercise_status"]
           submitted_by: string | null
@@ -254,8 +260,14 @@ export type Database = {
           default_sets?: number
           description?: string
           id?: string
+          muscle_groups?:
+            | Database["public"]["Enums"]["exercise_muscle_group"][]
+            | null
           name: string
-          phase?: Database["public"]["Enums"]["exercise_phase"]
+          phase_end?: string | null
+          phase_start: string
+          primary_exercise_id?: string | null
+          role: Database["public"]["Enums"]["exercise_role"]
           sort_order?: number
           status?: Database["public"]["Enums"]["exercise_status"]
           submitted_by?: string | null
@@ -267,13 +279,27 @@ export type Database = {
           default_sets?: number
           description?: string
           id?: string
+          muscle_groups?:
+            | Database["public"]["Enums"]["exercise_muscle_group"][]
+            | null
           name?: string
-          phase?: Database["public"]["Enums"]["exercise_phase"]
+          phase_end?: string | null
+          phase_start?: string
+          primary_exercise_id?: string | null
+          role?: Database["public"]["Enums"]["exercise_role"]
           sort_order?: number
           status?: Database["public"]["Enums"]["exercise_status"]
           submitted_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "exercises_primary_exercise_id_fkey"
+            columns: ["primary_exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       milestones: {
         Row: {
@@ -444,7 +470,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          exercise_id?: string
+          exercise_id: string
           hold_seconds?: number | null
           id?: string
           is_active?: boolean
@@ -514,6 +540,14 @@ export type Database = {
     }
     Enums: {
       content_type: "achievement" | "daily_message" | "crutch_hack"
+      exercise_muscle_group:
+        | "Quad"
+        | "Hamstring"
+        | "Hip"
+        | "Calf"
+        | "Knee ROM"
+        | "Core"
+        | "Glute"
       exercise_phase:
         | "early"
         | "mid"
@@ -524,6 +558,7 @@ export type Database = {
         | "return_to_sport"
         | "prehab"
         | "advanced_strengthening"
+      exercise_role: "primary" | "alternative" | "optional"
       exercise_status: "approved" | "pending"
       graft_type: "patellar" | "hamstring" | "quad" | "allograft"
       knee_side: "left" | "right"
@@ -633,3 +668,52 @@ export type Enums<
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      content_type: ["achievement", "daily_message", "crutch_hack"],
+      exercise_muscle_group: [
+        "Quad",
+        "Hamstring",
+        "Hip",
+        "Calf",
+        "Knee ROM",
+        "Core",
+        "Glute",
+      ],
+      exercise_phase: [
+        "early",
+        "mid",
+        "late",
+        "acute",
+        "early_active",
+        "strengthening",
+        "return_to_sport",
+        "prehab",
+        "advanced_strengthening",
+      ],
+      exercise_role: ["primary", "alternative", "optional"],
+      exercise_status: ["approved", "pending"],
+      graft_type: ["patellar", "hamstring", "quad", "allograft"],
+      knee_side: ["left", "right"],
+    },
+  },
+} as const
