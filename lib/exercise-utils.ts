@@ -43,6 +43,7 @@ export function filterExercisesBySurgeryStatus(
 
 /**
  * Group exercises by their display phase (after surgery status remapping).
+ * Returns a Map keyed by phase, values in input order. Use getPrimaryExercises/getOptionalExercises for sorted results.
  */
 export function groupExercisesByDisplayPhase(
   exercises: Exercise[],
