@@ -49,4 +49,5 @@ app-example
 .playwright-mcp/
 .vercel
 artifacts
-e2e
+e2e.superpowers/
+.superpowers/
