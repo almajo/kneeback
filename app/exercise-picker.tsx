@@ -1,221 +1,138 @@
-import { useState, useEffect } from "react";
-import { View, Text, TextInput, SectionList, TouchableOpacity, ActivityIndicator, Modal, SafeAreaView } from "react-native";
-import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import { supabase } from "../lib/supabase";
-import { useAuth } from "../lib/auth-context";
-import { ExerciseStepper } from "../components/ExerciseStepper";
-import { Colors } from "../constants/colors";
-import { usePhaseGate } from "../lib/hooks/use-phase-gate";
-import { GATE_DEFINITIONS, PHASES_ORDERED, PHASE_COLORS } from "../lib/phase-gates";
-import type { Exercise, ExercisePhase, UserExercise, GateDefinition } from "../lib/types";
-
-const PHASES: { key: ExercisePhase; label: string; weekRange: string; unlockDay: number }[] = [
-  { key: "prehab",                 label: "Prehabilitation",           weekRange: "Pre-Surgery",  unlockDay: -Infinity },
-  { key: "acute",                  label: "Immediate Post-Op",         weekRange: "Weeks 0–2",    unlockDay: 0  },
-  { key: "early_active",           label: "Early Rehabilitation",      weekRange: "Weeks 2–6",    unlockDay: 14 },
-  { key: "strengthening",          label: "Progressive Strengthening", weekRange: "Weeks 6–12",   unlockDay: 42 },
-  { key: "advanced_strengthening", label: "Advanced Strengthening",    weekRange: "Months 3–6",   unlockDay: 84 },
-  { key: "return_to_sport",        label: "Return to Sport",           weekRange: "Months 6–9+",  unlockDay: 168 },
-];
+import { useState, useEffect } from 'react';
+import {
+  View, Text, TextInput, ScrollView, TouchableOpacity,
+  ActivityIndicator, Modal, SafeAreaView,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../lib/auth-context';
+import { ExerciseStepper } from '../components/ExerciseStepper';
+import { MuscleTag } from '../components/MuscleTag';
+import { Colors } from '../constants/colors';
+import { usePhaseGate } from '../lib/hooks/use-phase-gate';
+import {
+  GATE_DEFINITIONS, PHASES_ORDERED, PHASE_COLORS, PHASE_DISPLAY_NAMES,
+} from '../lib/phase-gates';
+import {
+  filterExercisesBySurgeryStatus,
+  groupExercisesByDisplayPhase,
+  getPrimaryExercises,
+  getAlternatives,
+  getOptionalExercises,
+  displayPhaseFor,
+} from '../lib/exercise-utils';
+import { getPhaseFromDays } from '../lib/phase-gates';
+import type { Exercise, ExercisePhase, UserExercise, GateDefinition } from '../lib/types';
+import type { SurgeryStatus } from '../lib/hooks/use-today';
 
 export default function ExercisePicker() {
   const router = useRouter();
   const { session } = useAuth();
+
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [userExercisesMap, setUserExercisesMap] = useState<Map<string, UserExercise>>(new Map());
   const [saving, setSaving] = useState<Set<string>>(new Set());
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
   const [daysSinceSurgery, setDaysSinceSurgery] = useState(0);
-  const [surgeryStatus, setSurgeryStatus] = useState<"no_date" | "pre_surgery" | "post_surgery">("no_date");
+  const [surgeryStatus, setSurgeryStatus] = useState<SurgeryStatus>('no_date');
   const [loading, setLoading] = useState(true);
   const [gateWarning, setGateWarning] = useState<{ exercise: Exercise; gate: GateDefinition } | null>(null);
+  const [expandedAlternatives, setExpandedAlternatives] = useState<Set<string>>(new Set());
+  const [expandedOptionals, setExpandedOptionals] = useState<Set<string>>(new Set());
 
-  const { gateProgress, confirmedCriteria, toggleCriterion } = usePhaseGate(daysSinceSurgery, surgeryStatus, null);
+  const { gateProgress } = usePhaseGate(daysSinceSurgery, surgeryStatus, null);
 
   useEffect(() => {
     if (!session) return;
     Promise.all([
-      supabase.from("exercises").select("*").eq("status", "approved").order("sort_order"),
-      supabase.from("user_exercises").select("*, exercise:exercises(*)").eq("user_id", session.user.id),
-      supabase.from("profiles").select("surgery_date").eq("id", session.user.id).single(),
+      supabase.from('exercises').select('*').eq('status', 'approved').order('sort_order'),
+      supabase.from('user_exercises').select('*, exercise:exercises(*)').eq('user_id', session.user.id),
+      supabase.from('profiles').select('surgery_date').eq('id', session.user.id).single(),
     ]).then(([{ data: exs }, { data: ues }, { data: profile }]) => {
       setExercises((exs as Exercise[]) || []);
-
       const map = new Map<string, UserExercise>();
-      for (const ue of (ues as UserExercise[]) || []) {
-        map.set(ue.exercise_id, ue);
-      }
+      for (const ue of (ues as UserExercise[]) || []) map.set(ue.exercise_id, ue);
       setUserExercisesMap(map);
-
       if (profile?.surgery_date) {
-        const surgery = new Date(profile.surgery_date);
-        const today = new Date();
-        const diff = Math.floor((today.getTime() - surgery.getTime()) / 86400000);
-        if (diff >= 0) {
-          setDaysSinceSurgery(diff);
-          setSurgeryStatus("post_surgery");
-        } else {
-          setSurgeryStatus("pre_surgery");
-        }
+        const diff = Math.floor((Date.now() - new Date(profile.surgery_date).getTime()) / 86400000);
+        if (diff >= 0) { setDaysSinceSurgery(diff); setSurgeryStatus('post_surgery'); }
+        else setSurgeryStatus('pre_surgery');
       }
-
       setLoading(false);
     });
   }, [session]);
 
-  function getCurrentPhaseKey(): ExercisePhase {
-    if (surgeryStatus === "pre_surgery" || surgeryStatus === "no_date") return "prehab";
-    const reversed = PHASES_ORDERED.slice().reverse();
-    const match = reversed.find((p) => daysSinceSurgery >= (p.unlockDay === -Infinity ? -Infinity : p.unlockDay));
-    return match?.key ?? "prehab";
-  }
+  const currentPhase = getPhaseFromDays(daysSinceSurgery, surgeryStatus);
 
   function getRequiredGate(exercise: Exercise): GateDefinition | null {
-    const phaseIndex = PHASES_ORDERED.findIndex((p) => p.key === exercise.phase_start);
-    const currentPhaseKey = getCurrentPhaseKey();
-    const currentPhaseIndex = PHASES_ORDERED.findIndex((p) => p.key === currentPhaseKey);
-
-    if (phaseIndex <= currentPhaseIndex) return null;
-
-    for (let i = currentPhaseIndex; i < phaseIndex; i++) {
+    const displayPhase = displayPhaseFor(exercise, surgeryStatus);
+    const displayIdx = PHASES_ORDERED.findIndex(p => p.key === displayPhase);
+    const currentIdx = PHASES_ORDERED.findIndex(p => p.key === currentPhase);
+    if (displayIdx <= currentIdx) return null;
+    for (let i = currentIdx; i < displayIdx; i++) {
       const fromPhase = PHASES_ORDERED[i].key;
-      const matchingGate = GATE_DEFINITIONS.find(
-        (g) => g.fromPhase === fromPhase && !g.researchGap && !g.informationalOnly
-      );
-      if (matchingGate) {
-        const gp = gateProgress.find((p) => p.gate.gateKey === matchingGate.gateKey);
-        if (gp && !gp.allMet) return matchingGate as GateDefinition;
+      const gate = GATE_DEFINITIONS.find(g => g.fromPhase === fromPhase && !g.researchGap && !g.informationalOnly);
+      if (gate) {
+        const gp = gateProgress.find(p => p.gate.gateKey === gate.gateKey);
+        if (gp && !gp.allMet) return gate as GateDefinition;
       }
     }
-
     return null;
   }
 
   async function performToggle(exercise: Exercise) {
     if (!session) return;
-    const exerciseId = exercise.id;
-    setSaving((prev) => new Set(prev).add(exerciseId));
-
-    const existing = userExercisesMap.get(exerciseId);
-
-    if (existing && existing.is_active) {
-      await supabase.from("user_exercises").update({ is_active: false }).eq("id", existing.id);
-      setUserExercisesMap((prev) => {
-        const next = new Map(prev);
-        next.set(exerciseId, { ...existing, is_active: false });
-        return next;
-      });
+    setSaving(prev => new Set(prev).add(exercise.id));
+    const existing = userExercisesMap.get(exercise.id);
+    if (existing?.is_active) {
+      await supabase.from('user_exercises').update({ is_active: false }).eq('id', existing.id);
+      setUserExercisesMap(prev => new Map(prev).set(exercise.id, { ...existing, is_active: false }));
     } else if (existing && !existing.is_active) {
-      await supabase.from("user_exercises").update({ is_active: true }).eq("id", existing.id);
-      setUserExercisesMap((prev) => {
-        const next = new Map(prev);
-        next.set(exerciseId, { ...existing, is_active: true });
-        return next;
-      });
+      await supabase.from('user_exercises').update({ is_active: true }).eq('id', existing.id);
+      setUserExercisesMap(prev => new Map(prev).set(exercise.id, { ...existing, is_active: true }));
     } else {
       const { data: inserted } = await supabase
-        .from("user_exercises")
+        .from('user_exercises')
         .insert({
-          user_id: session.user.id,
-          exercise_id: exerciseId,
-          sets: exercise.default_sets,
-          reps: exercise.default_reps,
-          hold_seconds: exercise.default_hold_seconds,
-          is_active: true,
-          sort_order: 99,
+          user_id: session.user.id, exercise_id: exercise.id,
+          sets: exercise.default_sets, reps: exercise.default_reps,
+          hold_seconds: exercise.default_hold_seconds, is_active: true, sort_order: 99,
         })
-        .select("*, exercise:exercises(*)")
+        .select('*, exercise:exercises(*)')
         .single();
-
-      if (inserted) {
-        setUserExercisesMap((prev) => {
-          const next = new Map(prev);
-          next.set(exerciseId, inserted as UserExercise);
-          return next;
-        });
-      }
+      if (inserted) setUserExercisesMap(prev => new Map(prev).set(exercise.id, inserted as UserExercise));
     }
-
-    setSaving((prev) => {
-      const next = new Set(prev);
-      next.delete(exerciseId);
-      return next;
-    });
+    setSaving(prev => { const n = new Set(prev); n.delete(exercise.id); return n; });
   }
 
   async function onToggle(exercise: Exercise) {
-    const existing = userExercisesMap.get(exercise.id);
-    const isCurrentlyActive = existing?.is_active ?? false;
-
-    // Only show gate warning when ACTIVATING an exercise (not deactivating)
-    if (!isCurrentlyActive) {
-      const requiredGate = getRequiredGate(exercise);
-      if (requiredGate) {
-        setGateWarning({ exercise, gate: requiredGate });
-        return;
-      }
-    }
-
+    if (userExercisesMap.get(exercise.id)?.is_active) { await performToggle(exercise); return; }
+    const gate = getRequiredGate(exercise);
+    if (gate) { setGateWarning({ exercise, gate }); return; }
     await performToggle(exercise);
   }
 
-  async function onStepperChange(exerciseId: string, field: "sets" | "reps" | "hold_seconds", value: number) {
+  async function onStepperChange(exerciseId: string, field: 'sets' | 'reps' | 'hold_seconds', value: number) {
     const existing = userExercisesMap.get(exerciseId);
     if (!existing) return;
-
-    setUserExercisesMap((prev) => {
-      const next = new Map(prev);
-      next.set(exerciseId, { ...existing, [field]: value });
-      return next;
-    });
-
-    await supabase.from("user_exercises").update({ [field]: value }).eq("id", existing.id);
+    setUserExercisesMap(prev => new Map(prev).set(exerciseId, { ...existing, [field]: value }));
+    await supabase.from('user_exercises').update({ [field]: value }).eq('id', existing.id);
   }
 
   const searchLower = search.toLowerCase();
-  const filteredExercises = search
-    ? exercises.filter((e) => e.name.toLowerCase().includes(searchLower))
-    : exercises;
-
-  const exercisesByPhase: Record<string, Exercise[]> = {};
-  for (const ex of filteredExercises) {
-    if (!exercisesByPhase[ex.phase_start]) exercisesByPhase[ex.phase_start] = [];
-    exercisesByPhase[ex.phase_start].push(ex);
-  }
-
-  const sections = PHASES.map((phase) => {
-    const locked =
-      phase.key === "prehab"
-        ? surgeryStatus === "post_surgery"
-        : phase.unlockDay === -Infinity
-        ? false
-        : daysSinceSurgery < phase.unlockDay;
-
-    return {
-      phase,
-      data: exercisesByPhase[phase.key] || [],
-      locked,
-    };
-  }).filter((s) => s.data.length > 0);
+  const matchesSearch = (ex: Exercise) => !search || ex.name.toLowerCase().includes(searchLower);
+  const visibleExercises = filterExercisesBySurgeryStatus(exercises, surgeryStatus);
+  const grouped = groupExercisesByDisplayPhase(visibleExercises, surgeryStatus);
+  const postOpPhases: ExercisePhase[] = ['acute','early_active','strengthening','advanced_strengthening','return_to_sport'];
+  const activePhases: ExercisePhase[] = surgeryStatus === 'post_surgery' ? postOpPhases : ['prehab'];
 
   if (loading) {
-    return (
-      <View className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator color={Colors.primary} size="large" />
-      </View>
-    );
+    return <View className="flex-1 bg-background items-center justify-center"><ActivityIndicator color={Colors.primary} size="large" /></View>;
   }
 
-  const warningGateProgress = gateWarning
-    ? gateProgress.find((p) => p.gate.gateKey === gateWarning.gate.gateKey)
-    : null;
-
-  const unmetCriteria = warningGateProgress
-    ? warningGateProgress.criteriaStatus
-        .filter((cs) => !cs.met)
-        .slice(0, 3)
-    : [];
+  const warningGateProgress = gateWarning ? gateProgress.find(p => p.gate.gateKey === gateWarning.gate.gateKey) : null;
+  const unmetCriteria = warningGateProgress ? warningGateProgress.criteriaStatus.filter(cs => !cs.met).slice(0, 3) : [];
 
   return (
     <View className="flex-1 bg-background">
@@ -231,214 +148,226 @@ export default function ExercisePicker() {
         placeholder="Search exercises..."
         value={search}
         onChangeText={setSearch}
+        placeholderTextColor={Colors.textMuted}
       />
 
-      <SectionList
-        sections={sections}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
-        renderSectionHeader={({ section }) => {
-          const { phase, locked } = section;
-          const showUnlockBadge = phase.unlockDay !== -Infinity && locked;
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}>
+        {activePhases.map(phaseKey => {
+          const phaseExercises = grouped.get(phaseKey) ?? [];
+          if (phaseExercises.length === 0) return null;
+          const phaseEntry = PHASES_ORDERED.find(p => p.key === phaseKey)!;
+          const displayInfo = PHASE_DISPLAY_NAMES[phaseKey];
+          const phaseColor = PHASE_COLORS[phaseKey];
+          const isLocked = phaseKey !== 'prehab' && daysSinceSurgery < phaseEntry.unlockDay;
+          const isCurrent = phaseKey === currentPhase;
+          const unlockWeek = Math.ceil(phaseEntry.unlockDay / 7);
+          const strengthening = phaseExercises.filter(e => e.category === 'strengthening' || e.category === 'activation');
+          const mobility = phaseExercises.filter(e => e.category === 'rom');
+          const optionals = getOptionalExercises(phaseExercises);
+          const optionalsExpanded = expandedOptionals.has(phaseKey);
+
           return (
-            <View className="flex-row items-center justify-between py-3 mt-2">
-              <View>
-                <Text className="font-bold text-base" style={{ color: locked ? "#A0A0A0" : "#2D2D2D" }}>
-                  {phase.label}
-                </Text>
-                <Text className="text-xs" style={{ color: "#A0A0A0" }}>{phase.weekRange}</Text>
+            <View key={phaseKey} style={{ opacity: isLocked ? 0.5 : 1, marginBottom: 8 }}>
+              <View className="flex-row items-center justify-between py-3 mt-2">
+                <View>
+                  <View className="flex-row items-center gap-2">
+                    <Text className="font-bold text-base" style={{ color: isLocked ? '#A0A0A0' : phaseColor }}>
+                      {displayInfo.label}
+                    </Text>
+                    {isCurrent && (
+                      <View style={{ backgroundColor: phaseColor + '22', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+                        <Text style={{ color: phaseColor, fontSize: 10, fontWeight: '600' }}>Current</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text className="text-xs" style={{ color: '#A0A0A0' }}>{displayInfo.weekRange}</Text>
+                </View>
+                {isLocked && (
+                  <View className="bg-surface border border-border rounded-full px-3 py-1">
+                    <Text className="text-xs" style={{ color: '#A0A0A0' }}>🔒 Unlocks week {unlockWeek}</Text>
+                  </View>
+                )}
               </View>
-              {showUnlockBadge && (
-                <View className="bg-surface border border-border rounded-full px-3 py-1">
-                  <Text className="text-xs" style={{ color: "#A0A0A0" }}>
-                    Unlocks at week {phase.unlockDay / 7}
-                  </Text>
+
+              {strengthening.length > 0 && (
+                <ExerciseCategorySection label="Strengthening" exercises={strengthening} locked={isLocked}
+                  allPhaseExercises={phaseExercises} userExercisesMap={userExercisesMap} saving={saving}
+                  expandedAlternatives={expandedAlternatives} setExpandedAlternatives={setExpandedAlternatives}
+                  onToggle={onToggle} onStepperChange={onStepperChange} matchesSearch={matchesSearch} />
+              )}
+
+              {mobility.length > 0 && (
+                <ExerciseCategorySection label="Mobility" exercises={mobility} locked={isLocked}
+                  allPhaseExercises={phaseExercises} userExercisesMap={userExercisesMap} saving={saving}
+                  expandedAlternatives={expandedAlternatives} setExpandedAlternatives={setExpandedAlternatives}
+                  onToggle={onToggle} onStepperChange={onStepperChange} matchesSearch={matchesSearch} />
+              )}
+
+              {optionals.length > 0 && (
+                <View className="mb-2">
+                  <TouchableOpacity
+                    className="flex-row items-center justify-between px-3 py-2 rounded-xl bg-surface border border-border"
+                    onPress={() => setExpandedOptionals(prev => { const n = new Set(prev); optionalsExpanded ? n.delete(phaseKey) : n.add(phaseKey); return n; })}
+                    disabled={isLocked}
+                  >
+                    <Text className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#666' }}>Optional exercises</Text>
+                    <Text style={{ color: '#666', fontSize: 11 }}>{optionals.length} exercises {optionalsExpanded ? '▾' : '▸'}</Text>
+                  </TouchableOpacity>
+                  {optionalsExpanded && optionals.filter(matchesSearch).map(ex => (
+                    <ExerciseRow key={ex.id} exercise={ex} locked={isLocked} userExercise={userExercisesMap.get(ex.id)}
+                      isSaving={saving.has(ex.id)} onToggle={() => onToggle(ex)} onStepperChange={onStepperChange} />
+                  ))}
                 </View>
               )}
             </View>
           );
-        }}
-        renderItem={({ item, section }) => {
-          const { locked } = section;
-          const ue = userExercisesMap.get(item.id);
-          const isActive = ue?.is_active ?? false;
-          const isSaving = saving.has(item.id);
+        })}
+      </ScrollView>
 
-          const sets = ue?.sets ?? item.default_sets;
-          const reps = ue?.reps ?? item.default_reps;
-          const holdSeconds = ue?.hold_seconds ?? item.default_hold_seconds;
-
-          const previewLabel = `${sets} sets × ${holdSeconds ? `${holdSeconds}s hold` : `${reps} reps`}`;
-
-          return (
-            <TouchableOpacity
-              className={`mb-3 rounded-2xl border ${
-                locked
-                  ? "bg-surface border-border opacity-40"
-                  : isActive
-                  ? "bg-primary/10 border-primary"
-                  : "bg-surface border-border"
-              }`}
-              onPress={() => !locked && !isSaving && onToggle(item)}
-              disabled={locked || isSaving}
-              activeOpacity={0.8}
-            >
-              <View className="flex-row items-start p-4">
-                {isSaving ? (
-                  <ActivityIndicator
-                    size="small"
-                    color={Colors.primary}
-                    style={{ marginRight: 12, marginTop: 2 }}
-                  />
-                ) : (
-                  <Ionicons
-                    name={isActive && !locked ? "checkmark-circle" : "ellipse-outline"}
-                    size={24}
-                    color={isActive && !locked ? Colors.primary : Colors.textMuted}
-                    style={{ marginRight: 12, marginTop: 2 }}
-                  />
-                )}
-                <View className="flex-1">
-                  <Text className="font-semibold text-base" style={{ color: locked ? "#A0A0A0" : "#2D2D2D" }}>
-                    {item.name}
-                  </Text>
-                  <Text className="text-sm mt-1" style={{ color: "#6B6B6B" }} numberOfLines={isActive ? undefined : 2}>
-                    {item.description}
-                  </Text>
-                  <Text className="text-xs mt-1" style={{ color: isActive ? Colors.primary : "#A0A0A0" }}>
-                    {previewLabel}
-                  </Text>
-                </View>
-              </View>
-
-              {isActive && !locked && (
-                <View className="px-4 pb-4 border-t border-primary/20 pt-3">
-                  <ExerciseStepper
-                    label="Sets"
-                    value={sets}
-                    min={1}
-                    max={10}
-                    onChange={(v) => onStepperChange(item.id, "sets", v)}
-                  />
-                  {holdSeconds !== null ? (
-                    <ExerciseStepper
-                      label="Hold"
-                      value={holdSeconds}
-                      min={0}
-                      max={120}
-                      variableStep
-                      unit="s"
-                      onChange={(v) => onStepperChange(item.id, "hold_seconds", v)}
-                    />
-                  ) : (
-                    <ExerciseStepper
-                      label="Reps"
-                      value={reps}
-                      min={1}
-                      max={50}
-                      onChange={(v) => onStepperChange(item.id, "reps", v)}
-                    />
-                  )}
-                </View>
-              )}
-            </TouchableOpacity>
-          );
-        }}
-        ListEmptyComponent={
-          <View className="items-center mt-10">
-            <Text style={{ color: "#A0A0A0" }}>No exercises found</Text>
-          </View>
-        }
-      />
-
-      <Modal
-        animationType="slide"
-        transparent
-        visible={gateWarning !== null}
-        onRequestClose={() => setGateWarning(null)}
-      >
-        <View style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.4)" }}>
+      <Modal animationType="slide" transparent visible={gateWarning !== null} onRequestClose={() => setGateWarning(null)}>
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }}>
           <SafeAreaView style={{ backgroundColor: Colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
             <View style={{ padding: 24 }}>
-              {/* Header */}
-              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
                 <Ionicons name="warning-outline" size={22} color={Colors.warning} style={{ marginRight: 8 }} />
-                <Text style={{ fontSize: 18, fontWeight: "700", color: Colors.text }}>
-                  Research Advisory
-                </Text>
+                <Text style={{ fontSize: 18, fontWeight: '700', color: Colors.text }}>Research Advisory</Text>
               </View>
-
-              {/* Warning message */}
-              <Text style={{ fontSize: 14, color: Colors.textSecondary, lineHeight: 20, marginBottom: 16 }}>
-                {gateWarning?.gate.warningMessage}
-              </Text>
-
-              {/* Unmet criteria */}
+              <Text style={{ fontSize: 14, color: Colors.textSecondary, lineHeight: 20, marginBottom: 16 }}>{gateWarning?.gate.warningMessage}</Text>
               {unmetCriteria.length > 0 && (
                 <View style={{ backgroundColor: Colors.surfaceAlt, borderRadius: 12, padding: 14, marginBottom: 16 }}>
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: Colors.text, marginBottom: 8 }}>
-                    Criteria not yet confirmed:
-                  </Text>
-                  {unmetCriteria.map((cs) => (
-                    <View key={cs.criterion.key} style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: 6 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: Colors.text, marginBottom: 8 }}>Criteria not yet confirmed:</Text>
+                  {unmetCriteria.map(cs => (
+                    <View key={cs.criterion.key} style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 6 }}>
                       <Ionicons name="close-circle-outline" size={16} color={Colors.error} style={{ marginRight: 6, marginTop: 1 }} />
-                      <Text style={{ fontSize: 13, color: Colors.textSecondary, flex: 1 }}>
-                        {cs.criterion.plainLabel}
-                      </Text>
+                      <Text style={{ fontSize: 13, color: Colors.textSecondary, flex: 1 }}>{cs.criterion.plainLabel}</Text>
                     </View>
                   ))}
                 </View>
               )}
-
-              {/* Source citation */}
               {gateWarning?.gate.source && (
-                <Text style={{ fontSize: 11, color: Colors.textMuted, marginBottom: 20, fontStyle: "italic" }}>
-                  Source: {gateWarning.gate.source}
-                </Text>
+                <Text style={{ fontSize: 11, color: Colors.textMuted, marginBottom: 20, fontStyle: 'italic' }}>Source: {gateWarning.gate.source}</Text>
               )}
-
-              {/* Buttons */}
-              <TouchableOpacity
-                style={{
-                  borderRadius: 14,
-                  paddingVertical: 14,
-                  alignItems: "center",
-                  backgroundColor: Colors.primary,
-                  marginBottom: 10,
-                }}
-                onPress={() => setGateWarning(null)}
-                activeOpacity={0.8}
-              >
-                <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 15 }}>Not yet</Text>
+              <TouchableOpacity style={{ borderRadius: 14, paddingVertical: 14, alignItems: 'center', backgroundColor: Colors.primary, marginBottom: 10 }} onPress={() => setGateWarning(null)}>
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Not yet</Text>
               </TouchableOpacity>
-
               <TouchableOpacity
-                style={{
-                  borderRadius: 14,
-                  paddingVertical: 14,
-                  alignItems: "center",
-                  borderWidth: 1.5,
-                  borderColor: Colors.border,
-                  backgroundColor: Colors.surface,
-                  marginBottom: 4,
-                }}
-                onPress={async () => {
-                  const pending = gateWarning?.exercise;
-                  setGateWarning(null);
-                  if (pending) {
-                    await performToggle(pending);
-                  }
-                }}
-                activeOpacity={0.8}
+                style={{ borderRadius: 14, paddingVertical: 14, alignItems: 'center', borderWidth: 1.5, borderColor: Colors.border, backgroundColor: Colors.surface, marginBottom: 4 }}
+                onPress={async () => { const p = gateWarning?.exercise; setGateWarning(null); if (p) await performToggle(p); }}
               >
-                <Text style={{ color: Colors.textSecondary, fontWeight: "600", fontSize: 15 }}>
-                  I understand, add anyway
-                </Text>
+                <Text style={{ color: Colors.textSecondary, fontWeight: '600', fontSize: 15 }}>I understand, add anyway</Text>
               </TouchableOpacity>
             </View>
           </SafeAreaView>
         </View>
       </Modal>
     </View>
+  );
+}
+
+interface CategorySectionProps {
+  label: string;
+  exercises: Exercise[];
+  locked: boolean;
+  allPhaseExercises: Exercise[];
+  userExercisesMap: Map<string, UserExercise>;
+  saving: Set<string>;
+  expandedAlternatives: Set<string>;
+  setExpandedAlternatives: React.Dispatch<React.SetStateAction<Set<string>>>;
+  onToggle: (ex: Exercise) => void;
+  onStepperChange: (id: string, field: 'sets' | 'reps' | 'hold_seconds', value: number) => void;
+  matchesSearch: (ex: Exercise) => boolean;
+}
+
+function ExerciseCategorySection({ label, exercises, locked, allPhaseExercises, userExercisesMap, saving, expandedAlternatives, setExpandedAlternatives, onToggle, onStepperChange, matchesSearch }: CategorySectionProps) {
+  const primaries = getPrimaryExercises(exercises).filter(matchesSearch);
+  if (primaries.length === 0) return null;
+  return (
+    <View className="mb-3">
+      <Text className="text-xs font-semibold uppercase tracking-wider mb-2 px-1" style={{ color: '#666' }}>{label}</Text>
+      {primaries.map(primary => {
+        const alternatives = getAlternatives(allPhaseExercises, primary.id).filter(matchesSearch);
+        const altExpanded = expandedAlternatives.has(primary.id);
+        return (
+          <View key={primary.id}>
+            <ExerciseRow exercise={primary} locked={locked} userExercise={userExercisesMap.get(primary.id)}
+              isSaving={saving.has(primary.id)} onToggle={() => onToggle(primary)} onStepperChange={onStepperChange}
+              alternativesCount={alternatives.length} altExpanded={altExpanded}
+              onToggleAlternatives={() => setExpandedAlternatives(prev => { const n = new Set(prev); altExpanded ? n.delete(primary.id) : n.add(primary.id); return n; })} />
+            {altExpanded && alternatives.map(alt => (
+              <View key={alt.id} style={{ marginLeft: 16 }}>
+                <ExerciseRow exercise={alt} locked={locked} userExercise={userExercisesMap.get(alt.id)}
+                  isSaving={saving.has(alt.id)} onToggle={() => onToggle(alt)} onStepperChange={onStepperChange} />
+              </View>
+            ))}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+interface ExerciseRowProps {
+  exercise: Exercise;
+  locked: boolean;
+  userExercise: UserExercise | undefined;
+  isSaving: boolean;
+  onToggle: () => void;
+  onStepperChange: (id: string, field: 'sets' | 'reps' | 'hold_seconds', value: number) => void;
+  alternativesCount?: number;
+  altExpanded?: boolean;
+  onToggleAlternatives?: () => void;
+}
+
+function ExerciseRow({ exercise, locked, userExercise, isSaving, onToggle, onStepperChange, alternativesCount = 0, altExpanded = false, onToggleAlternatives }: ExerciseRowProps) {
+  const isActive = userExercise?.is_active ?? false;
+  const sets = userExercise?.sets ?? exercise.default_sets;
+  const reps = userExercise?.reps ?? exercise.default_reps;
+  const holdSeconds = userExercise?.hold_seconds ?? exercise.default_hold_seconds;
+  const previewLabel = `${sets} sets × ${holdSeconds ? `${holdSeconds}s hold` : `${reps} reps`}`;
+
+  return (
+    <TouchableOpacity
+      className={`mb-2 rounded-2xl border ${locked ? 'bg-surface border-border opacity-40' : isActive ? 'bg-primary/10 border-primary' : 'bg-surface border-border'}`}
+      onPress={() => !locked && !isSaving && onToggle()}
+      disabled={locked || isSaving}
+      activeOpacity={0.8}
+    >
+      <View className="flex-row items-start p-4">
+        {isSaving ? (
+          <ActivityIndicator size="small" color={Colors.primary} style={{ marginRight: 12, marginTop: 2 }} />
+        ) : (
+          <Ionicons name={isActive && !locked ? 'checkmark-circle' : 'ellipse-outline'} size={24}
+            color={isActive && !locked ? Colors.primary : Colors.textMuted} style={{ marginRight: 12, marginTop: 2 }} />
+        )}
+        <View className="flex-1">
+          <View className="flex-row flex-wrap items-center gap-1 mb-1">
+            <Text className="font-semibold text-base" style={{ color: locked ? '#A0A0A0' : Colors.text }}>{exercise.name}</Text>
+            {exercise.muscle_groups.map(g => <MuscleTag key={g} group={g} />)}
+          </View>
+          <Text className="text-sm" style={{ color: '#6B6B6B' }} numberOfLines={isActive ? undefined : 2}>{exercise.description}</Text>
+          <View className="flex-row items-center gap-2 mt-1">
+            <Text className="text-xs" style={{ color: isActive ? Colors.primary : '#A0A0A0' }}>{previewLabel}</Text>
+            {alternativesCount > 0 && (
+              <TouchableOpacity onPress={e => { e.stopPropagation?.(); onToggleAlternatives?.(); }}
+                className="bg-surface border border-border rounded-full px-2 py-0.5">
+                <Text className="text-xs" style={{ color: '#888' }}>
+                  {alternativesCount} alternative{alternativesCount > 1 ? 's' : ''} {altExpanded ? '▾' : '▸'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </View>
+      {isActive && !locked && (
+        <View className="px-4 pb-4 border-t border-primary/20 pt-3">
+          <ExerciseStepper label="Sets" value={sets} min={1} max={10} onChange={v => onStepperChange(exercise.id, 'sets', v)} />
+          {holdSeconds !== null ? (
+            <ExerciseStepper label="Hold" value={holdSeconds} min={0} max={120} variableStep unit="s" onChange={v => onStepperChange(exercise.id, 'hold_seconds', v)} />
+          ) : (
+            <ExerciseStepper label="Reps" value={reps} min={1} max={50} onChange={v => onStepperChange(exercise.id, 'reps', v)} />
+          )}
+        </View>
+      )}
+    </TouchableOpacity>
   );
 }
