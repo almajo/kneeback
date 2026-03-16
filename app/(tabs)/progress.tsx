@@ -165,6 +165,7 @@ export default function ProgressScreen() {
         onClose={() => setRomSheetOpen(false)}
         onSave={handleSaveRom}
         editingEntry={null}
+        lastMeasurement={measurements[0] ?? null}
       />
       <ScrollView className="flex-1 bg-background" contentContainerStyle={{ paddingTop: 16, paddingBottom: 40 }}>
         <PhaseGateCard
