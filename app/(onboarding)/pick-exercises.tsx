@@ -117,7 +117,7 @@ export default function PickExercises() {
                             onToggle={() => !isLocked && toggleExercise(primary)}
                             onStepperChange={(f, v) => updateExerciseValues(primary.id, { [f]: v })}
                             alternativesCount={alts.length} altExpanded={altExpanded}
-                            onToggleAlternatives={() => setExpandedAlternatives(prev => { const n = new Set(prev); altExpanded ? n.delete(primary.id) : n.add(primary.id); return n; })} />
+                            onToggleAlternatives={() => setExpandedAlternatives(prev => { const n = new Set(prev); if (altExpanded) n.delete(primary.id); else n.add(primary.id); return n; })} />
                           {altExpanded && alts.map(alt => {
                             const altSel = isSelected(alt.id);
                             const altSelEx = data.selectedExercises.find(e => e.exerciseId === alt.id);
@@ -140,7 +140,7 @@ export default function PickExercises() {
                 <View className="mb-2">
                   <TouchableOpacity
                     className="flex-row items-center justify-between px-3 py-2 rounded-xl bg-surface border border-border"
-                    onPress={() => setExpandedOptionals(prev => { const n = new Set(prev); optionalsExpanded ? n.delete(phaseKey) : n.add(phaseKey); return n; })}
+                    onPress={() => setExpandedOptionals(prev => { const n = new Set(prev); if (optionalsExpanded) n.delete(phaseKey); else n.add(phaseKey); return n; })}
                     disabled={isLocked}
                   >
                     <Text className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#666' }}>Optional exercises</Text>

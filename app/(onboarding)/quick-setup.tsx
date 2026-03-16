@@ -7,7 +7,6 @@ import { MuscleTag } from '../../components/MuscleTag';
 import { Colors } from '../../constants/colors';
 import { PHASE_DISPLAY_NAMES, getPhaseFromDays } from '../../lib/phase-gates';
 import {
-  filterExercisesBySurgeryStatus,
   getQuickSetupExercises,
 } from '../../lib/exercise-utils';
 import type { Exercise } from '../../lib/types';
@@ -59,7 +58,7 @@ export default function QuickSetup() {
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 160 }}>
         <Text className="text-3xl font-bold text-primary mb-2">Your starter plan</Text>
         <Text className="text-base mb-6" style={{ color: '#6B6B6B' }}>
-          Based on your current phase, we've pre-selected the recommended exercises. You can customise anytime.
+          Based on your current phase, we&apos;ve pre-selected the recommended exercises. You can customise anytime.
         </Text>
         <View className="bg-surface border border-border rounded-2xl p-4 mb-6">
           <Text className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: '#888' }}>

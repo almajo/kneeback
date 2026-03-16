@@ -12,7 +12,7 @@ import { MuscleTag } from '../components/MuscleTag';
 import { Colors } from '../constants/colors';
 import { usePhaseGate } from '../lib/hooks/use-phase-gate';
 import {
-  GATE_DEFINITIONS, PHASES_ORDERED, PHASE_COLORS, PHASE_DISPLAY_NAMES,
+  GATE_DEFINITIONS, PHASES_ORDERED, PHASE_COLORS, PHASE_DISPLAY_NAMES, getPhaseFromDays,
 } from '../lib/phase-gates';
 import {
   filterExercisesBySurgeryStatus,
@@ -22,7 +22,6 @@ import {
   getOptionalExercises,
   displayPhaseFor,
 } from '../lib/exercise-utils';
-import { getPhaseFromDays } from '../lib/phase-gates';
 import type { Exercise, ExercisePhase, UserExercise, GateDefinition } from '../lib/types';
 import type { SurgeryStatus } from '../lib/hooks/use-today';
 
@@ -207,7 +206,7 @@ export default function ExercisePicker() {
                 <View className="mb-2">
                   <TouchableOpacity
                     className="flex-row items-center justify-between px-3 py-2 rounded-xl bg-surface border border-border"
-                    onPress={() => setExpandedOptionals(prev => { const n = new Set(prev); optionalsExpanded ? n.delete(phaseKey) : n.add(phaseKey); return n; })}
+                    onPress={() => setExpandedOptionals(prev => { const n = new Set(prev); if (optionalsExpanded) n.delete(phaseKey); else n.add(phaseKey); return n; })}
                     disabled={isLocked}
                   >
                     <Text className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#666' }}>Optional exercises</Text>
@@ -292,7 +291,7 @@ function ExerciseCategorySection({ label, exercises, locked, allPhaseExercises, 
             <ExerciseRow exercise={primary} locked={locked} userExercise={userExercisesMap.get(primary.id)}
               isSaving={saving.has(primary.id)} onToggle={() => onToggle(primary)} onStepperChange={onStepperChange}
               alternativesCount={alternatives.length} altExpanded={altExpanded}
-              onToggleAlternatives={() => setExpandedAlternatives(prev => { const n = new Set(prev); altExpanded ? n.delete(primary.id) : n.add(primary.id); return n; })} />
+              onToggleAlternatives={() => setExpandedAlternatives(prev => { const n = new Set(prev); if (altExpanded) n.delete(primary.id); else n.add(primary.id); return n; })} />
             {altExpanded && alternatives.map(alt => (
               <View key={alt.id} style={{ marginLeft: 16 }}>
                 <ExerciseRow exercise={alt} locked={locked} userExercise={userExercisesMap.get(alt.id)}
