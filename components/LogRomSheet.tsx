@@ -15,6 +15,8 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../constants/colors";
 import type { RomMeasurement } from "../lib/types";
+import { RomMeasurementWizard } from "./rom-measurement/RomMeasurementWizard";
+import { useImuMeasurement } from "../lib/hooks/use-imu-measurement";
 
 interface SavePayload {
   date: string;
@@ -28,6 +30,7 @@ interface Props {
   onClose: () => void;
   onSave: (payload: SavePayload) => Promise<void>;
   editingEntry?: RomMeasurement | null;
+  lastMeasurement?: RomMeasurement | null;
 }
 
 function toDateString(d: Date): string {
@@ -43,7 +46,7 @@ function displayDate(dateStr: string): string {
   });
 }
 
-export function LogRomSheet({ visible, onClose, onSave, editingEntry }: Props) {
+export function LogRomSheet({ visible, onClose, onSave, editingEntry, lastMeasurement }: Props) {
   const [date, setDate] = useState(toDateString(new Date()));
   const [dateObj, setDateObj] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -51,6 +54,8 @@ export function LogRomSheet({ visible, onClose, onSave, editingEntry }: Props) {
   const [extension, setExtension] = useState("");
   const [quadActivation, setQuadActivation] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [wizardVisible, setWizardVisible] = useState(false);
+  const { isAvailable } = useImuMeasurement();
 
   useEffect(() => {
     if (editingEntry) {
@@ -176,6 +181,32 @@ export function LogRomSheet({ visible, onClose, onSave, editingEntry }: Props) {
                 </TouchableOpacity>
               )}
             </View>
+          )}
+
+          {/* Sensor button — only shown on devices with IMU hardware */}
+          {isAvailable && (
+            <>
+              <RomMeasurementWizard
+                visible={wizardVisible}
+                lastMeasurement={lastMeasurement}
+                onComplete={({ flexionDegrees }) => {
+                  setFlexion(String(flexionDegrees));
+                  setExtension("0");
+                  setWizardVisible(false);
+                }}
+                onDismiss={() => setWizardVisible(false)}
+              />
+              <TouchableOpacity
+                className="flex-row items-center justify-center gap-2 py-3 rounded-2xl border border-primary mb-4"
+                style={{ backgroundColor: Colors.primary + "12" }}
+                onPress={() => setWizardVisible(true)}
+              >
+                <Ionicons name="phone-portrait-outline" size={18} color={Colors.primary} />
+                <Text className="font-semibold" style={{ color: Colors.primary }}>
+                  Use Phone Sensor
+                </Text>
+              </TouchableOpacity>
+            </>
           )}
 
           {/* Flexion + Extension */}
