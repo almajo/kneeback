@@ -1,10 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { View, Text, TouchableOpacity, LayoutAnimation, Platform, UIManager } from "react-native";
+import { View, Text, TouchableOpacity, LayoutAnimation } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-
-if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 import { Colors } from "../constants/colors";
 import { RestTimer } from "./RestTimer";
 import { SetTracker } from "./SetTracker";

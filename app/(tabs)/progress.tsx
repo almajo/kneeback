@@ -140,6 +140,10 @@ export default function ProgressScreen() {
     setRomSheetOpen(true);
   }
 
+  if (!session) {
+    return null;
+  }
+
   if (loading) {
     return (
       <View className="flex-1 bg-background items-center justify-center">
@@ -208,7 +212,7 @@ export default function ProgressScreen() {
           measurements={measurements}
           onSaveMilestone={addMilestone}
           onDeleteMilestone={deleteMilestone}
-          userId={session!.user.id}
+          userId={session.user.id}
           surgeryDate={surgeryDate}
         />
         <View className="mx-4 my-2 border-b border-border" />

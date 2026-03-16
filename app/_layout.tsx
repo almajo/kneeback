@@ -2,6 +2,7 @@ import "../global.css";
 import { useEffect } from "react";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "../lib/auth-context";
 import { supabase } from "../lib/supabase";
 import {
@@ -62,8 +63,10 @@ export default function RootLayout() {
   if (!fontsLoaded) return null;
 
   return (
-    <AuthProvider>
-      <RootLayoutNav />
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <RootLayoutNav />
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

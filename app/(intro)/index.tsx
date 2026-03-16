@@ -2,6 +2,7 @@ import React, { useRef, useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
+  Image,
   FlatList,
   TouchableOpacity,
   StyleSheet,
@@ -12,9 +13,6 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Slide1Illustration from "../../components/intro/Slide1Illustration";
-import Slide2Illustration from "../../components/intro/Slide2Illustration";
-import Slide3Illustration from "../../components/intro/Slide3Illustration";
 import Slide4Illustration from "../../components/intro/Slide4Illustration";
 
 const SLIDES = [
@@ -22,21 +20,21 @@ const SLIDES = [
     id: "1",
     headline: "Sad to see you here.",
     subtext: "But we're already excited to cheer you out the door.",
-    Illustration: Slide1Illustration,
+    image: require("../../assets/images/slide1.png"),
   },
   {
     id: "2",
     headline: "Every degree matters.",
     subtext:
       "Track your exercises, log your ROM, hit milestones, and celebrate every win — no matter how small.",
-    Illustration: Slide2Illustration,
+    image: require("../../assets/images/slide2.png"),
   },
   {
     id: "3",
     headline: "We're not your doctor.",
     subtext:
       "KneeBack provides guided support and habit-building — not medical advice. Always follow your physio's plan.",
-    Illustration: Slide3Illustration,
+    image: require("../../assets/images/slide3.png"),
   },
   {
     id: "4",
@@ -159,11 +157,21 @@ export default function IntroScreen() {
         onMomentumScrollEnd={handleScrollEnd}
         onScrollEndDrag={handleScrollEnd}
         renderItem={({ item }) => {
-          const { headline, subtext, Illustration } = item;
+          const { headline, subtext } = item;
+          const Illustration = (item as any).Illustration;
+          const image = (item as any).image;
           return (
             <View style={[styles.slide, { width }]}>
               <View style={styles.illustrationContainer}>
-                <Illustration size={illustrationSize} />
+                {image ? (
+                  <Image
+                    source={image}
+                    style={{ width: illustrationSize, height: illustrationSize }}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <Illustration size={illustrationSize} />
+                )}
               </View>
               <Text style={styles.headline}>{headline}</Text>
               {subtext ? (

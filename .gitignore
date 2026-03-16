@@ -51,3 +51,5 @@ app-example
 artifacts
 e2e.superpowers/
 .superpowers/
+playwright-report/
+nanobanana-output/

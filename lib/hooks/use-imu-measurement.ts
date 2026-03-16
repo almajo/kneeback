@@ -2,8 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Platform } from "react-native";
 import { Accelerometer } from "expo-sensors";
 import {
-  computePitch,
-  computeFlexion,
+  computeFlexionAngle,
   computeStdDev,
   isValidSample,
 } from "@/lib/imu-math";
@@ -39,7 +38,7 @@ export function useImuMeasurement(): ImuMeasurementState {
   const [isLocked, setIsLocked] = useState(false);
   const [showCaptureNow, setShowCaptureNow] = useState(false);
 
-  const referenceAngleRef = useRef<number | null>(null);
+  const referenceVectorRef = useRef<{ x: number; y: number; z: number } | null>(null);
   const subscriptionRef = useRef<{ remove: () => void } | null>(null);
   const stableCountRef = useRef(0);
   const pitchWindowRef = useRef<number[]>([]);
@@ -85,7 +84,9 @@ export function useImuMeasurement(): ImuMeasurementState {
     return new Promise((resolve) => {
       function startListening() {
         let samplesCollected = 0;
-        let sumPitch = 0;
+        let sumX = 0;
+        let sumY = 0;
+        let sumZ = 0;
 
         removeSubscription();
         Accelerometer.setUpdateInterval(UPDATE_INTERVAL_MS);
@@ -96,10 +97,16 @@ export function useImuMeasurement(): ImuMeasurementState {
             resolve("failed");
             return;
           }
-          sumPitch += computePitch(x, y, z);
+          sumX += x;
+          sumY += y;
+          sumZ += z;
           samplesCollected++;
           if (samplesCollected >= CALIBRATION_SAMPLES) {
-            referenceAngleRef.current = sumPitch / samplesCollected;
+            referenceVectorRef.current = {
+              x: sumX / samplesCollected,
+              y: sumY / samplesCollected,
+              z: sumZ / samplesCollected,
+            };
             removeSubscription();
             resolve("success");
           }
@@ -131,7 +138,7 @@ export function useImuMeasurement(): ImuMeasurementState {
   }, [removeSubscription]);
 
   const startMeasurement = useCallback(() => {
-    if (referenceAngleRef.current === null) return;
+    if (referenceVectorRef.current === null) return;
 
     stableCountRef.current = 0;
     pitchWindowRef.current = [];
@@ -153,8 +160,8 @@ export function useImuMeasurement(): ImuMeasurementState {
     subscriptionRef.current = Accelerometer.addListener(({ x, y, z }) => {
       if (!isValidSample(x, y, z)) return;
 
-      const pitch = computePitch(x, y, z);
-      const flexion = computeFlexion(pitch, referenceAngleRef.current!);
+      const ref = referenceVectorRef.current!;
+      const flexion = computeFlexionAngle(ref.x, ref.y, ref.z, x, y, z);
 
       if (flexion > MAX_FLEXION_DEGREES || flexion < MIN_FLEXION_DEGREES) return;
 
@@ -206,7 +213,7 @@ export function useImuMeasurement(): ImuMeasurementState {
 
   const reset = useCallback(() => {
     removeSubscription();
-    referenceAngleRef.current = null;
+    referenceVectorRef.current = null;
     stableCountRef.current = 0;
     pitchWindowRef.current = [];
     peakAngleRef.current = null;

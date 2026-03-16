@@ -1,42 +1,42 @@
 import {
-  computePitch,
-  computeFlexion,
+  computeFlexionAngle,
   computeStdDev,
   isValidSample,
 } from "@/lib/imu-math";
 
-describe("computePitch", () => {
-  it("returns ~0 when phone is flat (x=0, z=-1)", () => {
-    expect(computePitch(0, 0, -1)).toBeCloseTo(0, 1);
+describe("computeFlexionAngle", () => {
+  it("returns 0 when current vector equals calibration vector", () => {
+    expect(computeFlexionAngle(0, 0, -1, 0, 0, -1)).toBe(0);
   });
 
-  it("returns ~90 when phone is vertical (x=1, z=0)", () => {
-    expect(computePitch(1, 0, 0)).toBeCloseTo(90, 1);
+  it("returns ~90 when phone tilts 90° from flat calibration", () => {
+    // Calibrated flat (z = -1), now vertical along Y axis
+    expect(computeFlexionAngle(0, 0, -1, 0, -1, 0)).toBeCloseTo(90, 0);
   });
 
-  it("returns ~45 at a 45-degree tilt", () => {
+  it("returns ~90 when phone tilts 90° from flat calibration via X axis", () => {
+    // Axis-independent: also works when X is the shin axis
+    expect(computeFlexionAngle(0, 0, -1, -1, 0, 0)).toBeCloseTo(90, 0);
+  });
+
+  it("returns ~45 when tilted 45° from calibration", () => {
     const v = 1 / Math.sqrt(2);
-    expect(computePitch(v, 0, -v)).toBeCloseTo(45, 1);
+    // Calibrated flat, now tilted 45° in the Y-Z plane
+    expect(computeFlexionAngle(0, 0, -1, 0, -v, -v)).toBeCloseTo(45, 0);
   });
 
-  it("is negative when tilted the other way", () => {
-    const v = 1 / Math.sqrt(2);
-    expect(computePitch(-v, 0, -v)).toBeCloseTo(-45, 1);
-  });
-});
-
-describe("computeFlexion", () => {
-  it("returns 0 when at reference angle", () => {
-    expect(computeFlexion(5.2, 5.2)).toBe(0);
+  it("returns 0 when vectors are zero-magnitude (guard clause)", () => {
+    expect(computeFlexionAngle(0, 0, 0, 0, 0, -1)).toBe(0);
+    expect(computeFlexionAngle(0, 0, -1, 0, 0, 0)).toBe(0);
   });
 
-  it("returns positive rounded delta for a bent knee", () => {
-    expect(computeFlexion(112.7, 5.2)).toBe(108);
-  });
-
-  it("rounds halves up", () => {
-    expect(computeFlexion(100.5, 0)).toBe(101);
-    expect(computeFlexion(100.4, 0)).toBe(100);
+  it("returns ~120 for a large flexion", () => {
+    // 120° tilt: cos(120°) = -0.5
+    // Calibrated flat (0,0,-1), rotate 120° in Y-Z plane
+    const angle = (120 * Math.PI) / 180;
+    const currY = Math.sin(angle);
+    const currZ = -Math.cos(angle);
+    expect(computeFlexionAngle(0, 0, -1, 0, currY, currZ)).toBeCloseTo(120, 0);
   });
 });
 

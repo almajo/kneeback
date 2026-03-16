@@ -1,23 +1,28 @@
 /**
- * Returns the pitch angle of the phone in degrees.
- * The phone lies flat on the shin with its long axis (x) along the shin bone.
- * Values are in g-force units as returned by expo-sensors Accelerometer.
+ * Returns the angle in degrees between the current gravity vector and the
+ * calibration gravity vector captured at full extension.
  *
- * Returns 0 when flat, positive when the shin-end tilts upward (knee bending).
+ * Using the dot-product removes all axis assumptions — the result is correct
+ * regardless of which physical axis runs along the shin or how the phone is
+ * rotated in the user's hand.  A flat phone at the calibrated position returns
+ * 0°; a 90° knee bend returns ~90°.
+ *
+ * Values are in g-force units as returned by expo-sensors Accelerometer.
  */
-export function computePitch(x: number, y: number, z: number): number {
-  return (Math.atan2(x, Math.sqrt(y * y + z * z)) * 180) / Math.PI;
-}
-
-/**
- * Returns the flexion angle in whole degrees relative to the calibrated
- * reference (the patient's own full-extension baseline).
- */
-export function computeFlexion(
-  currentPitch: number,
-  referenceAngle: number
+export function computeFlexionAngle(
+  calibX: number,
+  calibY: number,
+  calibZ: number,
+  currX: number,
+  currY: number,
+  currZ: number
 ): number {
-  return Math.round(currentPitch - referenceAngle);
+  const dot = calibX * currX + calibY * currY + calibZ * currZ;
+  const magCalib = Math.sqrt(calibX ** 2 + calibY ** 2 + calibZ ** 2);
+  const magCurr = Math.sqrt(currX ** 2 + currY ** 2 + currZ ** 2);
+  if (magCalib < 0.01 || magCurr < 0.01) return 0;
+  const cosAngle = Math.max(-1, Math.min(1, dot / (magCalib * magCurr)));
+  return Math.round((Math.acos(cosAngle) * 180) / Math.PI);
 }
 
 /**
