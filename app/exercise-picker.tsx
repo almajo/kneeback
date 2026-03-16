@@ -72,7 +72,7 @@ export default function ExercisePicker() {
   }
 
   function getRequiredGate(exercise: Exercise): GateDefinition | null {
-    const phaseIndex = PHASES_ORDERED.findIndex((p) => p.key === exercise.phase);
+    const phaseIndex = PHASES_ORDERED.findIndex((p) => p.key === exercise.phase_start);
     const currentPhaseKey = getCurrentPhaseKey();
     const currentPhaseIndex = PHASES_ORDERED.findIndex((p) => p.key === currentPhaseKey);
 
@@ -180,8 +180,8 @@ export default function ExercisePicker() {
 
   const exercisesByPhase: Record<string, Exercise[]> = {};
   for (const ex of filteredExercises) {
-    if (!exercisesByPhase[ex.phase]) exercisesByPhase[ex.phase] = [];
-    exercisesByPhase[ex.phase].push(ex);
+    if (!exercisesByPhase[ex.phase_start]) exercisesByPhase[ex.phase_start] = [];
+    exercisesByPhase[ex.phase_start].push(ex);
   }
 
   const sections = PHASES.map((phase) => {

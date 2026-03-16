@@ -47,6 +47,8 @@ export interface GateProgress {
 export type ExerciseCategory = "rom" | "strengthening" | "activation";
 export type ContentType = "achievement" | "daily_message" | "crutch_hack";
 export type ExerciseStatus = "approved" | "pending";
+export type ExerciseRole = 'primary' | 'alternative' | 'optional';
+export type ExerciseMuscleGroup = 'Quad' | 'Hamstring' | 'Hip' | 'Calf' | 'Knee ROM' | 'Core' | 'Glute';
 
 export interface Profile {
   id: string;
@@ -62,7 +64,11 @@ export interface Exercise {
   id: string;
   name: string;
   description: string;
-  phase: ExercisePhase;
+  phase_start: ExercisePhase;
+  phase_end: ExercisePhase | null;
+  role: ExerciseRole;
+  primary_exercise_id: string | null;
+  muscle_groups: ExerciseMuscleGroup[];
   default_sets: number;
   default_reps: number;
   default_hold_seconds: number | null;

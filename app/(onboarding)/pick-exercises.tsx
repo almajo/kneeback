@@ -44,8 +44,8 @@ export default function PickExercises() {
         ({ data: exs }) => {
           const grouped: Record<string, Exercise[]> = {};
           for (const ex of (exs as Exercise[] | null) || []) {
-            if (!grouped[ex.phase]) grouped[ex.phase] = [];
-            grouped[ex.phase].push(ex);
+            if (!grouped[ex.phase_start]) grouped[ex.phase_start] = [];
+            grouped[ex.phase_start].push(ex);
           }
           setExercisesByPhase(grouped);
           setLoading(false);
