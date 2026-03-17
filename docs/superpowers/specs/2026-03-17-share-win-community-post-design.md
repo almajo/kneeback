@@ -77,11 +77,27 @@ In `progress.tsx`:
 
 ### Post creation
 
-Uses the existing `useCommunity` hook's `createPost` function. No new API surface needed.
+`progress.tsx` must NOT use `useCommunity` just to share a win — that hook loads the full community feed and is inappropriate in the progress screen context.
+
+Instead, add a standalone utility function `lib/community.ts` (new file):
+
+```ts
+export async function submitCommunityPost(
+  userId: string,
+  input: CreatePostInput
+): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from("community_posts")
+    .insert({ user_id: userId, ...input });
+  return { error: error?.message ?? null };
+}
+```
+
+`progress.tsx` calls `submitCommunityPost` directly and handles the result.
 
 ### Error handling
 
-If `createPost` fails: show `Alert.alert("Couldn't share", error.message)`. The prompt closes and the win remains saved. Sharing is best-effort — no retry UI needed.
+If `submitCommunityPost` returns an error: show `Alert.alert("Couldn't share", error)`. The prompt closes regardless. The win is already saved — sharing is best-effort, no retry UI needed.
 
 ---
 
