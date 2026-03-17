@@ -38,7 +38,7 @@ const SLIDES = [
     id: "4",
     headline: "Ready to start your comeback?",
     subtext: null,
-    image: require("../../assets/slide4.png"),
+    image: require("../../assets/images/slide4.png"),
   },
 ];
 
