@@ -13,8 +13,6 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Slide4Illustration from "../../components/intro/Slide4Illustration";
-
 const SLIDES = [
   {
     id: "1",
@@ -40,7 +38,7 @@ const SLIDES = [
     id: "4",
     headline: "Ready to start your comeback?",
     subtext: null,
-    Illustration: Slide4Illustration,
+    image: require("../../assets/slide4.png"),
   },
 ];
 
@@ -158,20 +156,15 @@ export default function IntroScreen() {
         onScrollEndDrag={handleScrollEnd}
         renderItem={({ item }) => {
           const { headline, subtext } = item;
-          const Illustration = (item as any).Illustration;
           const image = (item as any).image;
           return (
             <View style={[styles.slide, { width }]}>
               <View style={styles.illustrationContainer}>
-                {image ? (
-                  <Image
-                    source={image}
-                    style={{ width: illustrationSize, height: illustrationSize }}
-                    resizeMode="contain"
-                  />
-                ) : (
-                  <Illustration size={illustrationSize} />
-                )}
+                <Image
+                  source={image}
+                  style={{ width: illustrationSize, height: illustrationSize }}
+                  resizeMode="contain"
+                />
               </View>
               <Text style={styles.headline}>{headline}</Text>
               {subtext ? (
