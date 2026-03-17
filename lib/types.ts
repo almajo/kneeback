@@ -155,7 +155,7 @@ export interface NotificationPreferences {
 }
 
 // Community types
-export type PostType = "question" | "milestone" | "life_hack";
+export type PostType = "question" | "milestone" | "life_hack" | "win";
 
 export interface CommunityPost {
   id: string;

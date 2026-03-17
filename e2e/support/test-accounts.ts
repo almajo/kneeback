@@ -9,10 +9,30 @@
 
 export const TEST_EMAIL_DOMAIN = "e2e-kneeback.invalid";
 
+/**
+ * Passwords are loaded from environment variables — never hardcode credentials here.
+ * Set E2E_TEST_PASSWORD and E2E_SEED_PASSWORD in your .env file (see .env.example).
+ */
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`Missing required env var for E2E tests: ${name}`);
+  return value;
+}
+
+/**
+ * General-purpose E2E test user — post-surgery day 100, left knee.
+ * Credentials: TEST_USER_EMAIL / E2E_TEST_PASSWORD in .env
+ */
+export const E2E_TEST_USER = {
+  email: process.env.TEST_USER_EMAIL ?? "e2e-test@kneeback.app",
+  get password() { return requireEnv("E2E_TEST_PASSWORD"); },
+  surgeryDate: dateOffset(-100),
+};
+
 /** A freshly onboarded user — has NOT seen the phase overview modal. */
 export const NEW_USER = {
   email: `new-user@${TEST_EMAIL_DOMAIN}`,
-  password: "Test1234!",
+  get password() { return requireEnv("E2E_SEED_PASSWORD"); },
 };
 
 /**
@@ -22,7 +42,7 @@ export const NEW_USER = {
  */
 export const POST_SURGERY_DAY_100 = {
   email: `day100@${TEST_EMAIL_DOMAIN}`,
-  password: "Test1234!",
+  get password() { return requireEnv("E2E_SEED_PASSWORD"); },
   /** Today − 100 days, formatted YYYY-MM-DD */
   surgeryDate: dateOffset(-100),
   expectedPhase: "Advanced Strengthening",
@@ -35,7 +55,7 @@ export const POST_SURGERY_DAY_100 = {
  */
 export const POST_SURGERY_DAY_1 = {
   email: `day1@${TEST_EMAIL_DOMAIN}`,
-  password: "Test1234!",
+  get password() { return requireEnv("E2E_SEED_PASSWORD"); },
   surgeryDate: dateOffset(-1),
   expectedPhase: "Immediate Post-Op",
   expectedPhaseKey: "acute",
@@ -47,7 +67,7 @@ export const POST_SURGERY_DAY_1 = {
  */
 export const PRE_SURGERY_USER = {
   email: `presurgery@${TEST_EMAIL_DOMAIN}`,
-  password: "Test1234!",
+  get password() { return requireEnv("E2E_SEED_PASSWORD"); },
   surgeryDate: dateOffset(14),
   daysUntilSurgery: 14,
   expectedPhase: "Prehabilitation",

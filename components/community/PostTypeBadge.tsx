@@ -7,6 +7,7 @@ const POST_TYPE_CONFIG: Record<PostType, { label: string; color: string; icon: k
   question: { label: "Question", color: Colors.secondary, icon: "help-circle-outline" },
   milestone: { label: "Milestone", color: Colors.success, icon: "trophy-outline" },
   life_hack: { label: "Life Hack", color: Colors.primary, icon: "bulb-outline" },
+  win: { label: "Win", color: Colors.success, icon: "star-outline" },
 };
 
 interface Props {

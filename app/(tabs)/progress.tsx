@@ -20,6 +20,8 @@ import { PhaseGateCard } from "../../components/PhaseGateCard";
 import { PhaseGateDetail } from "../../components/PhaseGateDetail";
 import { usePhaseGate } from "../../lib/hooks/use-phase-gate";
 import type { RomMeasurement } from "../../lib/types";
+import { ShareWinPrompt } from "../../components/community/ShareWinPrompt";
+import { submitCommunityPost } from "../../lib/community";
 
 function getLast30Dates(): string[] {
   const dates: string[] = [];
@@ -41,6 +43,7 @@ export default function ProgressScreen() {
   const [activationDays, setActivationDays] = useState<Set<string>>(new Set());
   const [surgeryDate, setSurgeryDate] = useState<string | null>(null);
   const [gateDetailKey, setGateDetailKey] = useState<string | null>(null);
+  const [pendingShareWin, setPendingShareWin] = useState<string | null>(null);
   const [surgeryStatus, setSurgeryStatus] = useState<"no_date" | "pre_surgery" | "post_surgery">("no_date");
 
   const last30 = getLast30Dates();
@@ -136,6 +139,32 @@ export default function ProgressScreen() {
     await fetchMeasurements();
   }
 
+  async function handleSaveMilestone(payload: {
+    title: string;
+    category: "milestone" | "win";
+    date: string;
+    notes?: string;
+    template_key?: string;
+  }) {
+    await addMilestone(payload);
+    if (payload.category === "win") {
+      setPendingShareWin(payload.title);
+    }
+  }
+
+  async function handleShareWin(message: string) {
+    if (!session || !pendingShareWin) return;
+    const { error } = await submitCommunityPost(session.user.id, {
+      post_type: "win",
+      title: pendingShareWin,
+      body: message || pendingShareWin,
+    });
+    setPendingShareWin(null);
+    if (error) {
+      Alert.alert("Couldn't share", error);
+    }
+  }
+
   function openAddSheet() {
     setRomSheetOpen(true);
   }
@@ -163,6 +192,12 @@ export default function ProgressScreen() {
         latestFlexion={latestFlexion}
         onToggleCriterion={toggleCriterion}
         onClose={() => setGateDetailKey(null)}
+      />
+      <ShareWinPrompt
+        visible={!!pendingShareWin}
+        winTitle={pendingShareWin ?? ""}
+        onShare={handleShareWin}
+        onSkip={() => setPendingShareWin(null)}
       />
       <LogRomSheet
         visible={romSheetOpen}
@@ -210,7 +245,7 @@ export default function ProgressScreen() {
         <ProgressCalendar
           milestones={milestones}
           measurements={measurements}
-          onSaveMilestone={addMilestone}
+          onSaveMilestone={handleSaveMilestone}
           onDeleteMilestone={deleteMilestone}
           userId={session.user.id}
           surgeryDate={surgeryDate}
