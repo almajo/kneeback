@@ -56,7 +56,7 @@ interface Props {
 
 ### `PostTypeBadge` update (`components/community/PostTypeBadge.tsx`)
 
-Add a case for `"win"`: label `"Win"`, emoji `★`, color `Colors.success`.
+Add a case for `"win"` to `POST_TYPE_CONFIG`: label `"Win"`, icon `"star-outline"` (Ionicons), color `Colors.success`.
 
 ---
 
@@ -84,9 +84,13 @@ Reuses the existing `createPost` function in `lib/community.ts` (or wherever com
 
 ---
 
+## Scope Decisions
+
+**Wins are only shareable from the progress tab** via `ShareWinPrompt`. `CreatePostSheet` (community tab FAB) is not updated — users cannot manually create a "win" post type from the community tab. This keeps the feature focused and avoids surfacing the new type prematurely.
+
 ## What Is Not Changed
 
 - Existing milestone save logic
-- Existing post types (`question`, `milestone`, `life_hack`)
+- Existing post types (`question`, `milestone`, `life_hack`) in `CreatePostSheet`
 - Community feed ranking or display
 - `AddMilestoneSheet` itself (the trigger is in the parent, not the sheet)
