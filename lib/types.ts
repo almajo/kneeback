@@ -54,7 +54,7 @@ export interface Profile {
   id: string;
   username: string;
   surgery_date: string | null;
-  graft_type: GraftType;
+  graft_type: GraftType | null;
   knee_side: KneeSide;
   expo_push_token: string | null;
   created_at: string;

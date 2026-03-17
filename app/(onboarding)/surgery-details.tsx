@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Platform } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Platform, ActivityIndicator } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
 import { useOnboarding } from "../../lib/onboarding-context";
+import { supabase } from "../../lib/supabase";
 import type { GraftType, KneeSide } from "../../lib/types";
 
 const GRAFT_TYPES: { value: GraftType; label: string }[] = [
@@ -23,12 +24,30 @@ function parseDateSafe(str: string | null): Date {
   return isNaN(d.getTime()) ? new Date() : d;
 }
 
+function isSurgeryInPast(date: Date): boolean {
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+  return date <= today;
+}
+
+interface FieldErrors {
+  name?: string;
+  username?: string;
+  graftType?: string;
+  kneeSide?: string;
+}
+
 export default function SurgeryDetails() {
   const router = useRouter();
   const { data, update } = useOnboarding();
   const [dateNotSetYet, setDateNotSetYet] = useState(data.surgeryDate === null);
   const [surgeryDate, setSurgeryDate] = useState(parseDateSafe(data.surgeryDate));
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [checking, setChecking] = useState(false);
+  const [graftNotSure, setGraftNotSure] = useState(false);
+
+  const surgeryInPast = !dateNotSetYet && isSurgeryInPast(surgeryDate);
 
   function formatDate(d: Date) {
     return d.toISOString().split("T")[0];
@@ -38,23 +57,48 @@ export default function SurgeryDetails() {
     return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   }
 
-  function handleNext() {
+  async function handleNext() {
+    const newErrors: FieldErrors = {};
+
     if (!data.name.trim()) {
-      Alert.alert("Missing info", "Please enter your name.");
-      return;
+      newErrors.name = "Please enter your name.";
     }
     if (!data.username.trim()) {
-      Alert.alert("Missing info", "Please enter a username.");
-      return;
-    }
-    if (!data.graftType) {
-      Alert.alert("Missing info", "Please select your graft type.");
-      return;
+      newErrors.username = "Please enter a username.";
     }
     if (!data.kneeSide) {
-      Alert.alert("Missing info", "Please select which knee.");
+      newErrors.kneeSide = "Please select which knee.";
+    }
+    if (surgeryInPast && !data.graftType && !graftNotSure) {
+      newErrors.graftType = 'Please select your graft type, or choose "Not sure".';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
+
+    // Check username availability
+    if (data.username.trim()) {
+      setChecking(true);
+      const { data: existing, error } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("username", data.username.trim())
+        .maybeSingle();
+      setChecking(false);
+
+      if (error) {
+        setErrors({ username: "Could not verify username. Please try again." });
+        return;
+      }
+      if (existing) {
+        setErrors({ username: "This username is already taken. Please choose another." });
+        return;
+      }
+    }
+
+    setErrors({});
     update({ surgeryDate: dateNotSetYet ? null : formatDate(surgeryDate) });
     router.push('/(onboarding)/quick-setup');
   }
@@ -62,11 +106,28 @@ export default function SurgeryDetails() {
   function toggleDateNotSet() {
     setDateNotSetYet((prev) => {
       if (!prev) {
-        // switching to "not set" — clear context date
         update({ surgeryDate: null });
+        // If surgery is no longer in the past, clear graft type
+        update({ graftType: null });
+        setGraftNotSure(false);
       }
       return !prev;
     });
+  }
+
+  function handleDateChange(newDate: Date) {
+    setSurgeryDate(newDate);
+    // Clear graft type selection if date moves to the future
+    if (!isSurgeryInPast(newDate)) {
+      update({ graftType: null });
+      setGraftNotSure(false);
+    }
+  }
+
+  function clearError(field: keyof FieldErrors) {
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
   }
 
   return (
@@ -76,30 +137,40 @@ export default function SurgeryDetails() {
         Tell us about your surgery so we can set up your recovery plan.
       </Text>
 
+      {/* Name */}
       <Text className="text-sm font-semibold mb-2" style={{ color: "#2D2D2D" }}>Your Name</Text>
       <TextInput
-        className="bg-surface border border-border rounded-2xl px-4 py-4 text-base mb-6"
+        className={`bg-surface border rounded-2xl px-4 py-4 text-base mb-1 ${errors.name ? "border-red-400" : "border-border"}`}
         placeholder="First name"
         value={data.name}
-        onChangeText={(v) => update({ name: v })}
+        onChangeText={(v) => { update({ name: v }); clearError("name"); }}
         autoCapitalize="words"
         autoFocus
         returnKeyType="next"
       />
+      {errors.name && (
+        <Text className="text-red-500 text-xs mb-4 ml-1">{errors.name}</Text>
+      )}
+      {!errors.name && <View className="mb-6" />}
 
+      {/* Username */}
       <Text className="text-sm font-semibold mb-2" style={{ color: "#2D2D2D" }}>Username</Text>
       <TextInput
-        className="bg-surface border border-border rounded-2xl px-4 py-4 text-base mb-6"
+        className={`bg-surface border rounded-2xl px-4 py-4 text-base mb-1 ${errors.username ? "border-red-400" : "border-border"}`}
         placeholder="Your username"
         value={data.username}
-        onChangeText={(v) => update({ username: v })}
+        onChangeText={(v) => { update({ username: v }); clearError("username"); }}
         autoCapitalize="none"
         returnKeyType="next"
       />
+      {errors.username && (
+        <Text className="text-red-500 text-xs mb-4 ml-1">{errors.username}</Text>
+      )}
+      {!errors.username && <View className="mb-6" />}
 
+      {/* Surgery Date */}
       <Text className="text-sm font-semibold mb-2" style={{ color: "#2D2D2D" }}>Surgery Date</Text>
 
-      {/* "Date not set yet" toggle */}
       <TouchableOpacity
         className="flex-row items-center gap-3 mb-4"
         onPress={toggleDateNotSet}
@@ -122,7 +193,9 @@ export default function SurgeryDetails() {
           <input
             type="date"
             value={formatDate(surgeryDate)}
-            onChange={(e) => { if (e.target.value) setSurgeryDate(new Date(e.target.value + "T12:00:00")); }}
+            onChange={(e) => {
+              if (e.target.value) handleDateChange(new Date(e.target.value + "T12:00:00"));
+            }}
             style={{
               width: "100%",
               backgroundColor: "#FFFFFF",
@@ -150,7 +223,7 @@ export default function SurgeryDetails() {
                 mode="date"
                 onChange={(_, selected) => {
                   setShowDatePicker(false);
-                  if (selected) setSurgeryDate(selected);
+                  if (selected) handleDateChange(selected);
                 }}
               />
             )}
@@ -162,7 +235,7 @@ export default function SurgeryDetails() {
               mode="date"
               display="spinner"
               onChange={(_, selected) => {
-                if (selected) setSurgeryDate(selected);
+                if (selected) handleDateChange(selected);
               }}
               style={{ width: "100%" }}
             />
@@ -178,44 +251,88 @@ export default function SurgeryDetails() {
         </View>
       )}
 
-      <Text className="text-sm font-semibold mb-3" style={{ color: "#2D2D2D" }}>Graft Type</Text>
-      <View className="flex-row flex-wrap gap-2 mb-6">
-        {GRAFT_TYPES.map((g) => (
-          <TouchableOpacity
-            key={g.value}
-            className={`px-5 py-3 rounded-2xl border ${
-              data.graftType === g.value ? "bg-primary border-primary" : "bg-surface border-border"
-            }`}
-            onPress={() => update({ graftType: g.value })}
-          >
-            <Text className={`font-semibold ${data.graftType === g.value ? "text-white" : ""}`}
-              style={data.graftType !== g.value ? { color: "#2D2D2D" } : undefined}>
-              {g.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {/* Graft Type — only shown if surgery is in the past */}
+      {surgeryInPast && (
+        <>
+          <Text className="text-sm font-semibold mb-3" style={{ color: "#2D2D2D" }}>Graft Type</Text>
+          <View className="flex-row flex-wrap gap-2 mb-1">
+            {GRAFT_TYPES.map((g) => (
+              <TouchableOpacity
+                key={g.value}
+                className={`px-5 py-3 rounded-2xl border ${
+                  data.graftType === g.value ? "bg-primary border-primary" : "bg-surface border-border"
+                }`}
+                onPress={() => { update({ graftType: g.value }); setGraftNotSure(false); clearError("graftType"); }}
+              >
+                <Text
+                  className={`font-semibold ${data.graftType === g.value ? "text-white" : ""}`}
+                  style={data.graftType !== g.value ? { color: "#2D2D2D" } : undefined}
+                >
+                  {g.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+            {/* Not sure option */}
+            <TouchableOpacity
+              className={`px-5 py-3 rounded-2xl border ${
+                graftNotSure ? "bg-primary border-primary" : "bg-surface border-border"
+              }`}
+              onPress={() => {
+                update({ graftType: null });
+                setGraftNotSure(true);
+                clearError("graftType");
+              }}
+            >
+              <Text
+                className={`font-semibold ${graftNotSure ? "text-white" : ""}`}
+                style={!graftNotSure ? { color: "#2D2D2D" } : undefined}
+              >
+                Not sure
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {errors.graftType && (
+            <Text className="text-red-500 text-xs mb-4 ml-1">{errors.graftType}</Text>
+          )}
+          {!errors.graftType && <View className="mb-6" />}
+        </>
+      )}
 
+      {/* Knee Side */}
       <Text className="text-sm font-semibold mb-3" style={{ color: "#2D2D2D" }}>Which Knee?</Text>
-      <View className="flex-row gap-3 mb-10">
+      <View className="flex-row gap-3 mb-1">
         {KNEE_SIDES.map((s) => (
           <TouchableOpacity
             key={s.value}
             className={`flex-1 py-4 rounded-2xl border items-center ${
               data.kneeSide === s.value ? "bg-primary border-primary" : "bg-surface border-border"
             }`}
-            onPress={() => update({ kneeSide: s.value })}
+            onPress={() => { update({ kneeSide: s.value }); clearError("kneeSide"); }}
           >
-            <Text className={`font-bold text-base ${data.kneeSide === s.value ? "text-white" : ""}`}
-              style={data.kneeSide !== s.value ? { color: "#2D2D2D" } : undefined}>
+            <Text
+              className={`font-bold text-base ${data.kneeSide === s.value ? "text-white" : ""}`}
+              style={data.kneeSide !== s.value ? { color: "#2D2D2D" } : undefined}
+            >
               {s.label}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
+      {errors.kneeSide && (
+        <Text className="text-red-500 text-xs mb-4 ml-1">{errors.kneeSide}</Text>
+      )}
+      {!errors.kneeSide && <View className="mb-10" />}
 
-      <TouchableOpacity className="bg-primary rounded-2xl py-4 items-center" onPress={handleNext}>
-        <Text className="text-white font-bold text-lg">Next →</Text>
+      <TouchableOpacity
+        className={`bg-primary rounded-2xl py-4 items-center ${checking ? "opacity-70" : ""}`}
+        onPress={handleNext}
+        disabled={checking}
+      >
+        {checking ? (
+          <ActivityIndicator color="white" />
+        ) : (
+          <Text className="text-white font-bold text-lg">Next →</Text>
+        )}
       </TouchableOpacity>
     </ScrollView>
   );

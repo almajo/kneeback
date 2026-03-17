@@ -36,7 +36,7 @@ export default function SetReminder() {
         name: data.name,
         username: data.username,
         surgery_date: data.surgeryDate,
-        graft_type: data.graftType!,
+        graft_type: data.graftType,
         knee_side: data.kneeSide!,
         expo_push_token: null,
       });

@@ -373,7 +373,7 @@ export type Database = {
         Row: {
           created_at: string | null
           expo_push_token: string | null
-          graft_type: Database["public"]["Enums"]["graft_type"]
+          graft_type: Database["public"]["Enums"]["graft_type"] | null
           id: string
           knee_side: Database["public"]["Enums"]["knee_side"]
           name: string | null
@@ -383,7 +383,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           expo_push_token?: string | null
-          graft_type: Database["public"]["Enums"]["graft_type"]
+          graft_type?: Database["public"]["Enums"]["graft_type"] | null
           id: string
           knee_side: Database["public"]["Enums"]["knee_side"]
           name?: string | null
