@@ -64,16 +64,24 @@ Add a case for `"win"` to `POST_TYPE_CONFIG`: label `"Win"`, icon `"star-outline
 
 ### Where the prompt is triggered
 
-The `ProgressCalendar` component renders `AddMilestoneSheet` and handles the `onSaveMilestone` callback. After a successful save where `category === "win"`:
+`ProgressCalendar` passes `onSaveMilestone` as a prop from its parent — `app/(tabs)/progress.tsx`. The **progress screen** owns the share state and the community mutation.
 
-1. `ProgressCalendar` sets `pendingShareWin` state with the win title.
-2. `ShareWinPrompt` renders with `visible={!!pendingShareWin}`.
-3. On share: calls `createPost({ post_type: "win", title: winTitle, body: message || winTitle })`, then clears `pendingShareWin`.
-4. On skip: clears `pendingShareWin`.
+In `progress.tsx`:
+1. Wrap `addMilestone` in a new `handleSaveMilestone` function.
+2. After a successful save where `category === "win"`, set `pendingShareWin` state with the win title.
+3. Render `<ShareWinPrompt visible={!!pendingShareWin} winTitle={pendingShareWin} ... />` at the screen level (alongside existing modals like `LogRomSheet`).
+4. On share: call `createPost({ post_type: "win", title: winTitle, body: message || winTitle })` via `useCommunity`, then clear `pendingShareWin`.
+5. On skip: clear `pendingShareWin`.
+
+`ProgressCalendar` receives no new props — only the `onSaveMilestone` callback changes in `progress.tsx`.
 
 ### Post creation
 
-Reuses the existing `createPost` function in `lib/community.ts` (or wherever community mutations live). No new API surface needed.
+Uses the existing `useCommunity` hook's `createPost` function. No new API surface needed.
+
+### Error handling
+
+If `createPost` fails: show `Alert.alert("Couldn't share", error.message)`. The prompt closes and the win remains saved. Sharing is best-effort — no retry UI needed.
 
 ---
 
