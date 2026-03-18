@@ -13,11 +13,22 @@ import {
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useSQLiteContext } from "expo-sqlite";
 import { useAuth } from "../../lib/auth-context";
 import { supabase } from "../../lib/supabase";
 import { registerForPushNotifications, scheduleDailyReminder } from "../../lib/notifications";
 import { Colors } from "../../constants/colors";
-import type { Profile, NotificationPreferences, GraftType } from "../../lib/types";
+import { getProfile, updateProfile } from "../../lib/db/repositories/profile-repo";
+import {
+  getNotificationPreferences,
+  createOrUpdateNotificationPreferences,
+} from "../../lib/db/repositories/notification-repo";
+import { getAllMilestones } from "../../lib/db/repositories/milestone-repo";
+import { getAllRomMeasurements } from "../../lib/db/repositories/rom-repo";
+import { getUnlockedAchievements } from "../../lib/db/repositories/achievement-repo";
+import type { LocalProfile } from "../../lib/db/repositories/profile-repo";
+import type { LocalNotificationPreferences } from "../../lib/db/repositories/notification-repo";
+import type { GraftType } from "../../lib/types";
 import { PrivacyPolicyModal } from "../../components/PrivacyPolicyModal";
 
 const GRAFT_TYPE_OPTIONS: { value: GraftType; label: string }[] = [
@@ -33,9 +44,10 @@ function pad(n: number) {
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const db = useSQLiteContext();
   const { session } = useAuth();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences | null>(null);
+  const [profile, setProfile] = useState<LocalProfile | null>(null);
+  const [notifPrefs, setNotifPrefs] = useState<LocalNotificationPreferences | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingNotif, setSavingNotif] = useState(false);
   const [editingReminder, setEditingReminder] = useState(false);
@@ -55,67 +67,59 @@ export default function ProfileScreen() {
     return d;
   });
 
-  const userId = session?.user.id;
-
   useEffect(() => {
-    if (!userId) return;
-    async function load() {
-      const [{ data: prof }, { data: prefs }] = await Promise.all([
-        supabase.from("profiles").select("*").eq("id", userId!).single(),
-        supabase.from("notification_preferences").select("*").eq("user_id", userId!).single(),
-      ]);
-      setProfile(prof as Profile);
-      setNotifPrefs(prefs as NotificationPreferences);
-      if (prefs?.daily_reminder_time) {
-        const [h, m] = (prefs.daily_reminder_time as string).split(":").map(Number);
-        setReminderHour(h);
-        setReminderMinute(m);
-        const d = new Date();
-        d.setHours(h, m, 0, 0);
-        setReminderDate(d);
-        registerForPushNotifications(userId!).then(() => scheduleDailyReminder(h, m));
+    const prof = getProfile(db);
+    setProfile(prof);
+    const prefs = getNotificationPreferences(db);
+    setNotifPrefs(prefs);
+    if (prefs?.daily_reminder_time) {
+      const [h, m] = prefs.daily_reminder_time.split(":").map(Number);
+      setReminderHour(h);
+      setReminderMinute(m);
+      const d = new Date();
+      d.setHours(h, m, 0, 0);
+      setReminderDate(d);
+      // Schedule push notification if we have a push token
+      if (prof?.device_id) {
+        registerForPushNotifications(prof.device_id).then(() =>
+          scheduleDailyReminder(h, m)
+        );
       }
-      setLoading(false);
     }
-    load();
-  }, [userId]);
+    setLoading(false);
+  }, [db]);
 
-  async function toggleEveningNudge(value: boolean) {
+  function toggleEveningNudge(value: boolean) {
     if (!notifPrefs) return;
     setSavingNotif(true);
-    await supabase
-      .from("notification_preferences")
-      .update({ evening_nudge_enabled: value })
-      .eq("id", notifPrefs.id);
-    setNotifPrefs({ ...notifPrefs, evening_nudge_enabled: value });
+    const updated = createOrUpdateNotificationPreferences(db, {
+      evening_nudge_enabled: value,
+    });
+    setNotifPrefs(updated);
     setSavingNotif(false);
   }
 
-  async function saveReminderTime(h = reminderHour, m = reminderMinute) {
+  function saveReminderTime(h = reminderHour, m = reminderMinute) {
     if (!notifPrefs) return;
     setSavingNotif(true);
     const timeStr = `${pad(h)}:${pad(m)}`;
-    await supabase
-      .from("notification_preferences")
-      .update({ daily_reminder_time: timeStr })
-      .eq("id", notifPrefs.id);
-    setNotifPrefs({ ...notifPrefs, daily_reminder_time: timeStr });
-    await scheduleDailyReminder(h, m);
+    const updated = createOrUpdateNotificationPreferences(db, {
+      daily_reminder_time: timeStr,
+    });
+    setNotifPrefs(updated);
+    void scheduleDailyReminder(h, m);
     setEditingReminder(false);
     setSavingNotif(false);
   }
 
   async function handleExportData() {
-    if (!userId) return;
-    const [{ data: logs }, { data: roms }, { data: achievements }] = await Promise.all([
-      supabase.from("daily_logs").select("*").eq("user_id", userId),
-      supabase.from("rom_measurements").select("*").eq("user_id", userId),
-      supabase.from("user_achievements").select("*, content(*)").eq("user_id", userId),
-    ]);
+    const milestones = getAllMilestones(db);
+    const roms = getAllRomMeasurements(db);
+    const achievements = getUnlockedAchievements(db);
 
     const exportData = {
       profile,
-      daily_logs: logs,
+      milestones,
       rom_measurements: roms,
       achievements,
       exported_at: new Date().toISOString(),
@@ -127,26 +131,27 @@ export default function ProfileScreen() {
     });
   }
 
-  async function saveGraftType(graftType: GraftType) {
-    if (!userId || !profile) return;
+  function saveGraftType(graftType: GraftType) {
+    if (!profile) return;
     setSavingGraftType(true);
-    await supabase.from("profiles").update({ graft_type: graftType }).eq("id", userId);
-    setProfile({ ...profile, graft_type: graftType });
+    const updated = updateProfile(db, { graft_type: graftType });
+    setProfile(updated);
     setEditingGraftType(false);
     setSavingGraftType(false);
   }
 
-  async function saveSurgeryDate(date: Date) {
-    if (!userId || !profile) return;
+  function saveSurgeryDate(date: Date) {
+    if (!profile) return;
     setSavingSurgeryDate(true);
     const dateStr = date.toISOString().split("T")[0];
-    await supabase.from("profiles").update({ surgery_date: dateStr }).eq("id", userId);
-    setProfile({ ...profile, surgery_date: dateStr });
+    const updated = updateProfile(db, { surgery_date: dateStr });
+    setProfile(updated);
     setEditingSurgeryDate(false);
     setSavingSurgeryDate(false);
   }
 
   async function handleSignOut() {
+    // Keep Supabase sign-out for optional sync (Phase 5)
     await supabase.auth.signOut();
   }
 
@@ -155,10 +160,12 @@ export default function ProfileScreen() {
   }
 
   async function confirmDeleteAccount() {
-    if (!userId) return;
     setDeleting(true);
-    await supabase.rpc("delete_user");
-    await supabase.auth.signOut();
+    // For now, sign out from Supabase. Full local data deletion comes in Phase 5.
+    if (session) {
+      await supabase.rpc("delete_user");
+      await supabase.auth.signOut();
+    }
     setDeleting(false);
     setDeleteModalVisible(false);
     router.replace("/(auth)/sign-in?accountDeleted=true");
@@ -166,7 +173,11 @@ export default function ProfileScreen() {
 
   function surgeryDateLabel(dateStr: string): string {
     const d = new Date(dateStr);
-    return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    return d.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
   }
 
   function daysSince(dateStr: string): number {
@@ -182,7 +193,10 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-background" contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
+    <ScrollView
+      className="flex-1 bg-background"
+      contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
+    >
       {/* Header */}
       <View className="items-center py-6 mb-4">
         <View
@@ -215,7 +229,12 @@ export default function ProfileScreen() {
 
       {/* Surgery Info */}
       <View className="bg-surface border border-border rounded-2xl p-4 mb-4">
-        <Text className="text-base font-semibold mb-3" style={{ color: "#2D2D2D" }}>Surgery Details</Text>
+        <Text
+          className="text-base font-semibold mb-3"
+          style={{ color: "#2D2D2D" }}
+        >
+          Surgery Details
+        </Text>
 
         {/* Surgery Date — editable when null or in the future */}
         {isSurgeryDateEditable(profile?.surgery_date) ? (
@@ -223,14 +242,20 @@ export default function ProfileScreen() {
             <TouchableOpacity
               className="flex-row justify-between items-center py-3 border-b border-border"
               onPress={() => {
-                setSurgeryDateValue(profile?.surgery_date ? new Date(profile.surgery_date + "T12:00:00") : new Date());
+                setSurgeryDateValue(
+                  profile?.surgery_date
+                    ? new Date(profile.surgery_date + "T12:00:00")
+                    : new Date()
+                );
                 setEditingSurgeryDate((v) => !v);
               }}
             >
               <Text style={{ color: "#6B6B6B" }}>Surgery Date</Text>
               <View className="flex-row items-center gap-2">
                 <Text className="font-semibold" style={{ color: "#2D2D2D" }}>
-                  {profile?.surgery_date ? surgeryDateLabel(profile.surgery_date) : "Not set"}
+                  {profile?.surgery_date
+                    ? surgeryDateLabel(profile.surgery_date)
+                    : "Not set"}
                 </Text>
                 <Ionicons
                   name={editingSurgeryDate ? "chevron-up" : "chevron-down"}
@@ -247,7 +272,10 @@ export default function ProfileScreen() {
                       type="date"
                       value={surgeryDateValue.toISOString().split("T")[0]}
                       onChange={(e) => {
-                        if (e.target.value) setSurgeryDateValue(new Date(e.target.value + "T12:00:00"));
+                        if (e.target.value)
+                          setSurgeryDateValue(
+                            new Date(e.target.value + "T12:00:00")
+                          );
                       }}
                       style={{
                         width: "100%",
@@ -283,7 +311,8 @@ export default function ProfileScreen() {
                         onChange={(_, selected) => {
                           if (!selected) return;
                           setSurgeryDateValue(selected);
-                          if (Platform.OS === "android") saveSurgeryDate(selected);
+                          if (Platform.OS === "android")
+                            saveSurgeryDate(selected);
                         }}
                         style={{ width: "100%" }}
                       />
@@ -307,7 +336,14 @@ export default function ProfileScreen() {
             )}
           </>
         ) : (
-          <InfoRow label="Surgery Date" value={profile?.surgery_date ? surgeryDateLabel(profile.surgery_date) : "—"} />
+          <InfoRow
+            label="Surgery Date"
+            value={
+              profile?.surgery_date
+                ? surgeryDateLabel(profile.surgery_date)
+                : "—"
+            }
+          />
         )}
 
         {/* Editable Graft Type */}
@@ -319,7 +355,9 @@ export default function ProfileScreen() {
           <View className="flex-row items-center gap-2">
             <Text className="font-semibold" style={{ color: "#2D2D2D" }}>
               {profile?.graft_type
-                ? (GRAFT_TYPE_OPTIONS.find((o) => o.value === profile.graft_type)?.label ?? capitalize(profile.graft_type))
+                ? (GRAFT_TYPE_OPTIONS.find(
+                    (o) => o.value === profile.graft_type
+                  )?.label ?? capitalize(profile.graft_type))
                 : "—"}
             </Text>
             <Ionicons
@@ -340,18 +378,28 @@ export default function ProfileScreen() {
                   onPress={() => saveGraftType(option.value)}
                   disabled={savingGraftType}
                 >
-                  <Text className="text-base" style={{ color: isSelected ? "#fff" : "#2D2D2D" }}>
+                  <Text
+                    className="text-base"
+                    style={{ color: isSelected ? "#fff" : "#2D2D2D" }}
+                  >
                     {option.label}
                   </Text>
-                  {isSelected && <Ionicons name="checkmark" size={16} color="#fff" />}
-                  {savingGraftType && isSelected && <ActivityIndicator size="small" color="#fff" />}
+                  {isSelected && (
+                    <Ionicons name="checkmark" size={16} color="#fff" />
+                  )}
+                  {savingGraftType && isSelected && (
+                    <ActivityIndicator size="small" color="#fff" />
+                  )}
                 </TouchableOpacity>
               );
             })}
           </View>
         )}
 
-        <InfoRow label="Knee" value={profile?.knee_side ? capitalize(profile.knee_side) : "—"} />
+        <InfoRow
+          label="Knee"
+          value={profile?.knee_side ? capitalize(profile.knee_side) : "—"}
+        />
 
         {/* Manage Exercises */}
         <TouchableOpacity
@@ -360,7 +408,9 @@ export default function ProfileScreen() {
         >
           <Text style={{ color: "#6B6B6B" }}>Exercise Plan</Text>
           <View className="flex-row items-center gap-2">
-            <Text className="font-semibold" style={{ color: "#2D2D2D" }}>Manage</Text>
+            <Text className="font-semibold" style={{ color: "#2D2D2D" }}>
+              Manage
+            </Text>
             <Ionicons name="chevron-forward" size={14} color="#A0A0A0" />
           </View>
         </TouchableOpacity>
@@ -369,7 +419,12 @@ export default function ProfileScreen() {
       {/* Notifications */}
       {notifPrefs && (
         <View className="bg-surface border border-border rounded-2xl p-4 mb-4">
-          <Text className="text-base font-semibold mb-3" style={{ color: "#2D2D2D" }}>Notifications</Text>
+          <Text
+            className="text-base font-semibold mb-3"
+            style={{ color: "#2D2D2D" }}
+          >
+            Notifications
+          </Text>
 
           {/* Daily reminder row */}
           <TouchableOpacity
@@ -428,7 +483,10 @@ export default function ProfileScreen() {
                     setReminderHour(selected.getHours());
                     setReminderMinute(selected.getMinutes());
                     if (Platform.OS === "android") {
-                      saveReminderTime(selected.getHours(), selected.getMinutes());
+                      saveReminderTime(
+                        selected.getHours(),
+                        selected.getMinutes()
+                      );
                     }
                   }}
                 />
@@ -487,7 +545,10 @@ export default function ProfileScreen() {
         />
       </View>
 
-      <PrivacyPolicyModal visible={privacyVisible} onClose={() => setPrivacyVisible(false)} />
+      <PrivacyPolicyModal
+        visible={privacyVisible}
+        onClose={() => setPrivacyVisible(false)}
+      />
 
       <Modal
         visible={deleteModalVisible}
@@ -495,11 +556,23 @@ export default function ProfileScreen() {
         animationType="fade"
         onRequestClose={() => setDeleteModalVisible(false)}
       >
-        <View className="flex-1 justify-center items-center" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
-          <View className="bg-surface rounded-2xl p-6 mx-6 w-full" style={{ maxWidth: 360 }}>
-            <Text className="text-xl font-bold mb-2" style={{ color: "#2D2D2D" }}>Delete Account?</Text>
+        <View
+          className="flex-1 justify-center items-center"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        >
+          <View
+            className="bg-surface rounded-2xl p-6 mx-6 w-full"
+            style={{ maxWidth: 360 }}
+          >
+            <Text
+              className="text-xl font-bold mb-2"
+              style={{ color: "#2D2D2D" }}
+            >
+              Delete Account?
+            </Text>
             <Text className="text-base mb-6" style={{ color: "#6B6B6B" }}>
-              This will permanently delete all your data including progress, logs, and achievements. This cannot be undone.
+              This will permanently delete all your data including progress,
+              logs, and achievements. This cannot be undone.
             </Text>
             <TouchableOpacity
               className={`rounded-xl py-3 items-center mb-3 ${deleting ? "opacity-50" : ""}`}
@@ -510,7 +583,9 @@ export default function ProfileScreen() {
               {deleting ? (
                 <ActivityIndicator color="white" />
               ) : (
-                <Text className="text-white font-bold text-base">Delete My Account</Text>
+                <Text className="text-white font-bold text-base">
+                  Delete My Account
+                </Text>
               )}
             </TouchableOpacity>
             <TouchableOpacity
@@ -518,7 +593,12 @@ export default function ProfileScreen() {
               onPress={() => setDeleteModalVisible(false)}
               disabled={deleting}
             >
-              <Text className="font-semibold text-base" style={{ color: "#2D2D2D" }}>Cancel</Text>
+              <Text
+                className="font-semibold text-base"
+                style={{ color: "#2D2D2D" }}
+              >
+                Cancel
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -540,7 +620,9 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <View className="flex-row justify-between py-3 border-b border-border">
       <Text style={{ color: "#6B6B6B" }}>{label}</Text>
-      <Text className="font-semibold" style={{ color: "#2D2D2D" }}>{value}</Text>
+      <Text className="font-semibold" style={{ color: "#2D2D2D" }}>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -564,9 +646,16 @@ function ActionRow({
       className={`flex-row items-center px-4 py-4 ${!last ? "border-b border-border" : ""}`}
       onPress={onPress}
     >
-      <Ionicons name={icon as any} size={20} color={color} />
-      <Text className="ml-3 text-base" style={{ color }}>{label}</Text>
-      <Ionicons name="chevron-forward" size={16} color="#A0A0A0" style={{ marginLeft: "auto" }} />
+      <Ionicons name={icon as never} size={20} color={color} />
+      <Text className="ml-3 text-base" style={{ color }}>
+        {label}
+      </Text>
+      <Ionicons
+        name="chevron-forward"
+        size={16}
+        color="#A0A0A0"
+        style={{ marginLeft: "auto" }}
+      />
     </TouchableOpacity>
   );
 }

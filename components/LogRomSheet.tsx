@@ -14,7 +14,7 @@ import {
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../constants/colors";
-import type { RomMeasurement } from "../lib/types";
+import type { LocalRomMeasurement } from "../lib/db/repositories/rom-repo";
 import { RomMeasurementWizard } from "./rom-measurement/RomMeasurementWizard";
 import { useImuMeasurement } from "../lib/hooks/use-imu-measurement";
 
@@ -29,8 +29,8 @@ interface Props {
   visible: boolean;
   onClose: () => void;
   onSave: (payload: SavePayload) => Promise<void>;
-  editingEntry?: RomMeasurement | null;
-  lastMeasurement?: RomMeasurement | null;
+  editingEntry?: LocalRomMeasurement | null;
+  lastMeasurement?: LocalRomMeasurement | null;
 }
 
 function toDateString(d: Date): string {

@@ -7,9 +7,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSQLiteContext } from "expo-sqlite";
 import { Colors } from "../constants/colors";
-import { supabase } from "../lib/supabase";
-import type { Milestone, RomMeasurement } from "../lib/types";
+import type { LocalMilestone } from "../lib/db/repositories/milestone-repo";
+import type { LocalRomMeasurement } from "../lib/db/repositories/rom-repo";
 import { AddMilestoneSheet } from "./AddMilestoneSheet";
 import { DayDetailSheet } from "./DayDetailSheet";
 
@@ -21,8 +22,8 @@ interface HeatmapDay {
 }
 
 interface Props {
-  milestones: Milestone[];
-  measurements: RomMeasurement[];
+  milestones: LocalMilestone[];
+  measurements: LocalRomMeasurement[];
   onSaveMilestone: (payload: {
     title: string;
     category: "milestone" | "win";
@@ -31,7 +32,6 @@ interface Props {
     template_key?: string;
   }) => Promise<void>;
   onDeleteMilestone: (id: string) => void;
-  userId: string;
   surgeryDate: string | null;
 }
 
@@ -102,9 +102,9 @@ export function ProgressCalendar({
   measurements,
   onSaveMilestone,
   onDeleteMilestone,
-  userId,
   surgeryDate,
 }: Props) {
+  const db = useSQLiteContext();
   const maxMonth = currentMonthString();
   const minMonth = surgeryDate ? toMonthString(surgeryDate) : twoYearsAgoMonth();
 
@@ -163,41 +163,44 @@ export function ProgressCalendar({
   ).current;
 
   useEffect(() => {
-    async function fetchMonthData() {
+    function fetchMonthData() {
       setLoadingDays(true);
       const [year, month] = currentMonth.split("-").map(Number);
       const daysInMonth = new Date(year, month, 0).getDate();
       const today = todayString();
+      const startDate = `${currentMonth}-01`;
+      const endDate = `${currentMonth}-${String(daysInMonth).padStart(2, "0")}`;
 
       const monthDates = Array.from({ length: daysInMonth }, (_, i) => {
         return `${currentMonth}-${String(i + 1).padStart(2, "0")}`;
       });
 
-      const { data: logs } = await supabase
-        .from("daily_logs")
-        .select("date, is_rest_day, id")
-        .eq("user_id", userId)
-        .gte("date", `${currentMonth}-01`)
-        .lte("date", `${currentMonth}-${String(daysInMonth).padStart(2, "0")}`);
+      const logs = db.getAllSync<{ date: string; is_rest_day: number; id: string }>(
+        "SELECT date, is_rest_day, id FROM daily_logs WHERE date >= ? AND date <= ?",
+        [startDate, endDate]
+      );
 
-      const logIds = (logs ?? []).map((l) => l.id);
+      const logIds = logs.map((l) => l.id);
 
-      const { data: exLogs } = await supabase
-        .from("exercise_logs")
-        .select("daily_log_id, user_exercise_id, completed")
-        .in("daily_log_id", logIds.length > 0 ? logIds : [""]);
+      const exLogs =
+        logIds.length > 0
+          ? db.getAllSync<{ daily_log_id: string; completed: number }>(
+              `SELECT daily_log_id, completed FROM exercise_logs WHERE daily_log_id IN (${logIds.map(() => "?").join(",")})`,
+              logIds
+            )
+          : [];
 
       const logMap = new Map<string, { isRest: boolean; logId: string }>();
-      (logs ?? []).forEach((l) =>
-        logMap.set(l.date, { isRest: l.is_rest_day, logId: l.id })
+      logs.forEach((l) =>
+        logMap.set(l.date, { isRest: l.is_rest_day === 1, logId: l.id })
       );
 
       const completionMap = new Map<string, { total: number; done: number }>();
-      (exLogs ?? []).forEach((el) => {
+      exLogs.forEach((el) => {
         const entry = completionMap.get(el.daily_log_id) ?? { total: 0, done: 0 };
         completionMap.set(el.daily_log_id, {
           total: entry.total + 1,
-          done: entry.done + (el.completed ? 1 : 0),
+          done: entry.done + (el.completed === 1 ? 1 : 0),
         });
       });
 
@@ -216,7 +219,7 @@ export function ProgressCalendar({
       setLoadingDays(false);
     }
     fetchMonthData();
-  }, [currentMonth, userId]);
+  }, [currentMonth, db]);
 
   const offset = getMonthStartOffset(currentMonth);
 
@@ -466,7 +469,6 @@ export function ProgressCalendar({
         status={selectedDay?.status ?? null}
         milestones={selectedMilestones}
         romMeasurement={selectedRom}
-        userId={userId}
         onClose={() => setSelectedDay(null)}
         onDeleteMilestone={onDeleteMilestone}
       />

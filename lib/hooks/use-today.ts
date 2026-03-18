@@ -1,88 +1,79 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "../supabase";
-import { useAuth } from "../auth-context";
+import { useSQLiteContext } from "expo-sqlite";
+import { getProfile } from "../db/repositories/profile-repo";
+import { getActiveUserExercises } from "../db/repositories/user-exercise-repo";
+import { getOrCreateDailyLog } from "../db/repositories/daily-log-repo";
+import { getExerciseLogsByDailyLogId } from "../db/repositories/exercise-log-repo";
 import { getStreak } from "../achievements";
-import type { UserExercise, DailyLog, ExerciseLog, Content } from "../types";
+import type { LocalUserExercise } from "../db/repositories/user-exercise-repo";
+import type { LocalDailyLog } from "../db/repositories/daily-log-repo";
+import type { LocalExerciseLog } from "../db/repositories/exercise-log-repo";
+import type { Content } from "../types";
 
 export type SurgeryStatus = "no_date" | "pre_surgery" | "post_surgery";
 
+interface RawContent {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  trigger_condition: string | null;
+  phase: string | null;
+  sort_order: number;
+}
+
 export function useToday() {
-  const { session } = useAuth();
+  const db = useSQLiteContext();
   const [profile, setProfile] = useState<{ surgery_date: string | null } | null>(null);
-  const [userExercises, setUserExercises] = useState<UserExercise[]>([]);
-  const [dailyLog, setDailyLog] = useState<DailyLog | null>(null);
-  const [exerciseLogs, setExerciseLogs] = useState<ExerciseLog[]>([]);
+  const [userExercises, setUserExercises] = useState<LocalUserExercise[]>([]);
+  const [dailyLog, setDailyLog] = useState<LocalDailyLog | null>(null);
+  const [exerciseLogs, setExerciseLogs] = useState<LocalExerciseLog[]>([]);
   const [dailyMessage, setDailyMessage] = useState<Content | null>(null);
   const [streak, setStreak] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const today = new Date().toISOString().split("T")[0];
-  const userId = session?.user.id;
 
-  const fetchAll = useCallback(async () => {
-    if (!userId) return;
+  const fetchAll = useCallback(() => {
     setLoading(true);
 
-    // Fetch profile
-    const { data: prof } = await supabase
-      .from("profiles")
-      .select("surgery_date")
-      .eq("id", userId)
-      .single();
-    setProfile(prof);
+    const prof = getProfile(db);
+    setProfile(prof ? { surgery_date: prof.surgery_date } : null);
 
-    // Fetch active user exercises with exercise details
-    const { data: exercises } = await supabase
-      .from("user_exercises")
-      .select("*, exercise:exercises(*)")
-      .eq("user_id", userId)
-      .eq("is_active", true)
-      .order("sort_order");
-    setUserExercises((exercises as UserExercise[]) || []);
+    const exercises = getActiveUserExercises(db);
+    setUserExercises(exercises);
 
-    // Get or create today's daily log
-    let { data: log } = await supabase
-      .from("daily_logs")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("date", today)
-      .single();
+    const log = getOrCreateDailyLog(db, today);
+    setDailyLog(log);
 
-    if (!log) {
-      const { data: newLog } = await supabase
-        .from("daily_logs")
-        .insert({ user_id: userId, date: today, is_rest_day: false })
-        .select()
-        .single();
-      log = newLog;
-    }
-    setDailyLog(log as DailyLog);
+    const logs = getExerciseLogsByDailyLogId(db, log.id);
+    setExerciseLogs(logs);
 
-    // Fetch exercise logs for today
-    if (log) {
-      const { data: logs } = await supabase
-        .from("exercise_logs")
-        .select("*")
-        .eq("daily_log_id", log.id);
-      setExerciseLogs((logs as ExerciseLog[]) || []);
+    const messages = db.getAllSync<RawContent>(
+      "SELECT * FROM content WHERE type = 'daily_message' ORDER BY sort_order ASC"
+    );
+    if (messages.length > 0) {
+      const dayIndex =
+        Math.floor(new Date(today).getTime() / 86400000) % messages.length;
+      const raw = messages[dayIndex];
+      setDailyMessage({
+        id: raw.id,
+        type: raw.type as Content["type"],
+        title: raw.title,
+        body: raw.body,
+        trigger_condition: raw.trigger_condition
+          ? (JSON.parse(raw.trigger_condition) as Record<string, unknown>)
+          : null,
+        phase: raw.phase as Content["phase"],
+        sort_order: raw.sort_order,
+      });
     }
 
-    // Pick a deterministic daily message
-    const { data: messages } = await supabase
-      .from("content")
-      .select("*")
-      .eq("type", "daily_message");
-    if (messages && messages.length > 0) {
-      const dayIndex = Math.floor(new Date(today).getTime() / 86400000) % messages.length;
-      setDailyMessage(messages[dayIndex] as Content);
-    }
-
-    // Fetch streak
-    const currentStreak = await getStreak(userId);
+    const currentStreak = getStreak(db);
     setStreak(currentStreak);
 
     setLoading(false);
-  }, [userId, today]);
+  }, [db, today]);
 
   useEffect(() => {
     fetchAll();
@@ -109,8 +100,10 @@ export function useToday() {
 
   const weekNumber = Math.floor(daysSinceSurgery / 7) + 1;
 
-  function updateUserExercise(updated: UserExercise) {
-    setUserExercises((prev) => prev.map((ue) => (ue.id === updated.id ? updated : ue)));
+  function updateUserExercise(updated: LocalUserExercise) {
+    setUserExercises((prev) =>
+      prev.map((ue) => (ue.id === updated.id ? updated : ue))
+    );
   }
 
   return {

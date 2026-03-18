@@ -1,11 +1,11 @@
 import { View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
-import type { RomMeasurement } from "@/lib/types";
+import type { LocalRomMeasurement } from "@/lib/db/repositories/rom-repo";
 
 interface Props {
   flexionDegrees: number;
-  lastMeasurement?: RomMeasurement | null;
+  lastMeasurement?: LocalRomMeasurement | null;
   onSave: () => void;
   onRetake: () => void;
 }

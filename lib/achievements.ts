@@ -1,8 +1,31 @@
-import { supabase } from "./supabase";
+import type { SQLiteDatabase } from "expo-sqlite";
+import { getUnlockedAchievements, unlockAchievement } from "./db/repositories/achievement-repo";
 import type { Content } from "./types";
 
+interface RawContent {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  trigger_condition: string | null;
+  phase: string | null;
+  sort_order: number;
+}
+
+function parseContent(raw: RawContent): Content {
+  return {
+    id: raw.id,
+    type: raw.type as Content["type"],
+    title: raw.title,
+    body: raw.body,
+    trigger_condition: raw.trigger_condition ? (JSON.parse(raw.trigger_condition) as Record<string, unknown>) : null,
+    phase: raw.phase as Content["phase"],
+    sort_order: raw.sort_order,
+  };
+}
+
 interface UserState {
-  userId: string;
+  db: SQLiteDatabase;
   daysSinceSurgery: number;
   streak: number;
   totalExercisesCompleted: number;
@@ -15,25 +38,25 @@ interface UserState {
   hasQuadActivation: boolean;
 }
 
-export async function checkAchievements(state: UserState): Promise<Content[]> {
-  const { data: allAchievements } = await supabase
-    .from("content")
-    .select("*")
-    .eq("type", "achievement");
-  if (!allAchievements) return [];
+export function checkAchievements(state: UserState): Content[] {
+  const { db } = state;
 
-  const { data: unlocked } = await supabase
-    .from("user_achievements")
-    .select("content_id")
-    .eq("user_id", state.userId);
-  const unlockedIds = new Set((unlocked || []).map((u) => u.content_id));
+  const rawAchievements = db.getAllSync<RawContent>(
+    "SELECT * FROM content WHERE type = 'achievement'"
+  );
+  if (rawAchievements.length === 0) return [];
+
+  const allAchievements = rawAchievements.map(parseContent);
+
+  const unlocked = getUnlockedAchievements(db);
+  const unlockedIds = new Set(unlocked.map((u) => u.content_id));
 
   const newlyUnlocked: Content[] = [];
 
   for (const achievement of allAchievements) {
     if (unlockedIds.has(achievement.id)) continue;
 
-    const trigger = achievement.trigger_condition as Record<string, any> | null;
+    const trigger = achievement.trigger_condition as Record<string, unknown> | null;
     if (!trigger) continue;
 
     let matched = false;
@@ -45,10 +68,10 @@ export async function checkAchievements(state: UserState): Promise<Content[]> {
         matched = state.dailyComplete;
         break;
       case "day_reached":
-        matched = state.daysSinceSurgery >= trigger.value;
+        matched = state.daysSinceSurgery >= (trigger.value as number);
         break;
       case "streak_reached":
-        matched = state.streak >= trigger.value;
+        matched = state.streak >= (trigger.value as number);
         break;
       case "first_rest_day":
         matched = state.isFirstRestDay;
@@ -57,10 +80,12 @@ export async function checkAchievements(state: UserState): Promise<Content[]> {
         matched = state.isFirstMeasurement;
         break;
       case "flexion_above":
-        matched = (state.latestFlexion ?? 0) > trigger.value;
+        matched = (state.latestFlexion ?? 0) > (trigger.value as number);
         break;
       case "extension_at":
-        matched = state.latestExtension !== null && state.latestExtension <= trigger.value;
+        matched =
+          state.latestExtension !== null &&
+          state.latestExtension <= (trigger.value as number);
         break;
       case "first_quad_activation":
         matched = state.hasQuadActivation;
@@ -68,25 +93,20 @@ export async function checkAchievements(state: UserState): Promise<Content[]> {
     }
 
     if (matched) {
-      await supabase
-        .from("user_achievements")
-        .insert({ user_id: state.userId, content_id: achievement.id });
-      newlyUnlocked.push(achievement as Content);
+      unlockAchievement(db, achievement.id);
+      newlyUnlocked.push(achievement);
     }
   }
 
   return newlyUnlocked;
 }
 
-export async function getStreak(userId: string): Promise<number> {
-  const { data: logs } = await supabase
-    .from("daily_logs")
-    .select("date, is_rest_day")
-    .eq("user_id", userId)
-    .order("date", { ascending: false })
-    .limit(60);
+export function getStreak(db: SQLiteDatabase): number {
+  const logs = db.getAllSync<{ date: string; is_rest_day: number }>(
+    "SELECT date, is_rest_day FROM daily_logs ORDER BY date DESC LIMIT 60"
+  );
 
-  if (!logs || logs.length === 0) return 0;
+  if (logs.length === 0) return 0;
 
   let streak = 0;
   const today = new Date().toISOString().split("T")[0];

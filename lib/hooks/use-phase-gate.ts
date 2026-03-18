@@ -1,8 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "../supabase";
-import { useAuth } from "../auth-context";
+import { useSQLiteContext } from "expo-sqlite";
 import { GATE_DEFINITIONS } from "../phase-gates";
-import type { GateDefinition, GateProgress, GateCriterion, UserGateCriteria } from "../types";
+import {
+  getAllGateCriteria,
+  confirmGateCriterion,
+  removeGateCriterion,
+  type LocalUserGateCriterion,
+} from "../db/repositories/gate-criteria-repo";
+import type { GateDefinition, GateProgress, GateCriterion } from "../types";
 import type { SurgeryStatus } from "./use-today";
 
 // Gates 1 and 2 are informational / research-gap; only compute progress for 3-5.
@@ -12,7 +17,7 @@ const ACTIONABLE_GATE_KEYS = new Set(["gate_3", "gate_4", "gate_5"]);
 // Helpers
 // ---------------------------------------------------------------------------
 
-function buildConfirmedSet(rows: UserGateCriteria[]): Set<string> {
+function buildConfirmedSet(rows: LocalUserGateCriterion[]): Set<string> {
   return new Set(rows.map((row) => `${row.gate_key}:${row.criterion_key}`));
 }
 
@@ -49,12 +54,22 @@ function computeGateProgress(
   );
 
   return actionableGates.map((gate) => {
-    const criteriaStatus = (gate.criteria as GateCriterion[]).map((criterion: GateCriterion) => ({
-      criterion,
-      met: isCriterionMet(criterion, confirmedSet, gate.gateKey, daysSinceSurgery, latestFlexion),
-    }));
+    const criteriaStatus = (gate.criteria as GateCriterion[]).map(
+      (criterion: GateCriterion) => ({
+        criterion,
+        met: isCriterionMet(
+          criterion,
+          confirmedSet,
+          gate.gateKey,
+          daysSinceSurgery,
+          latestFlexion
+        ),
+      })
+    );
 
-    const metCount = criteriaStatus.filter((cs: { criterion: GateCriterion; met: boolean }) => cs.met).length;
+    const metCount = criteriaStatus.filter(
+      (cs: { criterion: GateCriterion; met: boolean }) => cs.met
+    ).length;
     const totalCount = criteriaStatus.length;
 
     return {
@@ -76,39 +91,23 @@ export function usePhaseGate(
   surgeryStatus: SurgeryStatus,
   latestFlexion: number | null
 ) {
-  const { session } = useAuth();
-  const userId = session?.user.id;
+  const db = useSQLiteContext();
 
-  const [confirmedRows, setConfirmedRows] = useState<UserGateCriteria[]>([]);
+  const [confirmedRows, setConfirmedRows] = useState<LocalUserGateCriterion[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchCriteria = useCallback(async () => {
-    if (!userId) {
-      setConfirmedRows([]);
-      setLoading(false);
-      return;
-    }
-
+  const fetchCriteria = useCallback(() => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("user_gate_criteria")
-        .select("*")
-        .eq("user_id", userId);
-
-      if (error) {
-        console.error("[usePhaseGate] Failed to fetch user_gate_criteria:", error.message);
-        setConfirmedRows([]);
-      } else {
-        setConfirmedRows((data as UserGateCriteria[]) ?? []);
-      }
+      const rows = getAllGateCriteria(db);
+      setConfirmedRows(rows);
     } catch (err) {
-      console.error("[usePhaseGate] Unexpected error fetching criteria:", err);
+      console.error("[usePhaseGate] Failed to fetch user_gate_criteria:", err);
       setConfirmedRows([]);
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [db]);
 
   useEffect(() => {
     fetchCriteria();
@@ -116,50 +115,29 @@ export function usePhaseGate(
 
   const confirmedCriteria = buildConfirmedSet(confirmedRows);
 
-  const gateProgress = computeGateProgress(confirmedCriteria, daysSinceSurgery, latestFlexion);
+  const gateProgress = computeGateProgress(
+    confirmedCriteria,
+    daysSinceSurgery,
+    latestFlexion
+  );
 
   const toggleCriterion = useCallback(
-    async (gateKey: string, criterionKey: string) => {
-      if (!userId) return;
-
+    async (gateKey: string, criterionKey: string): Promise<void> => {
       const compositeKey = `${gateKey}:${criterionKey}`;
       const isCurrentlyConfirmed = confirmedCriteria.has(compositeKey);
 
       try {
         if (isCurrentlyConfirmed) {
-          const { error } = await supabase
-            .from("user_gate_criteria")
-            .delete()
-            .eq("user_id", userId)
-            .eq("gate_key", gateKey)
-            .eq("criterion_key", criterionKey);
-
-          if (error) {
-            console.error("[usePhaseGate] Failed to delete criterion:", error.message);
-            return;
-          }
+          removeGateCriterion(db, gateKey, criterionKey);
         } else {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-          const { error } = await (supabase.from("user_gate_criteria") as any).insert({
-            user_id: userId,
-            gate_key: gateKey,
-            criterion_key: criterionKey,
-            confirmed_at: new Date().toISOString(),
-          });
-
-          if (error) {
-            console.error("[usePhaseGate] Failed to insert criterion:", error.message);
-            return;
-          }
+          confirmGateCriterion(db, gateKey, criterionKey);
         }
-
-        // Re-fetch to keep state consistent with the database
-        await fetchCriteria();
+        fetchCriteria();
       } catch (err) {
         console.error("[usePhaseGate] Unexpected error in toggleCriterion:", err);
       }
     },
-    [userId, confirmedCriteria, fetchCriteria]
+    [db, confirmedCriteria, fetchCriteria]
   );
 
   return {

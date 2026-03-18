@@ -7,7 +7,7 @@ import { PositionStep } from "./PositionStep";
 import { CalibrationStep } from "./CalibrationStep";
 import { MeasurementStep } from "./MeasurementStep";
 import { MeasurementReview } from "./MeasurementReview";
-import type { RomMeasurement } from "@/lib/types";
+import type { LocalRomMeasurement } from "@/lib/db/repositories/rom-repo";
 
 type Step = "position" | "calibrate" | "flexion" | "review";
 
@@ -15,7 +15,7 @@ interface Props {
   visible: boolean;
   onComplete: (result: { flexionDegrees: number }) => void;
   onDismiss: () => void;
-  lastMeasurement?: RomMeasurement | null;
+  lastMeasurement?: LocalRomMeasurement | null;
 }
 
 const STEPS: Step[] = ["position", "calibrate", "flexion", "review"];

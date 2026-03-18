@@ -9,9 +9,10 @@ import {
   Alert,
   StyleSheet,
 } from "react-native";
+import { useSQLiteContext } from "expo-sqlite";
 import { Colors } from "../constants/colors";
-import { supabase } from "../lib/supabase";
-import type { Milestone, RomMeasurement } from "../lib/types";
+import type { LocalMilestone } from "../lib/db/repositories/milestone-repo";
+import type { LocalRomMeasurement } from "../lib/db/repositories/rom-repo";
 
 type DayStatus = "complete" | "rest" | "partial" | "missed" | "future";
 
@@ -23,9 +24,8 @@ interface ExerciseItem {
 interface Props {
   date: string | null;
   status: DayStatus | null;
-  milestones: Milestone[];
-  romMeasurement: RomMeasurement | null;
-  userId: string;
+  milestones: LocalMilestone[];
+  romMeasurement: LocalRomMeasurement | null;
   onClose: () => void;
   onDeleteMilestone: (id: string) => void;
 }
@@ -33,7 +33,12 @@ interface Props {
 function formatDate(dateStr: string): string {
   const [year, month, day] = dateStr.split("-").map(Number);
   const d = new Date(year, month - 1, day);
-  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+  return d.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 function statusLabel(status: DayStatus): string {
@@ -49,11 +54,16 @@ function statusLabel(status: DayStatus): string {
 
 function statusColors(status: DayStatus): { bg: string; text: string } {
   switch (status) {
-    case "complete": return { bg: Colors.success + "22", text: Colors.success };
-    case "rest":     return { bg: Colors.rest + "22", text: Colors.rest };
-    case "partial":  return { bg: Colors.warning + "22", text: Colors.warning };
-    case "missed":   return { bg: "#E5E5E5", text: "#9B9B9B" };
-    case "future":   return { bg: Colors.borderLight, text: Colors.textMuted };
+    case "complete":
+      return { bg: Colors.success + "22", text: Colors.success };
+    case "rest":
+      return { bg: Colors.rest + "22", text: Colors.rest };
+    case "partial":
+      return { bg: Colors.warning + "22", text: Colors.warning };
+    case "missed":
+      return { bg: "#E5E5E5", text: "#9B9B9B" };
+    case "future":
+      return { bg: Colors.borderLight, text: Colors.textMuted };
   }
 }
 
@@ -62,9 +72,7 @@ function Divider() {
 }
 
 function SectionHeader({ title }: { title: string }) {
-  return (
-    <Text style={styles.sectionHeader}>{title}</Text>
-  );
+  return <Text style={styles.sectionHeader}>{title}</Text>;
 }
 
 export function DayDetailSheet({
@@ -72,10 +80,10 @@ export function DayDetailSheet({
   status,
   milestones,
   romMeasurement,
-  userId,
   onClose,
   onDeleteMilestone,
 }: Props) {
+  const db = useSQLiteContext();
   const [exercises, setExercises] = useState<ExerciseItem[]>([]);
   const [hasLog, setHasLog] = useState(false);
   const [isRestDay, setIsRestDay] = useState(false);
@@ -86,7 +94,7 @@ export function DayDetailSheet({
 
     let cancelled = false;
 
-    async function fetchExercises() {
+    function fetchExercises() {
       if (!date) return;
       setLoading(true);
       setExercises([]);
@@ -94,39 +102,43 @@ export function DayDetailSheet({
       setIsRestDay(false);
 
       try {
-        const { data: logs } = await supabase
-          .from("daily_logs")
-          .select("id, is_rest_day")
-          .eq("date", date)
-          .eq("user_id", userId)
-          .maybeSingle();
+        const log = db.getFirstSync<{ id: string; is_rest_day: number }>(
+          "SELECT id, is_rest_day FROM daily_logs WHERE date = ?",
+          [date]
+        );
 
         if (cancelled) return;
 
-        if (!logs) {
+        if (!log) {
           setHasLog(false);
           setLoading(false);
           return;
         }
 
         setHasLog(true);
-        setIsRestDay(logs.is_rest_day);
+        setIsRestDay(log.is_rest_day === 1);
 
-        if (!logs.is_rest_day) {
-          const { data: exerciseLogs } = await supabase
-            .from("exercise_logs")
-            .select("*, user_exercise:user_exercises(*, exercise:exercises(*))")
-            .eq("daily_log_id", logs.id);
+        if (log.is_rest_day !== 1) {
+          const exerciseLogs = db.getAllSync<{
+            completed: number;
+            exercise_name: string;
+          }>(
+            `SELECT el.completed,
+                    e.name AS exercise_name
+             FROM exercise_logs el
+             JOIN user_exercises ue ON el.user_exercise_id = ue.id
+             JOIN exercises e ON ue.exercise_id = e.id
+             WHERE el.daily_log_id = ?`,
+            [log.id]
+          );
 
           if (cancelled) return;
 
-          if (exerciseLogs) {
-            const items: ExerciseItem[] = exerciseLogs.map((el: any) => ({
-              name: el.user_exercise?.exercise?.name ?? "Unknown Exercise",
-              completed: el.completed,
-            }));
-            setExercises(items);
-          }
+          const items: ExerciseItem[] = exerciseLogs.map((el) => ({
+            name: el.exercise_name ?? "Unknown Exercise",
+            completed: el.completed === 1,
+          }));
+          setExercises(items);
         }
       } catch {
         // silently handle fetch errors — UI shows "No workout logged"
@@ -136,8 +148,10 @@ export function DayDetailSheet({
     }
 
     fetchExercises();
-    return () => { cancelled = true; };
-  }, [date, userId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [date, db]);
 
   function confirmDeleteMilestone(id: string, title: string) {
     Alert.alert(
@@ -145,7 +159,11 @@ export function DayDetailSheet({
       `Remove "${title}" from your timeline?`,
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Delete", style: "destructive", onPress: () => onDeleteMilestone(id) },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => onDeleteMilestone(id),
+        },
       ]
     );
   }
@@ -178,7 +196,10 @@ export function DayDetailSheet({
           )}
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
           <Divider />
 
           {/* Milestones & Wins */}
@@ -215,16 +236,24 @@ export function DayDetailSheet({
             <View style={styles.romRow}>
               {romMeasurement.flexion_degrees !== null && (
                 <Text style={styles.romValue}>
-                  Flex: <Text style={styles.romNumber}>{romMeasurement.flexion_degrees}°</Text>
+                  Flex:{" "}
+                  <Text style={styles.romNumber}>
+                    {romMeasurement.flexion_degrees}°
+                  </Text>
                 </Text>
               )}
               {romMeasurement.extension_degrees !== null && (
                 <Text style={[styles.romValue, { marginLeft: 16 }]}>
-                  Ext: <Text style={styles.romNumber}>{romMeasurement.extension_degrees}°</Text>
+                  Ext:{" "}
+                  <Text style={styles.romNumber}>
+                    {romMeasurement.extension_degrees}°
+                  </Text>
                 </Text>
               )}
               {romMeasurement.quad_activation && (
-                <Text style={[styles.romValue, { marginLeft: 16 }]}>⚡ Quad</Text>
+                <Text style={[styles.romValue, { marginLeft: 16 }]}>
+                  ⚡ Quad
+                </Text>
               )}
             </View>
           )}
@@ -234,9 +263,15 @@ export function DayDetailSheet({
           {/* Exercises */}
           <SectionHeader title="EXERCISES" />
           {loading ? (
-            <ActivityIndicator size="small" color={Colors.primary} style={styles.loader} />
+            <ActivityIndicator
+              size="small"
+              color={Colors.primary}
+              style={styles.loader}
+            />
           ) : !hasLog || isRestDay ? (
-            <Text style={styles.mutedText}>{isRestDay ? "Rest day — no workout" : "No workout logged"}</Text>
+            <Text style={styles.mutedText}>
+              {isRestDay ? "Rest day — no workout" : "No workout logged"}
+            </Text>
           ) : exercises.length === 0 ? (
             <Text style={styles.mutedText}>No exercises recorded</Text>
           ) : (
@@ -246,10 +281,28 @@ export function DayDetailSheet({
               </Text>
               {exercises.map((ex, idx) => (
                 <View key={idx} style={styles.exerciseRow}>
-                  <Text style={[styles.exerciseCheck, { color: ex.completed ? Colors.success : Colors.disabled }]}>
+                  <Text
+                    style={[
+                      styles.exerciseCheck,
+                      {
+                        color: ex.completed
+                          ? Colors.success
+                          : Colors.disabled,
+                      },
+                    ]}
+                  >
                     {ex.completed ? "✓" : "○"}
                   </Text>
-                  <Text style={[styles.exerciseName, { color: ex.completed ? Colors.text : Colors.textSecondary }]}>
+                  <Text
+                    style={[
+                      styles.exerciseName,
+                      {
+                        color: ex.completed
+                          ? Colors.text
+                          : Colors.textSecondary,
+                      },
+                    ]}
+                  >
                     {ex.name}
                   </Text>
                 </View>

@@ -9,6 +9,14 @@ export interface LocalUserGateCriterion {
   updated_at: string;
 }
 
+export function getAllGateCriteria(
+  db: SQLite.SQLiteDatabase
+): LocalUserGateCriterion[] {
+  return db.getAllSync<LocalUserGateCriterion>(
+    "SELECT * FROM user_gate_criteria ORDER BY confirmed_at ASC"
+  );
+}
+
 export function getGateCriteriaByGate(
   db: SQLite.SQLiteDatabase,
   gateKey: string

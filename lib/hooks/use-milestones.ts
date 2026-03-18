@@ -1,62 +1,53 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "../supabase";
-import { useAuth } from "../auth-context";
-import type { Milestone } from "../types";
+import { useSQLiteContext } from "expo-sqlite";
+import {
+  getAllMilestones,
+  createMilestone,
+  deleteMilestone as deleteMilestoneRepo,
+  type LocalMilestone,
+} from "../db/repositories/milestone-repo";
 
 const today = new Date().toISOString().split("T")[0];
 
 export function useMilestones() {
-  const { session } = useAuth();
-  const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const db = useSQLiteContext();
+  const [milestones, setMilestones] = useState<LocalMilestone[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const userId = session?.user.id;
-
-  const fetchMilestones = useCallback(async () => {
-    if (!userId) return;
+  const fetchMilestones = useCallback(() => {
     setLoading(true);
-    const { data } = await supabase
-      .from("milestones")
-      .select("*")
-      .eq("user_id", userId)
-      .order("date");
-    setMilestones((data as Milestone[]) || []);
+    const data = getAllMilestones(db);
+    setMilestones(data);
     setLoading(false);
-  }, [userId]);
+  }, [db]);
 
   useEffect(() => {
     fetchMilestones();
   }, [fetchMilestones]);
 
-  async function addMilestone(input: {
+  function addMilestone(input: {
     title: string;
-    category: 'milestone' | 'win';
+    category: "milestone" | "win";
     date: string;
     notes?: string;
     template_key?: string;
   }) {
-    if (!userId) return;
-    const { data } = await supabase
-      .from("milestones")
-      .insert({
-        user_id: userId,
-        title: input.title,
-        category: input.category,
-        date: input.date,
-        notes: input.notes ?? null,
-        template_key: input.template_key ?? null,
-      })
-      .select()
-      .single();
-    if (data) {
-      setMilestones((prev) =>
-        [...prev, data as Milestone].sort((a, b) => a.date.localeCompare(b.date))
-      );
-    }
+    const id = crypto.randomUUID();
+    const created = createMilestone(db, {
+      id,
+      title: input.title,
+      category: input.category,
+      date: input.date,
+      notes: input.notes ?? null,
+      template_key: input.template_key ?? null,
+    });
+    setMilestones((prev) =>
+      [...prev, created].sort((a, b) => a.date.localeCompare(b.date))
+    );
   }
 
-  async function deleteMilestone(id: string) {
-    await supabase.from("milestones").delete().eq("id", id);
+  function deleteMilestone(id: string) {
+    deleteMilestoneRepo(db, id);
     setMilestones((prev) => prev.filter((m) => m.id !== id));
   }
 

@@ -4,25 +4,29 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DraggableFlatList, { RenderItemParams } from "react-native-draggable-flatlist";
+import { useSQLiteContext } from "expo-sqlite";
 import { useToday } from "../../lib/hooks/use-today";
-import { useAuth } from "../../lib/auth-context";
 import { DayHeader } from "../../components/DayHeader";
 import { DailyMessage } from "../../components/DailyMessage";
 import { SmartRestToggle } from "../../components/SmartRestToggle";
 import { ExerciseCard } from "../../components/ExerciseCard";
 import { AchievementPopup } from "../../components/AchievementPopup";
 import { PhaseOverviewModal } from "../../components/PhaseOverviewModal";
-import { supabase } from "../../lib/supabase";
 import { checkAchievements, getStreak } from "../../lib/achievements";
+import { updateDailyLog } from "../../lib/db/repositories/daily-log-repo";
+import { upsertExerciseLog } from "../../lib/db/repositories/exercise-log-repo";
+import { updateUserExerciseSortOrder } from "../../lib/db/repositories/user-exercise-repo";
 import { Colors } from "../../constants/colors";
 import { useMilestones } from "../../lib/hooks/use-milestones";
 import { useKeepAwake } from "../../lib/hooks/use-keep-awake";
-import type { Content, UserExercise } from "../../lib/types";
+import type { Content } from "../../lib/types";
+import type { LocalUserExercise } from "../../lib/db/repositories/user-exercise-repo";
+import type { LocalExerciseLog } from "../../lib/db/repositories/exercise-log-repo";
 
 export default function TodayScreen() {
   useKeepAwake();
   const router = useRouter();
-  const { session } = useAuth();
+  const db = useSQLiteContext();
   const {
     loading,
     daysSinceSurgery,
@@ -37,8 +41,8 @@ export default function TodayScreen() {
     refetch,
     updateUserExercise,
   } = useToday();
-  const [userExercises, setUserExercises] = useState<UserExercise[]>([]);
-  const [exerciseLogs, setExerciseLogs] = useState<typeof initialExerciseLogs>([]);
+  const [userExercises, setUserExercises] = useState<LocalUserExercise[]>([]);
+  const [exerciseLogs, setExerciseLogs] = useState<LocalExerciseLog[]>([]);
   const [pendingAchievement, setPendingAchievement] = useState<Content | null>(null);
   const [showPhaseOverview, setShowPhaseOverview] = useState(false);
   const { todayMilestones, refetch: refetchMilestones } = useMilestones();
@@ -59,9 +63,11 @@ export default function TodayScreen() {
     });
   }, []);
 
-  useFocusEffect(useCallback(() => {
-    refetchMilestones();
-  }, [refetchMilestones]));
+  useFocusEffect(
+    useCallback(() => {
+      refetchMilestones();
+    }, [refetchMilestones])
+  );
 
   async function handleDismissPhaseOverview() {
     await AsyncStorage.setItem("has_seen_phase_overview", "true");
@@ -77,116 +83,126 @@ export default function TodayScreen() {
   }
 
   const isRestDay = dailyLog?.is_rest_day ?? false;
-  const userId = session?.user.id;
 
-  async function runAchievementCheck(overrides?: Partial<{ isFirstExercise: boolean; isFirstRestDay: boolean; completed: boolean }>) {
-    if (!userId) return;
-    const [streak, { data: allLogs }, { data: romRows }] = await Promise.all([
-      getStreak(userId),
-      supabase.from("exercise_logs").select("id, completed").eq("daily_log_id", dailyLog?.id ?? ""),
-      supabase.from("rom_measurements").select("flexion_degrees, extension_degrees, quad_activation").eq("user_id", userId).order("date", { ascending: false }).limit(1),
-    ]);
-    const logs = allLogs ?? [];
-    const completedNow = logs.filter((l) => l.completed).length;
+  function runAchievementCheck(overrides?: Partial<{
+    isFirstExercise: boolean;
+    isFirstRestDay: boolean;
+    completed: boolean;
+  }>) {
+    const streak = getStreak(db);
+
+    const logs = db.getAllSync<{ id: string; completed: number }>(
+      "SELECT id, completed FROM exercise_logs WHERE daily_log_id = ?",
+      [dailyLog?.id ?? ""]
+    );
+    const completedNow = logs.filter((l) => l.completed === 1).length;
     const totalNow = userExercises.length;
-    const rom = romRows?.[0];
-    const newAchievements = await checkAchievements({
-      userId,
+
+    const romRows = db.getAllSync<{
+      flexion_degrees: number | null;
+      extension_degrees: number | null;
+      quad_activation: number;
+    }>(
+      "SELECT flexion_degrees, extension_degrees, quad_activation FROM rom_measurements ORDER BY date DESC LIMIT 1"
+    );
+    const rom = romRows[0] ?? null;
+
+    const newAchievements = checkAchievements({
+      db,
       daysSinceSurgery,
       streak,
       totalExercisesCompleted: completedNow,
-      dailyComplete: overrides?.completed ?? (completedNow === totalNow && totalNow > 0),
+      dailyComplete:
+        overrides?.completed ?? (completedNow === totalNow && totalNow > 0),
       isFirstExercise: overrides?.isFirstExercise ?? false,
       isFirstRestDay: overrides?.isFirstRestDay ?? false,
       isFirstMeasurement: false,
       latestFlexion: rom?.flexion_degrees ?? null,
       latestExtension: rom?.extension_degrees ?? null,
-      hasQuadActivation: rom?.quad_activation ?? false,
+      hasQuadActivation: rom ? rom.quad_activation === 1 : false,
     });
+
     if (newAchievements.length > 0) {
       setPendingAchievement(newAchievements[0]);
     }
   }
 
-  async function toggleRestDay() {
+  function toggleRestDay() {
     if (!dailyLog) return;
     const newIsRest = !isRestDay;
-    await supabase
-      .from("daily_logs")
-      .update({ is_rest_day: newIsRest })
-      .eq("id", dailyLog.id);
-    await refetch();
+    updateDailyLog(db, dailyLog.id, { is_rest_day: newIsRest });
+    refetch();
     if (newIsRest) {
-      const { data: prevRestDays } = await supabase
-        .from("daily_logs")
-        .select("id")
-        .eq("user_id", userId!)
-        .eq("is_rest_day", true);
-      await runAchievementCheck({ isFirstRestDay: (prevRestDays?.length ?? 0) <= 1 });
+      const prevRestDays = db.getAllSync<{ id: string }>(
+        "SELECT id FROM daily_logs WHERE is_rest_day = 1"
+      );
+      runAchievementCheck({ isFirstRestDay: prevRestDays.length <= 1 });
     }
   }
 
-  async function updateExerciseLog(userExerciseId: string, updates: Record<string, any>) {
+  function updateExerciseLog(
+    userExerciseId: string,
+    updates: Record<string, unknown>
+  ) {
     if (!dailyLog) return;
-    const existing = exerciseLogs.find((l) => l.user_exercise_id === userExerciseId);
-    const isFirstEver = exerciseLogs.every((l) => !l.completed) && updates.completed === true;
+    const existing = exerciseLogs.find(
+      (l) => l.user_exercise_id === userExerciseId
+    );
+    const isFirstEver =
+      exerciseLogs.every((l) => !l.completed) && updates.completed === true;
+
+    const newLog: LocalExerciseLog = {
+      id: existing?.id ?? `temp-${userExerciseId}`,
+      daily_log_id: dailyLog.id,
+      user_exercise_id: userExerciseId,
+      completed: existing?.completed ?? false,
+      actual_sets: existing?.actual_sets ?? 0,
+      actual_reps: existing?.actual_reps ?? 0,
+      created_at: existing?.created_at ?? new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      ...updates,
+    } as LocalExerciseLog;
 
     // Optimistic update
     if (existing) {
       setExerciseLogs((prev) =>
-        prev.map((l) => (l.user_exercise_id === userExerciseId ? { ...l, ...updates } : l))
+        prev.map((l) =>
+          l.user_exercise_id === userExerciseId ? newLog : l
+        )
       );
     } else {
-      setExerciseLogs((prev) => [
-        ...prev,
-        {
-          id: `temp-${userExerciseId}`,
-          daily_log_id: dailyLog.id,
-          user_exercise_id: userExerciseId,
-          completed: false,
-          actual_sets: 0,
-          actual_reps: 0,
-          ...updates,
-        },
-      ]);
+      setExerciseLogs((prev) => [...prev, newLog]);
     }
 
-    // Upsert handles both insert and update atomically — no temp-ID mismatch possible
-    const { data } = await supabase
-      .from("exercise_logs")
-      .upsert(
-        {
-          daily_log_id: dailyLog.id,
-          user_exercise_id: userExerciseId,
-          completed: existing?.completed ?? false,
-          actual_sets: existing?.actual_sets ?? 0,
-          actual_reps: existing?.actual_reps ?? 0,
-          ...updates,
-        },
-        { onConflict: "daily_log_id,user_exercise_id" }
-      )
-      .select()
-      .single();
+    const upsertId = existing?.id ?? crypto.randomUUID();
+    const persisted = upsertExerciseLog(db, {
+      id: upsertId,
+      daily_log_id: dailyLog.id,
+      user_exercise_id: userExerciseId,
+      completed: (updates.completed as boolean) ?? existing?.completed ?? false,
+      actual_sets: (updates.actual_sets as number) ?? existing?.actual_sets ?? 0,
+      actual_reps: (updates.actual_reps as number) ?? existing?.actual_reps ?? 0,
+    });
 
-    // Replace temp ID with the real DB id after first insert
-    if (data && !existing) {
+    // Replace temp entry with persisted version if this was a new insert
+    if (!existing) {
       setExerciseLogs((prev) =>
-        prev.map((l) => (l.user_exercise_id === userExerciseId ? data : l))
+        prev.map((l) =>
+          l.user_exercise_id === userExerciseId ? persisted : l
+        )
       );
     }
 
     if (updates.completed === true) {
-      await runAchievementCheck({ isFirstExercise: isFirstEver });
+      runAchievementCheck({ isFirstExercise: isFirstEver });
     }
   }
 
-  async function handleReorder(reordered: UserExercise[]) {
+  function handleReorder(reordered: LocalUserExercise[]) {
     setUserExercises(reordered);
-    await Promise.all(
-      reordered.map((ue, index) =>
-        supabase.from("user_exercises").update({ sort_order: index }).eq("id", ue.id)
-      )
-    );
+    for (let index = 0; index < reordered.length; index++) {
+      updateUserExerciseSortOrder(db, reordered[index].id, index);
+    }
   }
 
   const completedCount = exerciseLogs.filter((l) => l.completed).length;
@@ -205,21 +221,88 @@ export default function TodayScreen() {
       <DailyMessage message={dailyMessage?.body ?? null} />
 
       {todayMilestones.length > 0 && (
-        <View className="mx-4 mb-4 rounded-2xl overflow-hidden" style={{ backgroundColor: Colors.primary, shadowColor: Colors.primaryDark, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 6 }}>
-          <View style={{ backgroundColor: Colors.primaryDark, paddingHorizontal: 16, paddingVertical: 8, flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <View
+          className="mx-4 mb-4 rounded-2xl overflow-hidden"
+          style={{
+            backgroundColor: Colors.primary,
+            shadowColor: Colors.primaryDark,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.25,
+            shadowRadius: 8,
+            elevation: 6,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: Colors.primaryDark,
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
             <Ionicons name="trophy" size={14} color="rgba(255,255,255,0.9)" />
-            <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 11, fontWeight: "800", letterSpacing: 1.5 }}>TODAY&apos;S THE DAY</Text>
+            <Text
+              style={{
+                color: "rgba(255,255,255,0.9)",
+                fontSize: 11,
+                fontWeight: "800",
+                letterSpacing: 1.5,
+              }}
+            >
+              {"TODAY'S THE DAY"}
+            </Text>
           </View>
-          <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16 }}>
+          <View
+            style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16 }}
+          >
             {todayMilestones.map((m, i) => (
-              <View key={m.id} style={{ flexDirection: "row", alignItems: "flex-start", gap: 12, marginTop: i > 0 ? 12 : 0 }}>
-                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <Text style={{ fontSize: 18 }}>{m.category === "win" ? "⭐" : "🏆"}</Text>
+              <View
+                key={m.id}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "flex-start",
+                  gap: 12,
+                  marginTop: i > 0 ? 12 : 0,
+                }}
+              >
+                <View
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    backgroundColor: "rgba(255,255,255,0.2)",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Text style={{ fontSize: 18 }}>
+                    {m.category === "win" ? "⭐" : "🏆"}
+                  </Text>
                 </View>
                 <View style={{ flex: 1, justifyContent: "center" }}>
-                  <Text style={{ color: "#FFFFFF", fontSize: 17, fontWeight: "700", lineHeight: 22 }}>{m.title}</Text>
-                  <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 13, marginTop: 2 }}>
-                    {m.category === "win" ? "You did it — log it and own it." : "A big moment in your recovery."}
+                  <Text
+                    style={{
+                      color: "#FFFFFF",
+                      fontSize: 17,
+                      fontWeight: "700",
+                      lineHeight: 22,
+                    }}
+                  >
+                    {m.title}
+                  </Text>
+                  <Text
+                    style={{
+                      color: "rgba(255,255,255,0.75)",
+                      fontSize: 13,
+                      marginTop: 2,
+                    }}
+                  >
+                    {m.category === "win"
+                      ? "You did it — log it and own it."
+                      : "A big moment in your recovery."}
                   </Text>
                 </View>
               </View>
@@ -231,30 +314,54 @@ export default function TodayScreen() {
       <SmartRestToggle isRestDay={isRestDay} onToggle={toggleRestDay} />
 
       {isRestDay ? (
-        <View className="mx-4 rounded-2xl p-6 items-center" style={{ backgroundColor: "#7E57C220" }}>
-          <Text className="text-lg font-bold mb-2" style={{ color: Colors.rest }}>Rest Day</Text>
-          <Text className="text-base text-center" style={{ color: "#6B6B6B" }}>
-            The couch is officially your medical duty station. Good job listening to your knee.
+        <View
+          className="mx-4 rounded-2xl p-6 items-center"
+          style={{ backgroundColor: "#7E57C220" }}
+        >
+          <Text
+            className="text-lg font-bold mb-2"
+            style={{ color: Colors.rest }}
+          >
+            Rest Day
+          </Text>
+          <Text
+            className="text-base text-center"
+            style={{ color: "#6B6B6B" }}
+          >
+            The couch is officially your medical duty station. Good job
+            listening to your knee.
           </Text>
         </View>
       ) : (
         <>
-          <Text className="mx-4 mt-2 mb-1 text-base font-bold" style={{ color: "#2D2D2D" }}>
+          <Text
+            className="mx-4 mt-2 mb-1 text-base font-bold"
+            style={{ color: "#2D2D2D" }}
+          >
             {"Today's Training"}
           </Text>
           {totalCount > 0 && (
             <View className="mx-4 mb-3">
               <View className="flex-row items-center justify-between mb-1.5">
-                <Text className="text-sm font-semibold" style={{ color: "#6B6B6B" }}>
+                <Text
+                  className="text-sm font-semibold"
+                  style={{ color: "#6B6B6B" }}
+                >
                   {completedCount}/{totalCount} complete
                 </Text>
                 {allDone && (
-                  <Text className="text-sm font-bold" style={{ color: Colors.success }}>
+                  <Text
+                    className="text-sm font-bold"
+                    style={{ color: Colors.success }}
+                  >
                     🎉 All done!
                   </Text>
                 )}
               </View>
-              <View className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: Colors.borderLight }}>
+              <View
+                className="h-2 rounded-full overflow-hidden"
+                style={{ backgroundColor: Colors.borderLight }}
+              >
                 <View
                   className="h-2 rounded-full"
                   style={{
@@ -267,19 +374,36 @@ export default function TodayScreen() {
           )}
           {userExercises.length === 0 && (
             <View className="mx-4 bg-surface border border-border rounded-2xl p-6 items-center">
-              <Text className="text-base text-center" style={{ color: "#6B6B6B" }}>
+              <Text
+                className="text-base text-center"
+                style={{ color: "#6B6B6B" }}
+              >
                 No exercises yet. Add your first one below.
               </Text>
             </View>
           )}
           {allDone && (
-            <View className="mx-4 rounded-2xl p-6 items-center mb-3" style={{ backgroundColor: Colors.success + "15", borderColor: Colors.success + "40", borderWidth: 1 }}>
+            <View
+              className="mx-4 rounded-2xl p-6 items-center mb-3"
+              style={{
+                backgroundColor: Colors.success + "15",
+                borderColor: Colors.success + "40",
+                borderWidth: 1,
+              }}
+            >
               <Text className="text-3xl mb-2">🎉</Text>
-              <Text className="text-base font-bold mb-1" style={{ color: Colors.success }}>
+              <Text
+                className="text-base font-bold mb-1"
+                style={{ color: Colors.success }}
+              >
                 Session Complete!
               </Text>
-              <Text className="text-sm text-center" style={{ color: "#6B6B6B" }}>
-                Your knee did the work. Now cool down and put your leg up for 15–20 min. Come back tomorrow.
+              <Text
+                className="text-sm text-center"
+                style={{ color: "#6B6B6B" }}
+              >
+                Your knee did the work. Now cool down and put your leg up for
+                15–20 min. Come back tomorrow.
               </Text>
             </View>
           )}
@@ -298,7 +422,11 @@ export default function TodayScreen() {
     </TouchableOpacity>
   ) : null;
 
-  const renderItem = ({ item: ue, drag, isActive }: RenderItemParams<UserExercise>) => (
+  const renderItem = ({
+    item: ue,
+    drag,
+    isActive,
+  }: RenderItemParams<LocalUserExercise>) => (
     <View style={{ opacity: isActive ? 0.8 : 1 }}>
       <ExerciseCard
         userExercise={ue}
@@ -319,7 +447,10 @@ export default function TodayScreen() {
         visible={showPhaseOverview}
         onDismiss={handleDismissPhaseOverview}
       />
-      <AchievementPopup achievement={pendingAchievement} onDismiss={() => setPendingAchievement(null)} />
+      <AchievementPopup
+        achievement={pendingAchievement}
+        onDismiss={() => setPendingAchievement(null)}
+      />
       <DraggableFlatList
         data={exerciseData}
         keyExtractor={(item) => item.id}
