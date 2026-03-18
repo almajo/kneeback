@@ -1,5 +1,5 @@
 import "../global.css";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -7,7 +7,7 @@ import { AuthProvider, useAuth } from "../lib/auth-context";
 import { DatabaseProvider } from "../lib/db/database-context";
 import { useSQLiteContext } from "expo-sqlite";
 import { getProfile } from "../lib/db/repositories/profile-repo";
-import { isMigrationComplete, migrateSupabaseToLocal } from "../lib/db/migration/supabase-to-local";
+import { migrateSupabaseToLocal } from "../lib/db/migration/supabase-to-local";
 import {
   useFonts,
   Outfit_400Regular,
@@ -21,6 +21,7 @@ function RootLayoutNav() {
   const segments = useSegments();
   const router = useRouter();
   const { session, loading: authLoading } = useAuth();
+  const migrationInProgress = useRef(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -30,21 +31,17 @@ function RootLayoutNav() {
 
     const localProfile = getProfile(db);
     if (!localProfile) {
-      if (session) {
-        isMigrationComplete().then((done) => {
-          if (!done) {
-            router.replace("/(migration)");
-            migrateSupabaseToLocal(db).then(({ error }) => {
-              if (error) {
-                console.error("[layout] Migration completed with error:", error);
-              }
-              router.replace("/(tabs)/today");
-            });
-          } else {
-            router.replace("/(onboarding)/surgery-details");
+      if (session && !migrationInProgress.current) {
+        migrationInProgress.current = true;
+        router.replace("/(migration)");
+        migrateSupabaseToLocal(db).then(({ error }) => {
+          if (error) {
+            console.error("[layout] Migration completed with error:", error);
           }
+          migrationInProgress.current = false;
+          router.replace("/(tabs)/today");
         });
-      } else {
+      } else if (!session) {
         router.replace("/(onboarding)/surgery-details");
       }
     }
