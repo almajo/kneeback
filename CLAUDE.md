@@ -11,6 +11,7 @@
 - After adding a new feature, make sure to test it using playwright
 - Code must adhere to liniting and formatting best practices
 - Save screenshots under `/artifacts`. Especially those made with playwright
+- Use the playwright-cli skill to access and test the server
 
 ## Console
 

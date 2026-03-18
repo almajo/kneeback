@@ -53,3 +53,5 @@ e2e.superpowers/
 .superpowers/
 playwright-report/
 nanobanana-output/
+.playwright-cli
+.playwright

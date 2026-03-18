@@ -17,7 +17,11 @@ async function fetchPage(
     .order("created_at", { ascending: false })
     .range(offset, offset + PAGE_SIZE - 1);
 
-  if (error || !rawPosts || rawPosts.length === 0) return [];
+  if (error) {
+    console.error("[fetchPage] Failed to load community posts:", error);
+    return [];
+  }
+  if (!rawPosts || rawPosts.length === 0) return [];
 
   const postIds = rawPosts.map((p: any) => p.id as string);
 
