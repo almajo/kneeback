@@ -23,8 +23,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) console.error("[AuthProvider] getSession failed:", error.message);
+      setSession(session);
       setLoading(false);
     });
 

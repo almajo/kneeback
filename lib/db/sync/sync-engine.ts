@@ -42,6 +42,7 @@ function upsertLocalRow(db: SQLiteDatabase, table: TableName, row: SyncRow): voi
   const updates = keys.map((k) => `${k} = excluded.${k}`).join(", ");
   const values = keys.map((k) => row[k] as string | number | null);
 
+  // table is constrained to USER_DATA_TABLES (const string union) — not user input
   db.runSync(
     `INSERT INTO ${table} (${keys.join(", ")}) VALUES (${placeholders})
      ON CONFLICT(id) DO UPDATE SET ${updates}`,
@@ -99,8 +100,6 @@ export async function deltaSync(
   userId: string,
   lastSyncedAt: string
 ): Promise<{ error: string | null; syncedAt: string }> {
-  const syncedAt = new Date().toISOString();
-
   for (const table of USER_DATA_TABLES) {
     // Pull changed rows from remote since last sync
     const { data: remoteChanged, error: pullError } = await getSupabaseTable(table)
@@ -158,8 +157,9 @@ export async function deltaSync(
     }
   }
 
-  // Record successful sync time on local profile
-  updateProfile(db, { last_synced_at: syncedAt });
+  // Capture syncedAt just before writing to profile — after all sync operations succeed
+  const syncedAt = new Date().toISOString();
+  await updateProfile(db, { last_synced_at: syncedAt });
 
   return { error: null, syncedAt };
 }
