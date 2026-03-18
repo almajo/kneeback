@@ -219,18 +219,24 @@ export function updateUserExerciseSortOrder(
   id: string,
   sortOrder: number
 ): void {
-  db.runSync(
+  const result = db.runSync(
     "UPDATE user_exercises SET sort_order = ?, updated_at = datetime('now') WHERE id = ?",
     [sortOrder, id]
   );
+  if (result.changes === 0) {
+    throw new Error(`UserExercise not found: ${id}`);
+  }
 }
 
 export function deactivateUserExercise(
   db: SQLite.SQLiteDatabase,
   id: string
 ): void {
-  db.runSync(
+  const result = db.runSync(
     "UPDATE user_exercises SET is_active = 0, updated_at = datetime('now') WHERE id = ?",
     [id]
   );
+  if (result.changes === 0) {
+    throw new Error(`UserExercise not found: ${id}`);
+  }
 }

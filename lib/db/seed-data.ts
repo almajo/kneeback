@@ -56,9 +56,11 @@ export function seedDatabase(db: SQLite.SQLiteDatabase): void {
   );
 
   if (!exerciseCount || exerciseCount.count === 0) {
-    for (const exercise of seedExercises) {
-      insertExercise(db, exercise);
-    }
+    db.withTransactionSync(() => {
+      for (const exercise of seedExercises) {
+        insertExercise(db, exercise);
+      }
+    });
   }
 
   const contentCount = db.getFirstSync<{ count: number }>(
@@ -66,8 +68,10 @@ export function seedDatabase(db: SQLite.SQLiteDatabase): void {
   );
 
   if (!contentCount || contentCount.count === 0) {
-    for (const item of seedContent) {
-      insertContent(db, item);
-    }
+    db.withTransactionSync(() => {
+      for (const item of seedContent) {
+        insertContent(db, item);
+      }
+    });
   }
 }

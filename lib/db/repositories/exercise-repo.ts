@@ -116,29 +116,31 @@ export function seedExercises(
   db: SQLite.SQLiteDatabase,
   exercises: SeedExerciseData[]
 ): void {
-  for (const ex of exercises) {
-    db.runSync(
-      `INSERT OR IGNORE INTO exercises
-        (id, name, description, phase_start, phase_end, role, primary_exercise_id,
-         muscle_groups, default_sets, default_reps, default_hold_seconds, category, sort_order)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        ex.id,
-        ex.name,
-        ex.description,
-        ex.phase_start,
-        ex.phase_end ?? null,
-        ex.role,
-        ex.primary_exercise_id ?? null,
-        JSON.stringify(ex.muscle_groups),
-        ex.default_sets,
-        ex.default_reps,
-        ex.default_hold_seconds ?? null,
-        ex.category,
-        ex.sort_order,
-      ]
-    );
-  }
+  db.withTransactionSync(() => {
+    for (const ex of exercises) {
+      db.runSync(
+        `INSERT OR IGNORE INTO exercises
+          (id, name, description, phase_start, phase_end, role, primary_exercise_id,
+           muscle_groups, default_sets, default_reps, default_hold_seconds, category, sort_order)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          ex.id,
+          ex.name,
+          ex.description,
+          ex.phase_start,
+          ex.phase_end ?? null,
+          ex.role,
+          ex.primary_exercise_id ?? null,
+          JSON.stringify(ex.muscle_groups),
+          ex.default_sets,
+          ex.default_reps,
+          ex.default_hold_seconds ?? null,
+          ex.category,
+          ex.sort_order,
+        ]
+      );
+    }
+  });
 }
 
 export function updateExerciseCatalog(
@@ -146,44 +148,46 @@ export function updateExerciseCatalog(
   exercises: SeedExerciseData[],
   version: number
 ): void {
-  for (const ex of exercises) {
-    db.runSync(
-      `INSERT INTO exercises
-        (id, name, description, phase_start, phase_end, role, primary_exercise_id,
-         muscle_groups, default_sets, default_reps, default_hold_seconds, category,
-         sort_order, catalog_version, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-       ON CONFLICT(id) DO UPDATE SET
-         name = excluded.name,
-         description = excluded.description,
-         phase_start = excluded.phase_start,
-         phase_end = excluded.phase_end,
-         role = excluded.role,
-         primary_exercise_id = excluded.primary_exercise_id,
-         muscle_groups = excluded.muscle_groups,
-         default_sets = excluded.default_sets,
-         default_reps = excluded.default_reps,
-         default_hold_seconds = excluded.default_hold_seconds,
-         category = excluded.category,
-         sort_order = excluded.sort_order,
-         catalog_version = excluded.catalog_version,
-         updated_at = datetime('now')`,
-      [
-        ex.id,
-        ex.name,
-        ex.description,
-        ex.phase_start,
-        ex.phase_end ?? null,
-        ex.role,
-        ex.primary_exercise_id ?? null,
-        JSON.stringify(ex.muscle_groups),
-        ex.default_sets,
-        ex.default_reps,
-        ex.default_hold_seconds ?? null,
-        ex.category,
-        ex.sort_order,
-        version,
-      ]
-    );
-  }
+  db.withTransactionSync(() => {
+    for (const ex of exercises) {
+      db.runSync(
+        `INSERT INTO exercises
+          (id, name, description, phase_start, phase_end, role, primary_exercise_id,
+           muscle_groups, default_sets, default_reps, default_hold_seconds, category,
+           sort_order, catalog_version, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+         ON CONFLICT(id) DO UPDATE SET
+           name = excluded.name,
+           description = excluded.description,
+           phase_start = excluded.phase_start,
+           phase_end = excluded.phase_end,
+           role = excluded.role,
+           primary_exercise_id = excluded.primary_exercise_id,
+           muscle_groups = excluded.muscle_groups,
+           default_sets = excluded.default_sets,
+           default_reps = excluded.default_reps,
+           default_hold_seconds = excluded.default_hold_seconds,
+           category = excluded.category,
+           sort_order = excluded.sort_order,
+           catalog_version = excluded.catalog_version,
+           updated_at = datetime('now')`,
+        [
+          ex.id,
+          ex.name,
+          ex.description,
+          ex.phase_start,
+          ex.phase_end ?? null,
+          ex.role,
+          ex.primary_exercise_id ?? null,
+          JSON.stringify(ex.muscle_groups),
+          ex.default_sets,
+          ex.default_reps,
+          ex.default_hold_seconds ?? null,
+          ex.category,
+          ex.sort_order,
+          version,
+        ]
+      );
+    }
+  });
 }
