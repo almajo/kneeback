@@ -1,0 +1,83 @@
+[
+  {
+    "id": "msg_day1",
+    "type": "daily_message",
+    "title": "Day 1",
+    "body": "Your recovery journey begins today. Take it one step at a time.",
+    "trigger_condition": null,
+    "phase": "acute",
+    "sort_order": 1
+  },
+  {
+    "id": "msg_early_days",
+    "type": "daily_message",
+    "title": "Early Days",
+    "body": "Ice and elevation are your best friends right now. Keep up the good work.",
+    "trigger_condition": null,
+    "phase": "acute",
+    "sort_order": 2
+  },
+  {
+    "id": "msg_active_phase",
+    "type": "daily_message",
+    "title": "Getting Active",
+    "body": "You're building the foundation for a strong recovery. Consistency is key.",
+    "trigger_condition": null,
+    "phase": "early_active",
+    "sort_order": 3
+  },
+  {
+    "id": "msg_strengthening",
+    "type": "daily_message",
+    "title": "Getting Stronger",
+    "body": "Your muscles are remembering how to work together. Progress is happening even when you can't feel it.",
+    "trigger_condition": null,
+    "phase": "strengthening",
+    "sort_order": 4
+  },
+  {
+    "id": "ach_first_workout",
+    "type": "achievement",
+    "title": "First Workout Complete",
+    "body": "You completed your very first workout session. The hardest step is always the first one!",
+    "trigger_condition": { "workout_count": 1 },
+    "phase": null,
+    "sort_order": 1
+  },
+  {
+    "id": "ach_week_streak",
+    "type": "achievement",
+    "title": "7-Day Streak",
+    "body": "Seven days of consistent effort. Your dedication is building real results.",
+    "trigger_condition": { "streak_days": 7 },
+    "phase": null,
+    "sort_order": 2
+  },
+  {
+    "id": "ach_30_days",
+    "type": "achievement",
+    "title": "30 Days Strong",
+    "body": "One month into your recovery. You're doing amazing — keep going!",
+    "trigger_condition": { "days_since_surgery": 30 },
+    "phase": null,
+    "sort_order": 3
+  },
+  {
+    "id": "hack_ice",
+    "type": "crutch_hack",
+    "title": "Ice Bag Hack",
+    "body": "Frozen peas conform perfectly to your knee shape and can be refrozen multiple times. Keep two bags rotating!",
+    "trigger_condition": null,
+    "phase": "acute",
+    "sort_order": 1
+  },
+  {
+    "id": "hack_shower",
+    "type": "crutch_hack",
+    "title": "Shower Chair Tip",
+    "body": "A plastic bag secured with a rubber band keeps your dressing dry during showers. No need for a special cover.",
+    "trigger_condition": null,
+    "phase": "acute",
+    "sort_order": 2
+  }
+]

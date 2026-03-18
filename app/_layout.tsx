@@ -5,6 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "../lib/auth-context";
 import { supabase } from "../lib/supabase";
+import { DatabaseProvider } from "../lib/db/database-context";
 import {
   useFonts,
   Outfit_400Regular,
@@ -64,9 +65,11 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AuthProvider>
-        <RootLayoutNav />
-      </AuthProvider>
+      <DatabaseProvider>
+        <AuthProvider>
+          <RootLayoutNav />
+        </AuthProvider>
+      </DatabaseProvider>
     </GestureHandlerRootView>
   );
 }
