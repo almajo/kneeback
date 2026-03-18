@@ -3,10 +3,11 @@ import { useEffect } from "react";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { AuthProvider } from "../lib/auth-context";
+import { AuthProvider, useAuth } from "../lib/auth-context";
 import { DatabaseProvider } from "../lib/db/database-context";
 import { useSQLiteContext } from "expo-sqlite";
 import { getProfile } from "../lib/db/repositories/profile-repo";
+import { isMigrationComplete, migrateSupabaseToLocal } from "../lib/db/migration/supabase-to-local";
 import {
   useFonts,
   Outfit_400Regular,
@@ -19,16 +20,35 @@ function RootLayoutNav() {
   const db = useSQLiteContext();
   const segments = useSegments();
   const router = useRouter();
+  const { session, loading: authLoading } = useAuth();
 
   useEffect(() => {
+    if (authLoading) return;
+
     const inTabsGroup = segments[0] === "(tabs)";
     if (!inTabsGroup) return; // Let index.tsx handle initial routing
 
     const localProfile = getProfile(db);
     if (!localProfile) {
-      router.replace("/(onboarding)/surgery-details");
+      if (session) {
+        isMigrationComplete().then((done) => {
+          if (!done) {
+            router.replace("/(migration)");
+            migrateSupabaseToLocal(db).then(({ error }) => {
+              if (error) {
+                console.error("[layout] Migration completed with error:", error);
+              }
+              router.replace("/(tabs)/today");
+            });
+          } else {
+            router.replace("/(onboarding)/surgery-details");
+          }
+        });
+      } else {
+        router.replace("/(onboarding)/surgery-details");
+      }
     }
-  }, [segments, db]);
+  }, [segments, db, session, authLoading]);
 
   return (
     <>
