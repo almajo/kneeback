@@ -31,7 +31,6 @@ export interface GateDefinition {
 
 export interface UserGateCriteria {
   id: string;
-  user_id: string;
   gate_key: string;
   criterion_key: string;
   confirmed_at: string;
@@ -80,7 +79,6 @@ export interface Exercise {
 
 export interface UserExercise {
   id: string;
-  user_id: string;
   exercise_id: string;
   sets: number;
   reps: number;
@@ -92,7 +90,6 @@ export interface UserExercise {
 
 export interface DailyLog {
   id: string;
-  user_id: string;
   date: string;
   is_rest_day: boolean;
   notes: string | null;
@@ -110,7 +107,6 @@ export interface ExerciseLog {
 
 export interface RomMeasurement {
   id: string;
-  user_id: string;
   date: string;
   flexion_degrees: number | null;
   extension_degrees: number | null;
@@ -129,7 +125,6 @@ export interface Content {
 
 export interface Milestone {
   id: string;
-  user_id: string;
   title: string;
   category: 'milestone' | 'win';
   date: string; // YYYY-MM-DD
@@ -140,14 +135,12 @@ export interface Milestone {
 
 export interface UserAchievement {
   id: string;
-  user_id: string;
   content_id: string;
   unlocked_at: string;
 }
 
 export interface NotificationPreferences {
   id: string;
-  user_id: string;
   daily_reminder_time: string;
   evening_nudge_enabled: boolean;
   evening_nudge_time: string;

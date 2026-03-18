@@ -1,10 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { SQLiteDatabase } from "expo-sqlite";
+import type { SQLiteDatabase, SQLiteBindValue } from "expo-sqlite";
 import { supabase } from "../../supabase";
 import { getDeviceId } from "../../device-identity";
 import { createProfile, getProfile } from "../repositories/profile-repo";
 
 const MIGRATION_KEY = "migration_v1_complete";
+
+// Columns present in Supabase rows that do not exist in local SQLite tables
+const SUPABASE_ONLY_COLUMNS = ["user_id", "updated_at"];
 
 export async function isMigrationComplete(): Promise<boolean> {
   const val = await AsyncStorage.getItem(MIGRATION_KEY);
@@ -95,13 +98,20 @@ async function migrateTable(
 
   for (const row of rows) {
     try {
-      const columns = Object.keys(row as Record<string, unknown>);
-      const placeholders = columns.map(() => "?").join(", ");
-      const values = columns.map((col) => (row as Record<string, unknown>)[col]);
+      // Strip Supabase-only columns that don't exist in local SQLite tables
+      const filtered = Object.fromEntries(
+        Object.entries(row as Record<string, unknown>).filter(
+          ([k]) => !SUPABASE_ONLY_COLUMNS.includes(k)
+        )
+      );
+      const keys = Object.keys(filtered);
+      const placeholders = keys.map(() => "?").join(", ");
+      const values = Object.values(filtered);
 
+      // table is constrained to a known const array — not user input
       db.runSync(
-        `INSERT OR IGNORE INTO ${table} (${columns.join(", ")}) VALUES (${placeholders})`,
-        values as (string | number | null)[]
+        `INSERT OR IGNORE INTO ${table} (${keys.join(", ")}) VALUES (${placeholders})`,
+        values as SQLiteBindValue[]
       );
     } catch (rowErr) {
       console.error(

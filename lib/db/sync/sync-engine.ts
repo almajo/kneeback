@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 import { supabase } from "../../supabase";
 import { resolveConflict } from "./conflict-resolver";
-import { updateProfile } from "../repositories/profile-repo";
+import { getProfile, updateProfile } from "../repositories/profile-repo";
 
 // Tables to sync — catalog tables (exercises, content) are excluded
 const USER_DATA_TABLES = [
@@ -69,6 +69,23 @@ export async function pushAll(
     }
   }
 
+  // Push profile (best-effort — log errors, don't fail the whole sync)
+  const localProfile = getProfile(db);
+  if (localProfile) {
+    const { error: profileError } = await supabase.from("profiles" as never).upsert({
+      user_id: userId,
+      name: localProfile.name,
+      username: localProfile.username,
+      surgery_date: localProfile.surgery_date,
+      graft_type: localProfile.graft_type,
+      knee_side: localProfile.knee_side,
+      updated_at: localProfile.updated_at,
+    });
+    if (profileError) {
+      console.error("[pushAll] Failed to push profile:", profileError.message);
+    }
+  }
+
   return { error: null };
 }
 
@@ -89,6 +106,30 @@ export async function pullAll(
 
     for (const remoteRow of data as unknown as SyncRow[]) {
       upsertLocalRow(db, table, remoteRow);
+    }
+  }
+
+  // Pull profile (best-effort — log errors, don't fail the whole sync)
+  const { data: remoteProfile, error: profileError } = await supabase
+    .from("profiles" as never)
+    .select("*")
+    .eq("user_id", userId)
+    .single();
+
+  if (profileError) {
+    console.error("[pullAll] Failed to pull profile:", profileError.message);
+  } else if (remoteProfile) {
+    const rp = remoteProfile as Record<string, unknown>;
+    try {
+      updateProfile(db, {
+        name: rp.name as string | undefined,
+        username: rp.username as string | undefined,
+        surgery_date: (rp.surgery_date as string | null) ?? null,
+        graft_type: (rp.graft_type as import("../../types").GraftType | null) ?? null,
+        knee_side: rp.knee_side as import("../../types").KneeSide | undefined,
+      });
+    } catch (err) {
+      console.error("[pullAll] Failed to update local profile:", err);
     }
   }
 
@@ -153,6 +194,53 @@ export async function deltaSync(
           error: `Failed to push changes for ${table}: ${pushError.message}`,
           syncedAt: lastSyncedAt,
         };
+      }
+    }
+  }
+
+  // Sync profile (best-effort — log errors, don't fail the whole sync)
+  const { data: remoteProfile, error: remoteProfileError } = await supabase
+    .from("profiles" as never)
+    .select("*")
+    .eq("user_id", userId)
+    .single();
+
+  if (remoteProfileError) {
+    console.error("[deltaSync] Failed to fetch remote profile:", remoteProfileError.message);
+  } else if (remoteProfile) {
+    const rp = remoteProfile as Record<string, unknown> & { updated_at?: string };
+    const localProfile = getProfile(db);
+    if (localProfile) {
+      // Use conflict resolution: whichever was updated more recently wins
+      const remoteUpdatedAt = rp.updated_at ?? "";
+      const localUpdatedAt = localProfile.updated_at ?? "";
+      if (remoteUpdatedAt > localUpdatedAt) {
+        // Remote wins — pull into local
+        try {
+          updateProfile(db, {
+            name: rp.name as string | undefined,
+            username: rp.username as string | undefined,
+            surgery_date: (rp.surgery_date as string | null) ?? null,
+            graft_type: (rp.graft_type as import("../../types").GraftType | null) ?? null,
+            knee_side: rp.knee_side as import("../../types").KneeSide | undefined,
+          });
+        } catch (err) {
+          console.error("[deltaSync] Failed to update local profile:", err);
+        }
+      } else {
+        // Local wins — push to remote
+        const { error: pushProfileError } = await supabase.from("profiles" as never).upsert({
+          user_id: userId,
+          name: localProfile.name,
+          username: localProfile.username,
+          surgery_date: localProfile.surgery_date,
+          graft_type: localProfile.graft_type,
+          knee_side: localProfile.knee_side,
+          updated_at: localProfile.updated_at,
+        });
+        if (pushProfileError) {
+          console.error("[deltaSync] Failed to push profile:", pushProfileError.message);
+        }
       }
     }
   }
