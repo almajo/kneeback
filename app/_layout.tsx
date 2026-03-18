@@ -3,9 +3,10 @@ import { useEffect } from "react";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { AuthProvider, useAuth } from "../lib/auth-context";
-import { supabase } from "../lib/supabase";
+import { AuthProvider } from "../lib/auth-context";
 import { DatabaseProvider } from "../lib/db/database-context";
+import { useSQLiteContext } from "expo-sqlite";
+import { getProfile } from "../lib/db/repositories/profile-repo";
 import {
   useFonts,
   Outfit_400Regular,
@@ -15,35 +16,19 @@ import {
 } from "@expo-google-fonts/outfit";
 
 function RootLayoutNav() {
-  const { session, loading } = useAuth();
+  const db = useSQLiteContext();
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
-    if (loading) return;
+    const inTabsGroup = segments[0] === "(tabs)";
+    if (!inTabsGroup) return; // Let index.tsx handle initial routing
 
-    const inPublicGroup =
-      segments[0] === "(auth)" || segments[0] === "(intro)";
-
-    if (!session && !inPublicGroup) {
-      router.replace("/(auth)/sign-in");
-    } else if (session && inPublicGroup) {
-      supabase
-        .from("profiles")
-        .select("id")
-        .eq("id", session.user.id)
-        .single()
-        .then(({ data: profile }) => {
-          if (profile) {
-            router.replace("/(tabs)/today");
-          } else {
-            router.replace("/(onboarding)/surgery-details");
-          }
-        });
+    const localProfile = getProfile(db);
+    if (!localProfile) {
+      router.replace("/(onboarding)/surgery-details");
     }
-  }, [session, loading, segments]);
-
-  if (loading) return null;
+  }, [segments, db]);
 
   return (
     <>

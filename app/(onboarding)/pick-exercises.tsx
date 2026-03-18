@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { View, Text, TextInput, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../../lib/supabase';
+import { useSQLiteContext } from 'expo-sqlite';
+import { getAllExercises } from '../../lib/db/repositories/exercise-repo';
 import { useOnboarding } from '../../lib/onboarding-context';
 import { ExerciseStepper } from '../../components/ExerciseStepper';
 import { MuscleTag } from '../../components/MuscleTag';
@@ -20,10 +21,10 @@ import type { SurgeryStatus } from '../../lib/hooks/use-today';
 
 export default function PickExercises() {
   const router = useRouter();
+  const db = useSQLiteContext();
   const { data, toggleExercise, isSelected, updateExerciseValues } = useOnboarding();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [expandedAlternatives, setExpandedAlternatives] = useState<Set<string>>(new Set());
   const [expandedOptionals, setExpandedOptionals] = useState<Set<string>>(new Set());
@@ -39,12 +40,9 @@ export default function PickExercises() {
   const currentPhase = getPhaseFromDays(daysSinceSurgery, surgeryStatus);
 
   useEffect(() => {
-    supabase.from('exercises').select('*').eq('status', 'approved').order('sort_order')
-      .then(({ data: exs, error: err }) => {
-        if (err) setError('Could not load exercises. Check your connection.');
-        else setExercises((exs as Exercise[]) || []);
-        setLoading(false);
-      });
+    const all = getAllExercises(db);
+    setExercises(all);
+    setLoading(false);
   }, []);
 
   const searchLower = search.toLowerCase();
@@ -54,7 +52,6 @@ export default function PickExercises() {
   const postOpPhases: ExercisePhase[] = ['acute','early_active','strengthening','advanced_strengthening','return_to_sport'];
   const activePhases: ExercisePhase[] = surgeryStatus === 'post_surgery' ? postOpPhases : ['prehab'];
 
-  if (error) return <View className="flex-1 bg-background items-center justify-center px-6"><Text className="text-base text-center" style={{ color: '#6B6B6B' }}>{error}</Text></View>;
   if (loading) return <View className="flex-1 bg-background items-center justify-center"><ActivityIndicator color={Colors.primary} size="large" /></View>;
 
   return (

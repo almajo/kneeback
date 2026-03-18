@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Platform, ActivityIndicator } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Platform } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
 import { useOnboarding } from "../../lib/onboarding-context";
-import { supabase } from "../../lib/supabase";
 import type { GraftType, KneeSide } from "../../lib/types";
 
 const GRAFT_TYPES: { value: GraftType; label: string }[] = [
@@ -44,7 +43,6 @@ export default function SurgeryDetails() {
   const [surgeryDate, setSurgeryDate] = useState(parseDateSafe(data.surgeryDate));
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
-  const [checking, setChecking] = useState(false);
   const [graftNotSure, setGraftNotSure] = useState(false);
 
   const surgeryInPast = !dateNotSetYet && isSurgeryInPast(surgeryDate);
@@ -57,7 +55,7 @@ export default function SurgeryDetails() {
     return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   }
 
-  async function handleNext() {
+  function handleNext() {
     const newErrors: FieldErrors = {};
 
     if (!data.name.trim()) {
@@ -76,26 +74,6 @@ export default function SurgeryDetails() {
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
-    }
-
-    // Check username availability
-    if (data.username.trim()) {
-      setChecking(true);
-      const { data: existing, error } = await supabase
-        .from("profiles")
-        .select("username")
-        .eq("username", data.username.trim())
-        .maybeSingle();
-      setChecking(false);
-
-      if (error) {
-        setErrors({ username: "Could not verify username. Please try again." });
-        return;
-      }
-      if (existing) {
-        setErrors({ username: "This username is already taken. Please choose another." });
-        return;
-      }
     }
 
     setErrors({});
@@ -324,15 +302,10 @@ export default function SurgeryDetails() {
       {!errors.kneeSide && <View className="mb-10" />}
 
       <TouchableOpacity
-        className={`bg-primary rounded-2xl py-4 items-center ${checking ? "opacity-70" : ""}`}
+        className="bg-primary rounded-2xl py-4 items-center"
         onPress={handleNext}
-        disabled={checking}
       >
-        {checking ? (
-          <ActivityIndicator color="white" />
-        ) : (
-          <Text className="text-white font-bold text-lg">Next →</Text>
-        )}
+        <Text className="text-white font-bold text-lg">Next →</Text>
       </TouchableOpacity>
     </ScrollView>
   );

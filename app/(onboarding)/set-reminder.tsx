@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { View, Text, TouchableOpacity, Switch, Alert, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
+import { useSQLiteContext } from "expo-sqlite";
 import { useOnboarding } from "../../lib/onboarding-context";
-import { useAuth } from "../../lib/auth-context";
-import { supabase } from "../../lib/supabase";
+import { createProfile } from "../../lib/db/repositories/profile-repo";
+import { createUserExercise } from "../../lib/db/repositories/user-exercise-repo";
+import { createOrUpdateNotificationPreferences } from "../../lib/db/repositories/notification-repo";
+import { getDeviceId } from "../../lib/device-identity";
 import { registerForPushNotifications, scheduleDailyReminder } from "../../lib/notifications";
 import { Colors } from "../../constants/colors";
 
@@ -16,7 +19,7 @@ function pad(n: number) {
 
 export default function SetReminder() {
   const router = useRouter();
-  const { session } = useAuth();
+  const db = useSQLiteContext();
   const { data } = useOnboarding();
   const [hour, setHour] = useState(data.reminderHour);
   const [minute, setMinute] = useState(data.reminderMinute);
@@ -24,50 +27,47 @@ export default function SetReminder() {
   const [saving, setSaving] = useState(false);
 
   async function handleFinish() {
-    if (!session) return;
     setSaving(true);
 
     try {
-      const userId = session.user.id;
+      const deviceId = await getDeviceId();
 
-      // Insert profile
-      const { error: profileError } = await supabase.from("profiles").insert({
-        id: userId,
+      // Create local profile (single row)
+      createProfile(db, {
+        id: crypto.randomUUID(),
         name: data.name,
         username: data.username,
         surgery_date: data.surgeryDate,
         graft_type: data.graftType,
         knee_side: data.kneeSide!,
-        expo_push_token: null,
+        device_id: deviceId,
+        supabase_user_id: null,
+        last_synced_at: null,
       });
-      if (profileError) throw profileError;
 
-      // Insert user exercises
-      if (data.selectedExercises.length > 0) {
-        const userExercises = data.selectedExercises.map((ex, i) => ({
-          user_id: userId,
+      // Create user exercises
+      data.selectedExercises.forEach((ex, i) => {
+        createUserExercise(db, {
+          id: crypto.randomUUID(),
           exercise_id: ex.exerciseId,
           sets: ex.sets,
           reps: ex.reps,
           hold_seconds: ex.hold_seconds,
           is_active: true,
           sort_order: i,
-        }));
-        const { error: exError } = await supabase.from("user_exercises").insert(userExercises);
-        if (exError) throw exError;
-      }
+        });
+      });
 
-      // Insert notification preferences
-      const { error: notifError } = await supabase.from("notification_preferences").insert({
-        user_id: userId,
+      // Create notification preferences
+      createOrUpdateNotificationPreferences(db, {
         daily_reminder_time: `${pad(hour)}:${pad(minute)}`,
         evening_nudge_enabled: eveningNudge,
         evening_nudge_time: "20:00",
         completion_congrats_enabled: true,
       });
-      if (notifError) throw notifError;
 
-      await registerForPushNotifications(userId);
+      // Schedule local push notifications (no userId needed for local notifications)
+      await registerForPushNotifications(null);
       await scheduleDailyReminder(hour, minute);
 
       router.replace("/(tabs)/today");

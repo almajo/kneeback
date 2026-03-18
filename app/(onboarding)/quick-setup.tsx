@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { supabase } from '../../lib/supabase';
+import { useSQLiteContext } from 'expo-sqlite';
+import { getAllExercises } from '../../lib/db/repositories/exercise-repo';
 import { useOnboarding } from '../../lib/onboarding-context';
 import { MuscleTag } from '../../components/MuscleTag';
 import { Colors } from '../../constants/colors';
@@ -14,6 +15,7 @@ import type { SurgeryStatus } from '../../lib/hooks/use-today';
 
 export default function QuickSetup() {
   const router = useRouter();
+  const db = useSQLiteContext();
   const { data, toggleExercise } = useOnboarding();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,17 +36,13 @@ export default function QuickSetup() {
   const alreadySelected = data.selectedExercises.length > 0;
 
   useEffect(() => {
-    supabase
-      .from('exercises').select('*').eq('status', 'approved').order('sort_order')
-      .then(({ data: exs }) => {
-        const all = (exs as Exercise[]) || [];
-        setExercises(all);
-        if (!alreadySelected) {
-          const quickSet = getQuickSetupExercises(all, stablePhase, stableStatus);
-          for (const ex of quickSet) toggleExercise(ex);
-        }
-        setLoading(false);
-      });
+    const all = getAllExercises(db);
+    setExercises(all);
+    if (!alreadySelected) {
+      const quickSet = getQuickSetupExercises(all, stablePhase, stableStatus);
+      for (const ex of quickSet) toggleExercise(ex);
+    }
+    setLoading(false);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const quickExercises = getQuickSetupExercises(exercises, currentPhase, surgeryStatus);

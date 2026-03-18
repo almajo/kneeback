@@ -23,7 +23,7 @@ if (!isExpoGo) {
   } catch {}
 }
 
-export async function registerForPushNotifications(userId: string): Promise<string | null> {
+export async function registerForPushNotifications(userId: string | null): Promise<string | null> {
   if (!Notifications || !Device.isDevice) return null;
 
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -38,7 +38,9 @@ export async function registerForPushNotifications(userId: string): Promise<stri
 
   try {
     const token = (await Notifications.getExpoPushTokenAsync()).data;
-    await supabase.from("profiles").update({ expo_push_token: token }).eq("id", userId);
+    if (userId) {
+      await supabase.from("profiles").update({ expo_push_token: token }).eq("id", userId);
+    }
     return token;
   } catch {
     return null;
