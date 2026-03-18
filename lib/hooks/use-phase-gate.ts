@@ -122,7 +122,7 @@ export function usePhaseGate(
   );
 
   const toggleCriterion = useCallback(
-    async (gateKey: string, criterionKey: string): Promise<void> => {
+    (gateKey: string, criterionKey: string): void => {
       const compositeKey = `${gateKey}:${criterionKey}`;
       const isCurrentlyConfirmed = confirmedCriteria.has(compositeKey);
 

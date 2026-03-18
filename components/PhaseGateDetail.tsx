@@ -15,7 +15,7 @@ interface Props {
   confirmedCriteria: Set<string>;
   daysSinceSurgery: number;
   latestFlexion: number | null;
-  onToggleCriterion: (gateKey: string, criterionKey: string) => Promise<void>;
+  onToggleCriterion: (gateKey: string, criterionKey: string) => void;
   onClose: () => void;
 }
 
@@ -29,7 +29,7 @@ interface CriterionRowProps {
   gateKey: string;
   daysSinceSurgery: number;
   latestFlexion: number | null;
-  onToggle: (gateKey: string, criterionKey: string) => Promise<void>;
+  onToggle: (gateKey: string, criterionKey: string) => void;
 }
 
 function CriterionRow({

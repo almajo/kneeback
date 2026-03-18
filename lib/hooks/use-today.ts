@@ -5,22 +5,13 @@ import { getActiveUserExercises } from "../db/repositories/user-exercise-repo";
 import { getOrCreateDailyLog } from "../db/repositories/daily-log-repo";
 import { getExerciseLogsByDailyLogId } from "../db/repositories/exercise-log-repo";
 import { getStreak } from "../achievements";
+import { getAllContent } from "../db/repositories/content-repo";
 import type { LocalUserExercise } from "../db/repositories/user-exercise-repo";
 import type { LocalDailyLog } from "../db/repositories/daily-log-repo";
 import type { LocalExerciseLog } from "../db/repositories/exercise-log-repo";
 import type { Content } from "../types";
 
 export type SurgeryStatus = "no_date" | "pre_surgery" | "post_surgery";
-
-interface RawContent {
-  id: string;
-  type: string;
-  title: string;
-  body: string;
-  trigger_condition: string | null;
-  phase: string | null;
-  sort_order: number;
-}
 
 export function useToday() {
   const db = useSQLiteContext();
@@ -49,24 +40,11 @@ export function useToday() {
     const logs = getExerciseLogsByDailyLogId(db, log.id);
     setExerciseLogs(logs);
 
-    const messages = db.getAllSync<RawContent>(
-      "SELECT * FROM content WHERE type = 'daily_message' ORDER BY sort_order ASC"
-    );
+    const messages = getAllContent(db, "daily_message");
     if (messages.length > 0) {
       const dayIndex =
         Math.floor(new Date(today).getTime() / 86400000) % messages.length;
-      const raw = messages[dayIndex];
-      setDailyMessage({
-        id: raw.id,
-        type: raw.type as Content["type"],
-        title: raw.title,
-        body: raw.body,
-        trigger_condition: raw.trigger_condition
-          ? (JSON.parse(raw.trigger_condition) as Record<string, unknown>)
-          : null,
-        phase: raw.phase as Content["phase"],
-        sort_order: raw.sort_order,
-      });
+      setDailyMessage(messages[dayIndex]);
     }
 
     const currentStreak = getStreak(db);

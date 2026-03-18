@@ -7,10 +7,9 @@ import {
   type LocalMilestone,
 } from "../db/repositories/milestone-repo";
 
-const today = new Date().toISOString().split("T")[0];
-
 export function useMilestones() {
   const db = useSQLiteContext();
+  const today = new Date().toISOString().split("T")[0];
   const [milestones, setMilestones] = useState<LocalMilestone[]>([]);
   const [loading, setLoading] = useState(true);
 

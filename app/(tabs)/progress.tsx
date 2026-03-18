@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ScrollView,
   View,
@@ -70,7 +70,7 @@ export default function ProgressScreen() {
     latestFlexion
   );
 
-  function loadMeasurements() {
+  const loadMeasurements = useCallback(() => {
     const romRows = getAllRomMeasurements(db);
     setMeasurements(romRows.slice().reverse());
     setRomData(
@@ -83,7 +83,7 @@ export default function ProgressScreen() {
     setActivationDays(
       new Set(romRows.filter((r) => r.quad_activation).map((r) => r.date))
     );
-  }
+  }, [db]);
 
   useEffect(() => {
     const profile = getProfile(db);
@@ -96,7 +96,7 @@ export default function ProgressScreen() {
     }
     loadMeasurements();
     setLoading(false);
-  }, [db]);
+  }, [db, loadMeasurements]);
 
   async function handleSaveRom(payload: {
     date: string;

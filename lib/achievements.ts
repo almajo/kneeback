@@ -1,28 +1,7 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 import { getUnlockedAchievements, unlockAchievement } from "./db/repositories/achievement-repo";
+import { getAllContent } from "./db/repositories/content-repo";
 import type { Content } from "./types";
-
-interface RawContent {
-  id: string;
-  type: string;
-  title: string;
-  body: string;
-  trigger_condition: string | null;
-  phase: string | null;
-  sort_order: number;
-}
-
-function parseContent(raw: RawContent): Content {
-  return {
-    id: raw.id,
-    type: raw.type as Content["type"],
-    title: raw.title,
-    body: raw.body,
-    trigger_condition: raw.trigger_condition ? (JSON.parse(raw.trigger_condition) as Record<string, unknown>) : null,
-    phase: raw.phase as Content["phase"],
-    sort_order: raw.sort_order,
-  };
-}
 
 interface UserState {
   db: SQLiteDatabase;
@@ -41,12 +20,8 @@ interface UserState {
 export function checkAchievements(state: UserState): Content[] {
   const { db } = state;
 
-  const rawAchievements = db.getAllSync<RawContent>(
-    "SELECT * FROM content WHERE type = 'achievement'"
-  );
-  if (rawAchievements.length === 0) return [];
-
-  const allAchievements = rawAchievements.map(parseContent);
+  const allAchievements = getAllContent(db, "achievement");
+  if (allAchievements.length === 0) return [];
 
   const unlocked = getUnlockedAchievements(db);
   const unlockedIds = new Set(unlocked.map((u) => u.content_id));
