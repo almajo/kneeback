@@ -10,7 +10,6 @@ import { getDeviceId } from "../../lib/device-identity";
 import { registerForPushNotifications, scheduleDailyReminder } from "../../lib/notifications";
 import { Colors } from "../../constants/colors";
 
-const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = [0, 15, 30, 45];
 
 function pad(n: number) {
