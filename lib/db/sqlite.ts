@@ -2,6 +2,9 @@ import * as SQLite from "expo-sqlite";
 
 export const CURRENT_SCHEMA_VERSION = 1;
 
+// schema_version is an internal migration-tracking table.
+// It intentionally omits a primary key `id` column and is exempt from the
+// convention that all domain tables must have id/created_at/updated_at columns.
 const CREATE_SCHEMA_VERSION = `
   CREATE TABLE IF NOT EXISTS schema_version (
     version INTEGER NOT NULL,

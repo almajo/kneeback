@@ -46,13 +46,52 @@ export function getAllExercises(db: SQLite.SQLiteDatabase): Exercise[] {
   return rows.map(parseExercise);
 }
 
+// Phase order used for range comparisons in SQLite CASE expressions.
+// SQLite stores phases as TEXT, but the enum values don't sort alphabetically
+// in phase order, so we map each value to a numeric index for comparison.
+const PHASE_CASE = `
+  CASE ?
+    WHEN 'prehab' THEN 1
+    WHEN 'acute' THEN 2
+    WHEN 'early_active' THEN 3
+    WHEN 'strengthening' THEN 4
+    WHEN 'advanced_strengthening' THEN 5
+    WHEN 'return_to_sport' THEN 6
+    ELSE 0
+  END
+`;
+
 export function getExercisesByPhase(
   db: SQLite.SQLiteDatabase,
   phase: ExercisePhase
 ): Exercise[] {
   const rows = db.getAllSync<RawExercise>(
     `SELECT * FROM exercises
-     WHERE phase_start = ? OR phase_end = ?
+     WHERE (
+       CASE phase_start
+         WHEN 'prehab' THEN 1
+         WHEN 'acute' THEN 2
+         WHEN 'early_active' THEN 3
+         WHEN 'strengthening' THEN 4
+         WHEN 'advanced_strengthening' THEN 5
+         WHEN 'return_to_sport' THEN 6
+         ELSE 0
+       END
+     ) <= (${PHASE_CASE})
+     AND (
+       phase_end IS NULL
+       OR (
+         CASE phase_end
+           WHEN 'prehab' THEN 1
+           WHEN 'acute' THEN 2
+           WHEN 'early_active' THEN 3
+           WHEN 'strengthening' THEN 4
+           WHEN 'advanced_strengthening' THEN 5
+           WHEN 'return_to_sport' THEN 6
+           ELSE 99
+         END
+       ) >= (${PHASE_CASE})
+     )
      ORDER BY sort_order ASC`,
     [phase, phase]
   );

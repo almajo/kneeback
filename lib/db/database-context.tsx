@@ -6,8 +6,13 @@ import { seedDatabase } from "./seed-data";
 const DATABASE_NAME = "kneeback.db";
 
 async function onDatabaseInit(db: ReturnType<typeof useSQLiteContext>): Promise<void> {
-  initializeDatabase(db);
-  seedDatabase(db);
+  try {
+    initializeDatabase(db);
+    await seedDatabase(db);
+  } catch (error) {
+    console.error('[DatabaseProvider] Failed to initialize database:', error);
+    throw error; // Re-throw so SQLiteProvider surfaces it to error boundary
+  }
 }
 
 interface DatabaseProviderProps {
