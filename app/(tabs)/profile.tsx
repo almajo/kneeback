@@ -9,13 +9,14 @@ import {
   ActivityIndicator,
   Share,
   Platform,
+  TextInput,
+  KeyboardAvoidingView,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { useAuth } from "../../lib/auth-context";
-import { supabase } from "../../lib/supabase";
 import { registerForPushNotifications, scheduleDailyReminder } from "../../lib/notifications";
 import { Colors } from "../../constants/colors";
 import { getProfile, updateProfile } from "../../lib/db/repositories/profile-repo";
@@ -30,6 +31,7 @@ import type { LocalProfile } from "../../lib/db/repositories/profile-repo";
 import type { LocalNotificationPreferences } from "../../lib/db/repositories/notification-repo";
 import type { GraftType } from "../../lib/types";
 import { PrivacyPolicyModal } from "../../components/PrivacyPolicyModal";
+import { pushAll, deltaSync } from "../../lib/db/sync/sync-engine";
 
 const GRAFT_TYPE_OPTIONS: { value: GraftType; label: string }[] = [
   { value: "patellar", label: "Patellar Tendon" },
@@ -45,7 +47,7 @@ function pad(n: number) {
 export default function ProfileScreen() {
   const router = useRouter();
   const db = useSQLiteContext();
-  const { session } = useAuth();
+  const { session, signIn, signUp, signOut } = useAuth();
   const [profile, setProfile] = useState<LocalProfile | null>(null);
   const [notifPrefs, setNotifPrefs] = useState<LocalNotificationPreferences | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,6 +68,15 @@ export default function ProfileScreen() {
     d.setHours(8, 0, 0, 0);
     return d;
   });
+  // Cloud Sync state
+  const [authModalVisible, setAuthModalVisible] = useState(false);
+  const [authMode, setAuthMode] = useState<"signIn" | "signUp">("signIn");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   useEffect(() => {
     const prof = getProfile(db);
@@ -151,8 +162,7 @@ export default function ProfileScreen() {
   }
 
   async function handleSignOut() {
-    // Keep Supabase sign-out for optional sync (Phase 5)
-    await supabase.auth.signOut();
+    await signOut();
   }
 
   function handleDeleteAccount() {
@@ -161,14 +171,80 @@ export default function ProfileScreen() {
 
   async function confirmDeleteAccount() {
     setDeleting(true);
-    // For now, sign out from Supabase. Full local data deletion comes in Phase 5.
-    if (session) {
-      await supabase.rpc("delete_user");
-      await supabase.auth.signOut();
-    }
+    await signOut();
+    updateProfile(db, { supabase_user_id: null, last_synced_at: null });
+    setProfile(getProfile(db));
     setDeleting(false);
     setDeleteModalVisible(false);
-    router.replace("/(auth)/sign-in?accountDeleted=true");
+  }
+
+  function openAuthModal(mode: "signIn" | "signUp") {
+    setAuthMode(mode);
+    setAuthEmail("");
+    setAuthPassword("");
+    setAuthError(null);
+    setAuthModalVisible(true);
+  }
+
+  async function handleAuthSubmit() {
+    if (!authEmail.trim() || !authPassword.trim()) {
+      setAuthError("Email and password are required.");
+      return;
+    }
+
+    setAuthLoading(true);
+    setAuthError(null);
+
+    const result =
+      authMode === "signIn"
+        ? await signIn(authEmail.trim(), authPassword)
+        : await signUp(authEmail.trim(), authPassword);
+
+    if (result.error) {
+      setAuthError(result.error);
+      setAuthLoading(false);
+      return;
+    }
+
+    // Get the current session after sign-in/sign-up
+    const { data } = await import("../../lib/supabase").then((m) =>
+      m.supabase.auth.getSession()
+    );
+    const userId = data.session?.user.id;
+
+    if (userId) {
+      const push = await pushAll(db, userId);
+      if (push.error) {
+        setAuthError(`Signed in, but sync failed: ${push.error}`);
+      } else {
+        const now = new Date().toISOString();
+        const updated = updateProfile(db, {
+          supabase_user_id: userId,
+          last_synced_at: now,
+        });
+        setProfile(updated);
+      }
+    }
+
+    setAuthLoading(false);
+    setAuthModalVisible(false);
+  }
+
+  async function handleSyncNow() {
+    if (!session?.user.id) return;
+    setSyncing(true);
+    setSyncError(null);
+
+    const lastSyncedAt = profile?.last_synced_at ?? new Date(0).toISOString();
+    const result = await deltaSync(db, session.user.id, lastSyncedAt);
+
+    if (result.error) {
+      setSyncError(result.error);
+    } else {
+      setProfile(getProfile(db));
+    }
+
+    setSyncing(false);
   }
 
   function surgeryDateLabel(dateStr: string): string {
@@ -519,6 +595,72 @@ export default function ProfileScreen() {
         </View>
       )}
 
+      {/* Cloud Sync */}
+      <View className="bg-surface border border-border rounded-2xl p-4 mb-4">
+        <Text className="text-base font-semibold mb-1" style={{ color: "#2D2D2D" }}>
+          Cloud Sync
+        </Text>
+
+        {session === null ? (
+          <>
+            <Text className="text-sm mb-4" style={{ color: "#6B6B6B" }}>
+              Sync your recovery data across devices with a free account.
+            </Text>
+            <View className="flex-row gap-3">
+              <TouchableOpacity
+                className="flex-1 bg-primary rounded-xl py-3 items-center"
+                onPress={() => openAuthModal("signUp")}
+              >
+                <Text className="text-white font-semibold">Create Account</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className="flex-1 rounded-xl py-3 items-center border border-border bg-background"
+                onPress={() => openAuthModal("signIn")}
+              >
+                <Text className="font-semibold" style={{ color: "#2D2D2D" }}>
+                  Sign In
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : (
+          <>
+            <View className="flex-row items-center mb-3">
+              <Ionicons name="cloud-done-outline" size={16} color={Colors.secondary} />
+              <Text className="ml-2 text-sm font-medium" style={{ color: Colors.secondary }}>
+                {session.user.email}
+              </Text>
+            </View>
+            {profile?.last_synced_at ? (
+              <Text className="text-xs mb-3" style={{ color: "#A0A0A0" }}>
+                Last synced:{" "}
+                {new Date(profile.last_synced_at).toLocaleString()}
+              </Text>
+            ) : (
+              <Text className="text-xs mb-3" style={{ color: "#A0A0A0" }}>
+                Never synced
+              </Text>
+            )}
+            {syncError && (
+              <Text className="text-xs mb-3" style={{ color: Colors.error }}>
+                {syncError}
+              </Text>
+            )}
+            <TouchableOpacity
+              className={`bg-primary rounded-xl py-3 items-center ${syncing ? "opacity-50" : ""}`}
+              onPress={handleSyncNow}
+              disabled={syncing}
+            >
+              {syncing ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <Text className="text-white font-semibold">Sync Now</Text>
+              )}
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+
       {/* Actions */}
       <View className="bg-surface border border-border rounded-2xl mb-4 overflow-hidden">
         <ActionRow
@@ -531,11 +673,13 @@ export default function ProfileScreen() {
           label="Privacy Policy"
           onPress={() => setPrivacyVisible(true)}
         />
-        <ActionRow
-          icon="log-out-outline"
-          label="Sign Out"
-          onPress={handleSignOut}
-        />
+        {session !== null && (
+          <ActionRow
+            icon="log-out-outline"
+            label="Sign Out"
+            onPress={handleSignOut}
+          />
+        )}
         <ActionRow
           icon="trash-outline"
           label="Delete Account"
@@ -549,6 +693,100 @@ export default function ProfileScreen() {
         visible={privacyVisible}
         onClose={() => setPrivacyVisible(false)}
       />
+
+      {/* Auth (Sign In / Sign Up) Modal */}
+      <Modal
+        visible={authModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAuthModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          className="flex-1 justify-center items-center"
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        >
+          <View
+            className="bg-surface rounded-2xl p-6 mx-6 w-full"
+            style={{ maxWidth: 360 }}
+          >
+            <Text className="text-xl font-bold mb-1" style={{ color: "#2D2D2D" }}>
+              {authMode === "signIn" ? "Sign In" : "Create Account"}
+            </Text>
+            <Text className="text-sm mb-4" style={{ color: "#6B6B6B" }}>
+              {authMode === "signIn"
+                ? "Sign in to sync your data across devices."
+                : "Create a free account to back up and sync your data."}
+            </Text>
+
+            <TextInput
+              className="border border-border rounded-xl px-4 py-3 mb-3 text-base"
+              style={{ color: "#2D2D2D", backgroundColor: "#FFF8F0" }}
+              placeholder="Email"
+              placeholderTextColor="#A0A0A0"
+              value={authEmail}
+              onChangeText={setAuthEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoCorrect={false}
+            />
+            <TextInput
+              className="border border-border rounded-xl px-4 py-3 mb-1 text-base"
+              style={{ color: "#2D2D2D", backgroundColor: "#FFF8F0" }}
+              placeholder="Password"
+              placeholderTextColor="#A0A0A0"
+              value={authPassword}
+              onChangeText={setAuthPassword}
+              secureTextEntry
+            />
+
+            {authError && (
+              <Text className="text-sm mb-3 mt-1" style={{ color: Colors.error }}>
+                {authError}
+              </Text>
+            )}
+
+            <TouchableOpacity
+              className={`bg-primary rounded-xl py-3 items-center mt-3 mb-3 ${authLoading ? "opacity-50" : ""}`}
+              onPress={handleAuthSubmit}
+              disabled={authLoading}
+            >
+              {authLoading ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <Text className="text-white font-bold text-base">
+                  {authMode === "signIn" ? "Sign In" : "Create Account"}
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              className="items-center mb-3"
+              onPress={() => {
+                setAuthMode((m) => (m === "signIn" ? "signUp" : "signIn"));
+                setAuthError(null);
+              }}
+              disabled={authLoading}
+            >
+              <Text className="text-sm" style={{ color: Colors.primary }}>
+                {authMode === "signIn"
+                  ? "Don't have an account? Create one"
+                  : "Already have an account? Sign in"}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              className="rounded-xl py-3 items-center bg-background border border-border"
+              onPress={() => setAuthModalVisible(false)}
+              disabled={authLoading}
+            >
+              <Text className="font-semibold text-base" style={{ color: "#2D2D2D" }}>
+                Cancel
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <Modal
         visible={deleteModalVisible}
