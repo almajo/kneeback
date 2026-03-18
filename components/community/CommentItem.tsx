@@ -9,15 +9,15 @@ import type { CommunityComment } from "../../lib/types";
 
 interface Props {
   comment: CommunityComment;
-  currentUserId?: string;
+  currentDeviceId?: string;
   onUpvote: () => void;
   onDelete?: () => void;
   onEdit?: (body: string) => void;
 }
 
-export function CommentItem({ comment, currentUserId, onUpvote, onDelete, onEdit }: Props) {
-  const initial = (comment.author_username?.[0] ?? "?").toUpperCase();
-  const isOwner = !!currentUserId && comment.user_id === currentUserId;
+export function CommentItem({ comment, currentDeviceId, onUpvote, onDelete, onEdit }: Props) {
+  const initial = (comment.author_animal_name?.[0] ?? "?").toUpperCase();
+  const isOwner = !!currentDeviceId && comment.device_id === currentDeviceId;
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(comment.body);
 
@@ -51,7 +51,7 @@ export function CommentItem({ comment, currentUserId, onUpvote, onDelete, onEdit
       <View style={{ flex: 1 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 3 }}>
           <Text style={{ fontSize: 13, fontWeight: "600", color: Colors.text }}>
-            {comment.author_username}
+            {comment.author_animal_name}
           </Text>
           {!!comment.author_phase && (
             <View

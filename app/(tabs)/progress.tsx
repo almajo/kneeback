@@ -26,7 +26,7 @@ import {
 } from "../../lib/db/repositories/rom-repo";
 import { ShareWinPrompt } from "../../components/community/ShareWinPrompt";
 import { submitCommunityPost } from "../../lib/community";
-import { useAuth } from "../../lib/auth-context";
+import { getCommunityIdentity } from "../../lib/community-identity";
 
 function getLast30Dates(): string[] {
   const dates: string[] = [];
@@ -40,7 +40,6 @@ function getLast30Dates(): string[] {
 
 export default function ProgressScreen() {
   const db = useSQLiteContext();
-  const { session } = useAuth();
   const [loading, setLoading] = useState(true);
   const [romSheetOpen, setRomSheetOpen] = useState(false);
   const { milestones, addMilestone, deleteMilestone } = useMilestones();
@@ -130,12 +129,9 @@ export default function ProgressScreen() {
 
   async function handleShareWin(message: string) {
     if (!pendingShareWin) return;
-    // Community stays on Supabase (Phase 4). session may be null for non-signed-in users.
-    if (!session) {
-      setPendingShareWin(null);
-      return;
-    }
-    const { error } = await submitCommunityPost(session.user.id, {
+    const profile = getProfile(db);
+    const identity = await getCommunityIdentity(profile);
+    const { error } = await submitCommunityPost(identity, {
       post_type: "win",
       title: pendingShareWin,
       body: message || pendingShareWin,

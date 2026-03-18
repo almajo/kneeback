@@ -1,35 +1,26 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../supabase";
-import { useAuth } from "../auth-context";
+import { useSQLiteContext } from "expo-sqlite";
+import { getProfile } from "../db/repositories/profile-repo";
+import { getCommunityIdentity } from "../community-identity";
 import type { CommunityPost, CommunityComment } from "../types";
-import { getPhaseFromDate } from "../utils/format-time";
-
-async function getProfile(userId: string): Promise<{ username: string; phase: string }> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("username, surgery_date")
-    .eq("id", userId)
-    .single();
-  if (error) {
-    console.error("[getProfile] Failed to load profile:", error);
-  }
-  return {
-    username: data?.username ?? "Anonymous",
-    phase: data?.surgery_date ? getPhaseFromDate(data.surgery_date) : "",
-  };
-}
 
 export function usePost(postId: string) {
-  const { session } = useAuth();
+  const db = useSQLiteContext();
+  const [deviceId, setDeviceId] = useState<string | null>(null);
   const [post, setPost] = useState<CommunityPost | null>(null);
   const [comments, setComments] = useState<CommunityComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  const userId = session?.user.id;
+  useEffect(() => {
+    import("../device-identity").then(({ getDeviceId }) =>
+      getDeviceId().then(setDeviceId)
+    );
+  }, []);
 
   const fetchPost = useCallback(async () => {
-    if (!userId || !postId) return;
+    if (!postId) return;
     setLoading(true);
 
     const [
@@ -47,42 +38,28 @@ export function usePost(postId: string) {
         .select("*")
         .eq("post_id", postId)
         .order("created_at", { ascending: true }),
-      supabase
-        .from("community_reactions")
-        .select("id")
-        .eq("post_id", postId)
-        .eq("user_id", userId)
-        .maybeSingle(),
+      deviceId
+        ? supabase
+            .from("community_reactions")
+            .select("id")
+            .eq("post_id", postId)
+            .eq("device_id", deviceId)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
     ]);
 
     if (rawPost) {
       const commentList = rawComments ?? [];
       const commentIds = commentList.map((c: any) => c.id as string);
-      const commentAuthorIds = [
-        ...new Set(commentList.map((c: any) => c.user_id as string)),
-      ];
-      const allUserIds = [...new Set([rawPost.user_id, ...commentAuthorIds])];
 
-      const [{ data: profiles }, { data: myCommentReactions }] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("id, username, surgery_date")
-          .in("id", allUserIds),
-        commentIds.length > 0
-          ? supabase
+      const { data: myCommentReactions } =
+        deviceId && commentIds.length > 0
+          ? await supabase
               .from("community_comment_reactions")
               .select("comment_id")
-              .eq("user_id", userId)
+              .eq("device_id", deviceId)
               .in("comment_id", commentIds)
-          : Promise.resolve({ data: [] }),
-      ]);
-
-      const profileMap = new Map(
-        (profiles ?? []).map((p: any) => [
-          p.id,
-          { username: p.username, phase: getPhaseFromDate(p.surgery_date) },
-        ])
-      );
+          : { data: [] };
 
       const upvotedCommentIds = new Set(
         (myCommentReactions ?? []).map((r: any) => r.comment_id)
@@ -90,14 +67,14 @@ export function usePost(postId: string) {
 
       setPost({
         id: rawPost.id,
-        user_id: rawPost.user_id,
+        device_id: rawPost.device_id ?? "",
         post_type: rawPost.post_type as CommunityPost["post_type"],
         title: rawPost.title,
         body: rawPost.body,
-        upvote_count: rawPost.upvote_count,
+        upvote_count: rawPost.upvote_count ?? 0,
         created_at: rawPost.created_at,
-        author_username: profileMap.get(rawPost.user_id)?.username ?? "Anonymous",
-        author_phase: profileMap.get(rawPost.user_id)?.phase ?? "",
+        author_animal_name: rawPost.author_animal_name ?? "Anonymous",
+        author_phase: rawPost.author_phase ?? "",
         comment_count: commentList.length,
         has_upvoted: !!myReaction,
       });
@@ -106,11 +83,11 @@ export function usePost(postId: string) {
         commentList.map((c: any) => ({
           id: c.id,
           post_id: c.post_id,
-          user_id: c.user_id,
+          device_id: c.device_id ?? "",
           body: c.body,
           created_at: c.created_at,
-          author_username: profileMap.get(c.user_id)?.username ?? "Anonymous",
-          author_phase: profileMap.get(c.user_id)?.phase ?? "",
+          author_animal_name: c.author_animal_name ?? "Anonymous",
+          author_phase: c.author_phase ?? "",
           upvote_count: c.upvote_count ?? 0,
           has_upvoted: upvotedCommentIds.has(c.id),
         }))
@@ -118,25 +95,26 @@ export function usePost(postId: string) {
     }
 
     setLoading(false);
-  }, [userId, postId]);
+  }, [postId, deviceId]);
 
   useEffect(() => {
     fetchPost();
   }, [fetchPost]);
 
   async function addComment(body: string) {
-    if (!userId || !postId || !body.trim()) return;
+    if (!deviceId || !postId || !body.trim()) return;
 
-    const { username: myUsername, phase: myPhase } = await getProfile(userId);
+    const profile = getProfile(db);
+    const identity = await getCommunityIdentity(profile);
 
     const optimistic: CommunityComment = {
       id: `optimistic-${Date.now()}`,
       post_id: postId,
-      user_id: userId,
+      device_id: identity.deviceId,
       body: body.trim(),
       created_at: new Date().toISOString(),
-      author_username: myUsername,
-      author_phase: myPhase,
+      author_animal_name: identity.animalName,
+      author_phase: identity.phase,
       upvote_count: 0,
       has_upvoted: false,
     };
@@ -149,7 +127,13 @@ export function usePost(postId: string) {
     setSubmitting(true);
     const { data } = await supabase
       .from("community_comments")
-      .insert({ post_id: postId, user_id: userId, body: body.trim() })
+      .insert({
+        post_id: postId,
+        device_id: identity.deviceId,
+        author_animal_name: identity.animalName,
+        author_phase: identity.phase,
+        body: body.trim(),
+      })
       .select("*")
       .single();
 
@@ -157,11 +141,11 @@ export function usePost(postId: string) {
       const real: CommunityComment = {
         id: data.id,
         post_id: data.post_id,
-        user_id: data.user_id,
+        device_id: data.device_id ?? identity.deviceId,
         body: data.body,
         created_at: data.created_at,
-        author_username: myUsername,
-        author_phase: myPhase,
+        author_animal_name: identity.animalName,
+        author_phase: identity.phase,
         upvote_count: 0,
         has_upvoted: false,
       };
@@ -173,7 +157,7 @@ export function usePost(postId: string) {
   }
 
   async function toggleUpvote() {
-    if (!userId || !post) return;
+    if (!deviceId || !post) return;
 
     const wasUpvoted = post.has_upvoted;
 
@@ -194,7 +178,7 @@ export function usePost(postId: string) {
         .from("community_reactions")
         .delete()
         .eq("post_id", postId)
-        .eq("user_id", userId);
+        .eq("device_id", deviceId);
       if (error) {
         console.error("[toggleUpvote] Failed to remove reaction:", error);
         setPost((prev) =>
@@ -206,7 +190,7 @@ export function usePost(postId: string) {
     } else {
       const { error } = await supabase
         .from("community_reactions")
-        .insert({ post_id: postId, user_id: userId });
+        .insert({ post_id: postId, device_id: deviceId });
       if (error) {
         console.error("[toggleUpvote] Failed to insert reaction:", error);
         setPost((prev) =>
@@ -219,7 +203,7 @@ export function usePost(postId: string) {
   }
 
   async function toggleCommentUpvote(commentId: string) {
-    if (!userId) return;
+    if (!deviceId) return;
 
     const comment = comments.find((c) => c.id === commentId);
     if (!comment) return;
@@ -239,30 +223,52 @@ export function usePost(postId: string) {
     );
 
     if (wasUpvoted) {
-      await supabase
+      const { error } = await supabase
         .from("community_comment_reactions")
         .delete()
         .eq("comment_id", commentId)
-        .eq("user_id", userId);
+        .eq("device_id", deviceId);
+      if (error) {
+        console.error("[toggleCommentUpvote] Failed to remove:", error);
+        setComments((prev) =>
+          prev.map((c) =>
+            c.id === commentId
+              ? { ...c, has_upvoted: wasUpvoted, upvote_count: c.upvote_count + 1 }
+              : c
+          )
+        );
+      }
     } else {
-      await supabase
+      const { error } = await supabase
         .from("community_comment_reactions")
-        .insert({ comment_id: commentId, user_id: userId });
+        .insert({ comment_id: commentId, device_id: deviceId });
+      if (error) {
+        console.error("[toggleCommentUpvote] Failed to insert:", error);
+        setComments((prev) =>
+          prev.map((c) =>
+            c.id === commentId
+              ? { ...c, has_upvoted: wasUpvoted, upvote_count: c.upvote_count - 1 }
+              : c
+          )
+        );
+      }
     }
   }
 
   async function deleteComment(commentId: string) {
-    if (!userId) return;
+    if (!deviceId) return;
     const prevComments = comments;
     const prevPost = post;
     setComments((prev) => prev.filter((c) => c.id !== commentId));
-    setPost((prev) => prev ? { ...prev, comment_count: prev.comment_count - 1 } : prev);
+    setPost((prev) =>
+      prev ? { ...prev, comment_count: prev.comment_count - 1 } : prev
+    );
 
     const { error } = await supabase
       .from("community_comments")
       .delete()
       .eq("id", commentId)
-      .eq("user_id", userId);
+      .eq("device_id", deviceId);
 
     if (error) {
       console.error("[deleteComment] Failed:", error);
@@ -272,7 +278,7 @@ export function usePost(postId: string) {
   }
 
   async function editComment(commentId: string, body: string) {
-    if (!userId || !body.trim()) return;
+    if (!deviceId || !body.trim()) return;
     const trimmed = body.trim();
     setComments((prev) =>
       prev.map((c) => (c.id === commentId ? { ...c, body: trimmed } : c))
@@ -282,7 +288,7 @@ export function usePost(postId: string) {
       .from("community_comments")
       .update({ body: trimmed })
       .eq("id", commentId)
-      .eq("user_id", userId);
+      .eq("device_id", deviceId);
 
     if (error) {
       console.error("[editComment] Failed:", error);
@@ -291,12 +297,12 @@ export function usePost(postId: string) {
   }
 
   async function deletePost(): Promise<boolean> {
-    if (!userId || !post) return false;
+    if (!deviceId || !post) return false;
     const { error } = await supabase
       .from("community_posts")
       .delete()
       .eq("id", postId)
-      .eq("user_id", userId);
+      .eq("device_id", deviceId);
 
     if (error) {
       console.error("[deletePost] Failed:", error);
@@ -306,18 +312,20 @@ export function usePost(postId: string) {
   }
 
   async function editPost(title: string, body: string) {
-    if (!userId || !post) return;
+    if (!deviceId || !post) return;
     const trimTitle = title.trim();
     const trimBody = body.trim();
     if (!trimTitle || !trimBody) return;
 
-    setPost((prev) => prev ? { ...prev, title: trimTitle, body: trimBody } : prev);
+    setPost((prev) =>
+      prev ? { ...prev, title: trimTitle, body: trimBody } : prev
+    );
 
     const { error } = await supabase
       .from("community_posts")
       .update({ title: trimTitle, body: trimBody })
       .eq("id", postId)
-      .eq("user_id", userId);
+      .eq("device_id", deviceId);
 
     if (error) {
       console.error("[editPost] Failed:", error);
@@ -330,7 +338,7 @@ export function usePost(postId: string) {
     comments,
     loading,
     submitting,
-    userId,
+    deviceId,
     addComment,
     deleteComment,
     editComment,

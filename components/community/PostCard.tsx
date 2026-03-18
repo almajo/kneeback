@@ -10,15 +10,15 @@ import type { CommunityPost } from "../../lib/types";
 
 interface Props {
   post: CommunityPost;
-  currentUserId?: string;
+  currentDeviceId?: string;
   onPress: () => void;
   onUpvote: () => void;
   onDelete?: () => void;
 }
 
-export function PostCard({ post, currentUserId, onPress, onUpvote, onDelete }: Props) {
-  const initial = (post.author_username?.[0] ?? "?").toUpperCase();
-  const isOwner = !!currentUserId && post.user_id === currentUserId;
+export function PostCard({ post, currentDeviceId, onPress, onUpvote, onDelete }: Props) {
+  const initial = (post.author_animal_name?.[0] ?? "?").toUpperCase();
+  const isOwner = !!currentDeviceId && post.device_id === currentDeviceId;
 
   return (
     <TouchableOpacity
@@ -97,7 +97,7 @@ export function PostCard({ post, currentUserId, onPress, onUpvote, onDelete }: P
             </Text>
           </View>
           <Text style={{ fontSize: 13, color: Colors.textSecondary, fontWeight: "500" }}>
-            {post.author_username}
+            {post.author_animal_name}
           </Text>
           {!!post.author_phase && (
             <View

@@ -19,19 +19,22 @@ export type Database = {
           comment_id: string
           created_at: string
           id: string
-          user_id: string
+          device_id: string
+          user_id: string | null
         }
         Insert: {
           comment_id: string
           created_at?: string
           id?: string
-          user_id: string
+          device_id: string
+          user_id?: string | null
         }
         Update: {
           comment_id?: string
           created_at?: string
           id?: string
-          user_id?: string
+          device_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -49,21 +52,33 @@ export type Database = {
           created_at: string
           id: string
           post_id: string
-          user_id: string
+          device_id: string
+          author_animal_name: string | null
+          author_phase: string | null
+          user_id: string | null
+          upvote_count: number
         }
         Insert: {
           body: string
           created_at?: string
           id?: string
           post_id: string
-          user_id: string
+          device_id: string
+          author_animal_name?: string | null
+          author_phase?: string | null
+          user_id?: string | null
+          upvote_count?: number
         }
         Update: {
           body?: string
           created_at?: string
           id?: string
           post_id?: string
-          user_id?: string
+          device_id?: string
+          author_animal_name?: string | null
+          author_phase?: string | null
+          user_id?: string | null
+          upvote_count?: number
         }
         Relationships: [
           {
@@ -83,7 +98,10 @@ export type Database = {
           post_type: string
           title: string
           upvote_count: number
-          user_id: string
+          device_id: string
+          author_animal_name: string | null
+          author_phase: string | null
+          user_id: string | null
         }
         Insert: {
           body: string
@@ -92,7 +110,10 @@ export type Database = {
           post_type: string
           title: string
           upvote_count?: number
-          user_id: string
+          device_id: string
+          author_animal_name?: string | null
+          author_phase?: string | null
+          user_id?: string | null
         }
         Update: {
           body?: string
@@ -101,7 +122,10 @@ export type Database = {
           post_type?: string
           title?: string
           upvote_count?: number
-          user_id?: string
+          device_id?: string
+          author_animal_name?: string | null
+          author_phase?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -110,19 +134,22 @@ export type Database = {
           created_at: string
           id: string
           post_id: string
-          user_id: string
+          device_id: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           post_id: string
-          user_id: string
+          device_id: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           post_id?: string
-          user_id?: string
+          device_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {

@@ -159,26 +159,26 @@ export type PostType = "question" | "milestone" | "life_hack" | "win";
 
 export interface CommunityPost {
   id: string;
-  user_id: string;
+  device_id: string;
   post_type: PostType;
   title: string;
   body: string;
   upvote_count: number;
   created_at: string;
-  author_username: string;   // joined from profiles
-  author_phase: string;      // computed from surgery_date
-  comment_count: number;     // joined count
-  has_upvoted: boolean;      // computed per current user
+  author_animal_name: string;  // stored on the post
+  author_phase: string;        // stored on the post
+  comment_count: number;       // joined count
+  has_upvoted: boolean;        // computed per current device
 }
 
 export interface CommunityComment {
   id: string;
   post_id: string;
-  user_id: string;
+  device_id: string;
   body: string;
   created_at: string;
-  author_username: string;   // joined from profiles
-  author_phase: string;      // computed from surgery_date
+  author_animal_name: string;  // stored on the comment
+  author_phase: string;        // stored on the comment
   upvote_count: number;
   has_upvoted: boolean;
 }

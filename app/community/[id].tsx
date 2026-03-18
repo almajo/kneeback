@@ -28,7 +28,7 @@ export default function PostDetailScreen() {
     comments,
     loading,
     submitting,
-    userId,
+    deviceId,
     addComment,
     deleteComment,
     editComment,
@@ -45,7 +45,7 @@ export default function PostDetailScreen() {
   const [editTitle, setEditTitle] = useState("");
   const [editBody, setEditBody] = useState("");
 
-  const isPostOwner = !!userId && !!post && post.user_id === userId;
+  const isPostOwner = !!deviceId && !!post && post.device_id === deviceId;
 
   async function handleSend() {
     const text = commentText.trim();
@@ -62,7 +62,7 @@ export default function PostDetailScreen() {
   function renderHeader() {
     if (!post) return null;
 
-    const initial = (post.author_username?.[0] ?? "?").toUpperCase();
+    const initial = (post.author_animal_name?.[0] ?? "?").toUpperCase();
 
     return (
       <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 }}>
@@ -175,7 +175,7 @@ export default function PostDetailScreen() {
               </Text>
             </View>
             <Text style={{ fontSize: 14, fontWeight: "600", color: Colors.textSecondary }}>
-              {post.author_username}
+              {post.author_animal_name}
             </Text>
             {!!post.author_phase && (
               <View
@@ -290,7 +290,7 @@ export default function PostDetailScreen() {
         renderItem={({ item }) => (
           <CommentItem
             comment={item}
-            currentUserId={userId}
+            currentDeviceId={deviceId ?? undefined}
             onUpvote={() => toggleCommentUpvote(item.id)}
             onDelete={() => deleteComment(item.id)}
             onEdit={(body) => editComment(item.id, body)}

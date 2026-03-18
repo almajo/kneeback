@@ -22,7 +22,7 @@ type Phase = (typeof PHASES)[number];
 
 export default function CommunityScreen() {
   const router = useRouter();
-  const { posts, loading, refreshing, hasMore, userId, createPost, deletePost, toggleUpvote, loadMore, refresh } =
+  const { posts, loading, refreshing, hasMore, deviceId, createPost, deletePost, toggleUpvote, loadMore, refresh } =
     useCommunity();
   const [showCreate, setShowCreate] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -202,7 +202,7 @@ export default function CommunityScreen() {
           renderItem={({ item }) => (
             <PostCard
               post={item}
-              currentUserId={userId}
+              currentDeviceId={deviceId ?? undefined}
               onPress={() => router.push(`/community/${item.id}`)}
               onUpvote={() => toggleUpvote(item.id)}
               onDelete={() => deletePost(item.id)}
