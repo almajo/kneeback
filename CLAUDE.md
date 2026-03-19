@@ -1,6 +1,6 @@
 # General Instructions
 
-- Prefer skills and CLI over MCP usage if it's double
+- Prefer skills and CLI over MCP usage if it's available
 - Use the appropriate skills when they fit the problem
 - Keep interviewing the user until the plan and idea is crystal clear
 - prefer working on branches over worktrees when simple use case
