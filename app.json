@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "kneeback-app",
-    "slug": "kneeback-app",
+    "slug": "kneeback",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -12,6 +12,8 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.kneebackapp.kneeback",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -46,6 +48,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "4fcfb90a-1a52-4894-8d93-48b294642e20"
+      }
+    },
+    "owner": "almajo123s-organization"
   }
 }
