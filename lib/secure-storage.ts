@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 
 const CHUNK_SIZE = 1800;
@@ -12,6 +13,11 @@ function countKey(key: string): string {
 
 export class LargeSecureStore {
   async setItem(key: string, value: string): Promise<void> {
+    if (Platform.OS === "web") {
+      localStorage.setItem(key, value);
+      return;
+    }
+
     const chunkCount = Math.ceil(value.length / CHUNK_SIZE);
 
     const storeChunks = Array.from({ length: chunkCount }, (_, i) => {
@@ -24,6 +30,10 @@ export class LargeSecureStore {
   }
 
   async getItem(key: string): Promise<string | null> {
+    if (Platform.OS === "web") {
+      return localStorage.getItem(key);
+    }
+
     const countStr = await SecureStore.getItemAsync(countKey(key));
     if (!countStr) return null;
 
@@ -42,6 +52,11 @@ export class LargeSecureStore {
   }
 
   async removeItem(key: string): Promise<void> {
+    if (Platform.OS === "web") {
+      localStorage.removeItem(key);
+      return;
+    }
+
     const countStr = await SecureStore.getItemAsync(countKey(key));
     if (!countStr) return;
 
