@@ -2,9 +2,9 @@
 
 ## Git
 
-- Change workflow to Feature branch > PR > Review using Copilot > Merge into Main
-- Add branch rules to protect main and the project. I have to accept a PR so it can be merged.
-- create preview-deployment on feature branches (vercel command without --prod)
+- [x] Change workflow to Feature branch > PR > Review using Copilot > Merge into Main
+- [x] Add branch rules to protect main and the project. I have to accept a PR so it can be merged.
+- [x] create preview-deployment on feature branches (vercel command without --prod)
 
 ## bugs
 
