@@ -8,14 +8,10 @@
 
 ## bugs
 
-- measuring in chrome on android does not work (calibration stay on "loading")
-- remove e2e test community posts that are currently in production
-
-
 ## new features
 
-- remove "quad activation in measuring" - logging and displaying
-- On sign up exercice plan creation (quick-setup), don't automatically add ALL exercices but handpick a good selection
+- remove "quad activation" in measuring as I dont find that too relevant
+- On sign up exercice plan creation (quick-setup), don't automatically add ALL exercices but handpick a good selection (8 exercices)
 - open to other knee injuries
 - Allow images in community posts (after minimizing them) -> show them like on reddit
 - Add Feedback field to Profile where Email is sent to me with feedback

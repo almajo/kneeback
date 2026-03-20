@@ -82,19 +82,38 @@ export function useImuMeasurement(): ImuMeasurementState {
     // the outer function is NOT async; async work is nested in a named function
     // so errors from awaited calls propagate to the resolve/reject correctly.
     return new Promise((resolve) => {
+      // Timeout so calibration never hangs indefinitely (e.g. when the
+      // sensor API is unavailable or returns no data on a given platform).
+      const CALIBRATION_TIMEOUT_MS = 6000;
+      let resolved = false;
+      const timeout = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          removeSubscription();
+          resolve("failed");
+        }
+      }, CALIBRATION_TIMEOUT_MS);
+
+      function resolveOnce(result: "success" | "failed") {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timeout);
+          removeSubscription();
+          resolve(result);
+        }
+      }
+
       function startListening() {
         let samplesCollected = 0;
         let sumX = 0;
         let sumY = 0;
         let sumZ = 0;
 
-        removeSubscription();
         Accelerometer.setUpdateInterval(UPDATE_INTERVAL_MS);
 
         subscriptionRef.current = Accelerometer.addListener(({ x, y, z }) => {
           if (!isValidSample(x, y, z)) {
-            removeSubscription();
-            resolve("failed");
+            resolveOnce("failed");
             return;
           }
           sumX += x;
@@ -107,30 +126,66 @@ export function useImuMeasurement(): ImuMeasurementState {
               y: sumY / samplesCollected,
               z: sumZ / samplesCollected,
             };
-            removeSubscription();
-            resolve("success");
+            resolveOnce("success");
           }
         });
       }
 
-      // iOS Safari requires a user-gesture-initiated permission call
-      const needsPermission =
-        Platform.OS === "web" &&
-        typeof DeviceMotionEvent !== "undefined" &&
-        // @ts-expect-error Safari-only API
-        typeof DeviceMotionEvent.requestPermission === "function";
+      async function requestPermissionAndListen() {
+        // iOS Safari requires a user-gesture-initiated permission call via
+        // the non-standard DeviceMotionEvent.requestPermission API.
+        const hasSafariPermissionApi =
+          typeof DeviceMotionEvent !== "undefined" &&
+          // @ts-expect-error Safari-only API
+          typeof DeviceMotionEvent.requestPermission === "function";
 
-      if (needsPermission) {
-        // @ts-expect-error Safari-only API
-        (DeviceMotionEvent.requestPermission() as Promise<string>)
-          .then((result) => {
+        if (hasSafariPermissionApi) {
+          try {
+            // @ts-expect-error Safari-only API
+            const result = await (DeviceMotionEvent.requestPermission() as Promise<string>);
             if (result === "granted") {
               startListening();
             } else {
-              resolve("failed");
+              resolveOnce("failed");
             }
-          })
-          .catch(() => resolve("failed"));
+          } catch {
+            resolveOnce("failed");
+          }
+          return;
+        }
+
+        // Chrome on Android exposes accelerometer permission via the
+        // Permissions API. Request it if available so that sensor events fire.
+        if (
+          typeof navigator !== "undefined" &&
+          navigator.permissions &&
+          typeof navigator.permissions.query === "function"
+        ) {
+          try {
+            const status = await navigator.permissions.query({
+              // @ts-expect-error "accelerometer" is a valid permission name per the
+              // Generic Sensor API spec but not yet in TS lib types
+              name: "accelerometer",
+            });
+            if (status.state === "denied") {
+              resolveOnce("failed");
+              return;
+            }
+            // "granted" or "prompt" — proceed; the browser will show its own
+            // prompt if needed when the sensor data starts arriving.
+          } catch {
+            // Permissions API query failed (unsupported permission name on
+            // this browser) — fall through and attempt to start listening anyway.
+          }
+        }
+
+        startListening();
+      }
+
+      removeSubscription();
+
+      if (Platform.OS === "web") {
+        requestPermissionAndListen().catch(() => resolveOnce("failed"));
       } else {
         startListening();
       }
