@@ -8,6 +8,8 @@
 
 ## bugs
 
+Update README to latest features of the repo
+
 ## new features
 
 - remove "quad activation" in measuring as I dont find that too relevant
