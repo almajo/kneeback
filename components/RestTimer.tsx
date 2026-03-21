@@ -12,15 +12,7 @@ export function RestTimer({ seconds, onTimerComplete }: Props) {
   const [remaining, setRemaining] = useState(seconds);
   const [running, setRunning] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Pre-warm speech synthesizer on mount to avoid initialization delay on first use
-  useEffect(() => {
-    try {
-      Speech.speak("", { rate: 1.2 });
-    } catch {
-      // Silently ignore errors - this is just a warm-up call
-    }
-  }, []);
+  const isFirstAnnounceRef = useRef(true);
 
   useEffect(() => {
     if (running && remaining > 0) {
@@ -33,7 +25,15 @@ export function RestTimer({ seconds, onTimerComplete }: Props) {
             return 0;
           }
           if (prev >= 2 && prev <= 4) {
-            Speech.speak(String(prev - 1), { rate: 1.2 });
+            // Queue speech asynchronously on first announce to avoid blocking
+            if (isFirstAnnounceRef.current) {
+              isFirstAnnounceRef.current = false;
+              queueMicrotask(() => {
+                Speech.speak(String(prev - 1), { rate: 1.2 });
+              });
+            } else {
+              Speech.speak(String(prev - 1), { rate: 1.2 });
+            }
           }
           return prev - 1;
         });
@@ -41,6 +41,7 @@ export function RestTimer({ seconds, onTimerComplete }: Props) {
     }
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      isFirstAnnounceRef.current = true;
     };
   }, [running, remaining, onTimerComplete]);
 
