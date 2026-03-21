@@ -25,6 +25,7 @@
       "permissions": ["!android.permission.ACTIVITY_RECOGNITION"]
     },
     "web": {
+      "bundler": "metro",
       "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
