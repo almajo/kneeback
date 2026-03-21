@@ -1,4 +1,6 @@
-import * as SQLite from "expo-sqlite";
+import { eq, and, gte, lte, asc, sql } from "drizzle-orm";
+import { db } from "../database-context";
+import { rom_measurements } from "../schema";
 
 export interface LocalRomMeasurement {
   id: string;
@@ -10,36 +12,38 @@ export interface LocalRomMeasurement {
   updated_at: string;
 }
 
-type RawRomMeasurement = Omit<LocalRomMeasurement, "quad_activation"> & {
-  quad_activation: number;
-};
-
-function parseRomMeasurement(raw: RawRomMeasurement): LocalRomMeasurement {
+function rowToLocalRomMeasurement(
+  row: typeof rom_measurements.$inferSelect
+): LocalRomMeasurement {
   return {
-    ...raw,
-    quad_activation: raw.quad_activation === 1,
+    id: row.id,
+    date: row.date,
+    flexion_degrees: row.flexion_degrees ?? null,
+    extension_degrees: row.extension_degrees ?? null,
+    quad_activation: row.quad_activation === 1,
+    created_at: row.created_at ?? "",
+    updated_at: row.updated_at ?? "",
   };
 }
 
-export function getAllRomMeasurements(
-  db: SQLite.SQLiteDatabase
-): LocalRomMeasurement[] {
-  const rows = db.getAllSync<RawRomMeasurement>(
-    "SELECT * FROM rom_measurements ORDER BY date ASC"
-  );
-  return rows.map(parseRomMeasurement);
+export async function getAllRomMeasurements(): Promise<LocalRomMeasurement[]> {
+  const rows = await db
+    .select()
+    .from(rom_measurements)
+    .orderBy(asc(rom_measurements.date));
+  return rows.map(rowToLocalRomMeasurement);
 }
 
-export function getRomMeasurementsByDateRange(
-  db: SQLite.SQLiteDatabase,
+export async function getRomMeasurementsByDateRange(
   startDate: string,
   endDate: string
-): LocalRomMeasurement[] {
-  const rows = db.getAllSync<RawRomMeasurement>(
-    "SELECT * FROM rom_measurements WHERE date >= ? AND date <= ? ORDER BY date ASC",
-    [startDate, endDate]
-  );
-  return rows.map(parseRomMeasurement);
+): Promise<LocalRomMeasurement[]> {
+  const rows = await db
+    .select()
+    .from(rom_measurements)
+    .where(and(gte(rom_measurements.date, startDate), lte(rom_measurements.date, endDate)))
+    .orderBy(asc(rom_measurements.date));
+  return rows.map(rowToLocalRomMeasurement);
 }
 
 export type CreateRomMeasurementData = Omit<
@@ -47,31 +51,25 @@ export type CreateRomMeasurementData = Omit<
   "created_at" | "updated_at"
 >;
 
-export function createRomMeasurement(
-  db: SQLite.SQLiteDatabase,
+export async function createRomMeasurement(
   data: CreateRomMeasurementData
-): LocalRomMeasurement {
-  db.runSync(
-    `INSERT INTO rom_measurements
-      (id, date, flexion_degrees, extension_degrees, quad_activation)
-     VALUES (?, ?, ?, ?, ?)`,
-    [
-      data.id,
-      data.date,
-      data.flexion_degrees ?? null,
-      data.extension_degrees ?? null,
-      data.quad_activation ? 1 : 0,
-    ]
-  );
+): Promise<LocalRomMeasurement> {
+  await db.insert(rom_measurements).values({
+    id: data.id,
+    date: data.date,
+    flexion_degrees: data.flexion_degrees ?? null,
+    extension_degrees: data.extension_degrees ?? null,
+    quad_activation: data.quad_activation ? 1 : 0,
+  });
 
-  const created = db.getFirstSync<RawRomMeasurement>(
-    "SELECT * FROM rom_measurements WHERE id = ?",
-    [data.id]
-  );
+  const rows = await db
+    .select()
+    .from(rom_measurements)
+    .where(eq(rom_measurements.id, data.id));
 
-  if (!created) {
+  if (rows.length === 0) {
     throw new Error("Failed to create ROM measurement");
   }
 
-  return parseRomMeasurement(created);
+  return rowToLocalRomMeasurement(rows[0]);
 }

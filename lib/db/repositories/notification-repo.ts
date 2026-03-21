@@ -1,4 +1,6 @@
-import * as SQLite from "expo-sqlite";
+import { eq, sql } from "drizzle-orm";
+import { db } from "../database-context";
+import { notification_preferences } from "../schema";
 import { generateId } from "../../utils/uuid";
 
 export interface LocalNotificationPreferences {
@@ -11,111 +13,80 @@ export interface LocalNotificationPreferences {
   updated_at: string;
 }
 
-type RawNotificationPreferences = Omit<
-  LocalNotificationPreferences,
-  "evening_nudge_enabled" | "completion_congrats_enabled"
-> & {
-  evening_nudge_enabled: number;
-  completion_congrats_enabled: number;
-};
-
-function parsePreferences(
-  raw: RawNotificationPreferences
+function rowToLocalNotificationPreferences(
+  row: typeof notification_preferences.$inferSelect
 ): LocalNotificationPreferences {
   return {
-    ...raw,
-    evening_nudge_enabled: raw.evening_nudge_enabled === 1,
-    completion_congrats_enabled: raw.completion_congrats_enabled === 1,
+    id: row.id,
+    daily_reminder_time: row.daily_reminder_time,
+    evening_nudge_enabled: row.evening_nudge_enabled === 1,
+    evening_nudge_time: row.evening_nudge_time,
+    completion_congrats_enabled: row.completion_congrats_enabled === 1,
+    created_at: row.created_at ?? "",
+    updated_at: row.updated_at ?? "",
   };
 }
 
-export function getNotificationPreferences(
-  db: SQLite.SQLiteDatabase
-): LocalNotificationPreferences | null {
-  const raw = db.getFirstSync<RawNotificationPreferences>(
-    "SELECT * FROM notification_preferences LIMIT 1"
-  );
-  if (!raw) return null;
-  return parsePreferences(raw);
+export async function getNotificationPreferences(): Promise<LocalNotificationPreferences | null> {
+  const rows = await db.select().from(notification_preferences).limit(1);
+  if (rows.length === 0) return null;
+  return rowToLocalNotificationPreferences(rows[0]);
 }
 
 export type NotificationPreferencesData = Partial<
   Omit<LocalNotificationPreferences, "id" | "created_at" | "updated_at">
 >;
 
-export function createOrUpdateNotificationPreferences(
-  db: SQLite.SQLiteDatabase,
+export async function createOrUpdateNotificationPreferences(
   data: NotificationPreferencesData
-): LocalNotificationPreferences {
-  const existing = db.getFirstSync<RawNotificationPreferences>(
-    "SELECT * FROM notification_preferences LIMIT 1"
-  );
+): Promise<LocalNotificationPreferences> {
+  const existing = await db.select().from(notification_preferences).limit(1);
 
-  if (existing) {
-    const fields: string[] = [];
-    const values: (string | number)[] = [];
+  if (existing.length > 0) {
+    const updates: Partial<typeof notification_preferences.$inferInsert> = {};
 
-    if (data.daily_reminder_time !== undefined) {
-      fields.push("daily_reminder_time = ?");
-      values.push(data.daily_reminder_time);
-    }
-    if (data.evening_nudge_enabled !== undefined) {
-      fields.push("evening_nudge_enabled = ?");
-      values.push(data.evening_nudge_enabled ? 1 : 0);
-    }
-    if (data.evening_nudge_time !== undefined) {
-      fields.push("evening_nudge_time = ?");
-      values.push(data.evening_nudge_time);
-    }
-    if (data.completion_congrats_enabled !== undefined) {
-      fields.push("completion_congrats_enabled = ?");
-      values.push(data.completion_congrats_enabled ? 1 : 0);
+    if (data.daily_reminder_time !== undefined) updates.daily_reminder_time = data.daily_reminder_time;
+    if (data.evening_nudge_enabled !== undefined) updates.evening_nudge_enabled = data.evening_nudge_enabled ? 1 : 0;
+    if (data.evening_nudge_time !== undefined) updates.evening_nudge_time = data.evening_nudge_time;
+    if (data.completion_congrats_enabled !== undefined) updates.completion_congrats_enabled = data.completion_congrats_enabled ? 1 : 0;
+
+    if (Object.keys(updates).length > 0) {
+      updates.updated_at = sql`(datetime('now'))` as unknown as string;
+      await db
+        .update(notification_preferences)
+        .set(updates)
+        .where(eq(notification_preferences.id, existing[0].id));
     }
 
-    if (fields.length > 0) {
-      fields.push("updated_at = datetime('now')");
-      values.push(existing.id);
-      db.runSync(
-        `UPDATE notification_preferences SET ${fields.join(", ")} WHERE id = ?`,
-        values
-      );
-    }
+    const updated = await db
+      .select()
+      .from(notification_preferences)
+      .where(eq(notification_preferences.id, existing[0].id));
 
-    const updated = db.getFirstSync<RawNotificationPreferences>(
-      "SELECT * FROM notification_preferences WHERE id = ?",
-      [existing.id]
-    );
-
-    if (!updated) {
+    if (updated.length === 0) {
       throw new Error("Failed to update notification preferences");
     }
 
-    return parsePreferences(updated);
+    return rowToLocalNotificationPreferences(updated[0]);
   }
 
   const id = generateId();
-  db.runSync(
-    `INSERT INTO notification_preferences
-      (id, daily_reminder_time, evening_nudge_enabled, evening_nudge_time,
-       completion_congrats_enabled)
-     VALUES (?, ?, ?, ?, ?)`,
-    [
-      id,
-      data.daily_reminder_time ?? "08:00",
-      data.evening_nudge_enabled ? 1 : 0,
-      data.evening_nudge_time ?? "20:00",
-      data.completion_congrats_enabled !== false ? 1 : 0,
-    ]
-  );
+  await db.insert(notification_preferences).values({
+    id,
+    daily_reminder_time: data.daily_reminder_time ?? "08:00",
+    evening_nudge_enabled: data.evening_nudge_enabled ? 1 : 0,
+    evening_nudge_time: data.evening_nudge_time ?? "20:00",
+    completion_congrats_enabled: data.completion_congrats_enabled !== false ? 1 : 0,
+  });
 
-  const created = db.getFirstSync<RawNotificationPreferences>(
-    "SELECT * FROM notification_preferences WHERE id = ?",
-    [id]
-  );
+  const created = await db
+    .select()
+    .from(notification_preferences)
+    .where(eq(notification_preferences.id, id));
 
-  if (!created) {
+  if (created.length === 0) {
     throw new Error("Failed to create notification preferences");
   }
 
-  return parsePreferences(created);
+  return rowToLocalNotificationPreferences(created[0]);
 }
