@@ -28,7 +28,8 @@ CREATE TABLE `__new_daily_logs` (
 INSERT INTO `__new_daily_logs`("id", "date", "is_rest_day", "notes", "created_at", "updated_at") SELECT "id", "date", "is_rest_day", "notes", "created_at", "updated_at" FROM `daily_logs`;--> statement-breakpoint
 DROP TABLE `daily_logs`;--> statement-breakpoint
 ALTER TABLE `__new_daily_logs` RENAME TO `daily_logs`;--> statement-breakpoint
-CREATE UNIQUE INDEX `daily_logs_date_unique` ON `daily_logs` (`date`);--> statement-breakpoint
+CREATE UNIQUE INDEX `daily_logs_date_unique` ON `daily_logs` (`date`);
+--> statement-breakpoint
 CREATE TABLE `__new_exercise_logs` (
 	`id` text PRIMARY KEY NOT NULL,
 	`daily_log_id` text NOT NULL,
@@ -45,7 +46,8 @@ CREATE TABLE `__new_exercise_logs` (
 INSERT INTO `__new_exercise_logs`("id", "daily_log_id", "user_exercise_id", "completed", "actual_sets", "actual_reps", "created_at", "updated_at") SELECT "id", "daily_log_id", "user_exercise_id", "completed", "actual_sets", "actual_reps", "created_at", "updated_at" FROM `exercise_logs`;--> statement-breakpoint
 DROP TABLE `exercise_logs`;--> statement-breakpoint
 ALTER TABLE `__new_exercise_logs` RENAME TO `exercise_logs`;--> statement-breakpoint
-CREATE UNIQUE INDEX `exercise_logs_daily_log_user_exercise_idx` ON `exercise_logs` (`daily_log_id`,`user_exercise_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `exercise_logs_daily_log_user_exercise_idx` ON `exercise_logs` (`daily_log_id`,`user_exercise_id`);
+--> statement-breakpoint
 CREATE TABLE `__new_exercises` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,

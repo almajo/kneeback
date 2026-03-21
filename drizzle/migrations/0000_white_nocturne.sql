@@ -20,7 +20,8 @@ CREATE TABLE `daily_logs` (
 	`updated_at` text DEFAULT '(datetime(''now''))'
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `daily_logs_date_unique` ON `daily_logs` (`date`);--> statement-breakpoint
+CREATE UNIQUE INDEX `daily_logs_date_unique` ON `daily_logs` (`date`);
+--> statement-breakpoint
 CREATE TABLE `exercise_logs` (
 	`id` text PRIMARY KEY NOT NULL,
 	`daily_log_id` text NOT NULL,
