@@ -30,8 +30,10 @@ import type { GraftType } from "../../lib/types";
 import { PrivacyPolicyModal } from "../../components/PrivacyPolicyModal";
 import { AuthModal } from "../../components/AuthModal";
 import { DeleteAccountModal } from "../../components/DeleteAccountModal";
-import { pushAll, deltaSync, deleteRemoteUserData } from "../../lib/db/sync/sync-engine";
+import { pushAll, pullAll, deltaSync, deleteRemoteUserData } from "../../lib/db/sync/sync-engine";
 import { purgeAllUserData } from "../../lib/db/purge-user-data";
+import { DataConflictModal } from "../../components/DataConflictModal";
+import { supabase } from "../../lib/supabase";
 
 const GRAFT_TYPE_OPTIONS: { value: GraftType; label: string }[] = [
   { value: "patellar", label: "Patellar Tendon" },
@@ -72,6 +74,9 @@ export default function ProfileScreen() {
   const [authModalVisible, setAuthModalVisible] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [conflictModalVisible, setConflictModalVisible] = useState(false);
+  const [conflictUserId, setConflictUserId] = useState<string | null>(null);
+  const [conflictLoading, setConflictLoading] = useState(false);
 
   useEffect(() => {
     const prof = getProfile(db);
@@ -202,22 +207,76 @@ export default function ProfileScreen() {
   }
 
   async function handleAuthSuccess(userId: string) {
-    const push = await pushAll(db, userId);
-    if (push.error) {
-      // Push failed — keep modal open to show error
-      // AuthModal will surface this via onSuccess not being called cleanly;
-      // we close the modal only on full success below
-      setAuthModalVisible(false);
-      setSyncError(`Signed in but sync failed: ${push.error}`);
+    setAuthModalVisible(false);
+
+    const localProfile = getProfile(db);
+    const hasLocalData = !!(localProfile?.surgery_date || localProfile?.graft_type);
+
+    // Check whether this account already has cloud data
+    const { data: cloudProfile } = await supabase
+      .from("profiles" as never)
+      .select("user_id")
+      .eq("user_id", userId)
+      .maybeSingle() as { data: { user_id: string } | null };
+    const hasCloudData = !!cloudProfile;
+
+    if (hasLocalData && hasCloudData) {
+      // Both sides have data — let the user choose
+      setConflictUserId(userId);
+      setConflictModalVisible(true);
       return;
     }
+
+    // No conflict: push local data up, or pull cloud data down
+    if (hasLocalData) {
+      const push = await pushAll(db, userId);
+      if (push.error) {
+        setSyncError(`Signed in but sync failed: ${push.error}`);
+        return;
+      }
+    } else {
+      const pull = await pullAll(db, userId);
+      if (pull.error) {
+        setSyncError(`Signed in but sync failed: ${pull.error}`);
+        return;
+      }
+    }
+
     const now = new Date().toISOString();
-    const updated = updateProfile(db, {
-      supabase_user_id: userId,
-      last_synced_at: now,
-    });
+    const updated = updateProfile(db, { supabase_user_id: userId, last_synced_at: now });
     setProfile(updated);
-    setAuthModalVisible(false);
+  }
+
+  async function handleUseCloudData() {
+    if (!conflictUserId) return;
+    setConflictLoading(true);
+    const pull = await pullAll(db, conflictUserId);
+    if (pull.error) {
+      setSyncError(`Sync failed: ${pull.error}`);
+    } else {
+      const now = new Date().toISOString();
+      const updated = updateProfile(db, { supabase_user_id: conflictUserId, last_synced_at: now });
+      setProfile(updated);
+    }
+    setConflictLoading(false);
+    setConflictModalVisible(false);
+    setConflictUserId(null);
+  }
+
+  async function handleKeepLocalData() {
+    if (!conflictUserId) return;
+    setConflictLoading(true);
+    const push = await pushAll(db, conflictUserId);
+    if (push.error) {
+      setSyncError(`Sync failed: ${push.error}`);
+    } else {
+      const now = new Date().toISOString();
+      const updated = updateProfile(db, { supabase_user_id: conflictUserId, last_synced_at: now });
+      setProfile(updated);
+    }
+    setConflictLoading(false);
+    setConflictModalVisible(false);
+    setConflictUserId(null);
   }
 
   async function handleSyncNow() {
@@ -686,6 +745,13 @@ export default function ProfileScreen() {
         onConfirm={session ? confirmDeleteAccount : confirmResetApp}
         deleting={deleting}
         mode={session ? "delete" : "reset"}
+      />
+
+      <DataConflictModal
+        visible={conflictModalVisible}
+        onUseCloud={handleUseCloudData}
+        onKeepLocal={handleKeepLocalData}
+        loading={conflictLoading}
       />
     </ScrollView>
   );
