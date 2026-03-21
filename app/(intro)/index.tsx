@@ -139,6 +139,11 @@ export default function IntroScreen() {
     router.replace("/(auth)/sign-up");
   }, [router]);
 
+  const handleContinueWithoutAccount = useCallback(async () => {
+    await completeIntro();
+    router.replace("/(onboarding)/surgery-details");
+  }, [router]);
+
   const isLast = currentIndex === SLIDES.length - 1;
 
   return (
@@ -192,14 +197,14 @@ export default function IntroScreen() {
       <View style={styles.buttonContainer}>
         {isLast ? (
           <>
-            <TouchableOpacity style={styles.primaryButton} onPress={handleSignIn}>
-              <Text style={styles.primaryButtonText}>Sign In</Text>
+            <TouchableOpacity style={styles.primaryButton} onPress={handleCreateAccount}>
+              <Text style={styles.primaryButtonText}>Create Account</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={handleCreateAccount}
-            >
-              <Text style={styles.secondaryButtonText}>Create Account</Text>
+            <TouchableOpacity style={styles.secondaryButton} onPress={handleSignIn}>
+              <Text style={styles.secondaryButtonText}>Sign In</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleContinueWithoutAccount} style={styles.skipButton}>
+              <Text style={styles.skipButtonText}>Continue without account</Text>
             </TouchableOpacity>
           </>
         ) : (
@@ -288,5 +293,13 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "700",
+  },
+  skipButton: {
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  skipButtonText: {
+    color: "#A0A0A0",
+    fontSize: 14,
   },
 });
