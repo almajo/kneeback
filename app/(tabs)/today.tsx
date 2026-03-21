@@ -48,6 +48,8 @@ export default function TodayScreen() {
   const [showPhaseOverview, setShowPhaseOverview] = useState(false);
   const { todayMilestones, refetch: refetchMilestones } = useMilestones();
 
+  useFocusEffect(useCallback(() => { refetch(); }, [refetch]));
+
   useEffect(() => {
     setExerciseLogs(initialExerciseLogs);
   }, [initialExerciseLogs]);
