@@ -1,6 +1,11 @@
 # Open Todos
 
+## bugs
+
+- the ROM measurment mit sensors is not working. The leg is obviously moving together (thigh and lower leg) to form an angle. I can get a 90 degree bend with a 0 degree shin movement by simply pulling my thigh to 90 degrees. That needs a re-work
+
 ## new features
+
 
 ### next
 

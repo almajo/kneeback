@@ -6,7 +6,6 @@ import {
   Pressable,
   TextInput,
   TouchableOpacity,
-  Switch,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
@@ -52,7 +51,6 @@ export function LogRomSheet({ visible, onClose, onSave, editingEntry, lastMeasur
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [flexion, setFlexion] = useState("");
   const [extension, setExtension] = useState("");
-  const [quadActivation, setQuadActivation] = useState(false);
   const [saving, setSaving] = useState(false);
   const [wizardVisible, setWizardVisible] = useState(false);
   const { isAvailable } = useImuMeasurement();
@@ -64,14 +62,12 @@ export function LogRomSheet({ visible, onClose, onSave, editingEntry, lastMeasur
       setDateObj(new Date(year, month - 1, day));
       setFlexion(editingEntry.flexion_degrees?.toString() ?? "");
       setExtension(editingEntry.extension_degrees?.toString() ?? "");
-      setQuadActivation(editingEntry.quad_activation);
     } else {
       const now = new Date();
       setDate(toDateString(now));
       setDateObj(now);
       setFlexion("");
       setExtension("");
-      setQuadActivation(false);
     }
   }, [editingEntry, visible]);
 
@@ -86,7 +82,7 @@ export function LogRomSheet({ visible, onClose, onSave, editingEntry, lastMeasur
       date,
       flexion_degrees: flexion ? parseInt(flexion, 10) : null,
       extension_degrees: extension ? parseInt(extension, 10) : null,
-      quad_activation: quadActivation,
+      quad_activation: false,
     });
     setSaving(false);
     onClose();
@@ -239,16 +235,6 @@ export function LogRomSheet({ visible, onClose, onSave, editingEntry, lastMeasur
                 keyboardType="numeric"
               />
             </View>
-          </View>
-
-          {/* Quad activation */}
-          <View className="flex-row items-center justify-between mb-6 bg-surface border border-border rounded-2xl px-4 py-3">
-            <Text className="text-base font-medium" style={{ color: Colors.text }}>Quad fired today?</Text>
-            <Switch
-              value={quadActivation}
-              onValueChange={setQuadActivation}
-              trackColor={{ true: Colors.success }}
-            />
           </View>
 
           {/* Buttons */}

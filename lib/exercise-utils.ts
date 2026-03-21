@@ -92,5 +92,5 @@ export function getQuickSetupExercises(
   const visible = filterExercisesBySurgeryStatus(exercises, surgeryStatus);
   const grouped = groupExercisesByDisplayPhase(visible, surgeryStatus);
   const phaseExercises = grouped.get(currentPhase) ?? [];
-  return getPrimaryExercises(phaseExercises);
+  return getPrimaryExercises(phaseExercises).slice(0, 8);
 }
