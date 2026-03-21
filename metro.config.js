@@ -11,4 +11,8 @@ config.resolver.sourceExts = config.resolver.sourceExts.filter(
   (ext) => ext !== "wasm"
 );
 
+// drizzle-orm/expo-sqlite migrations.js imports .sql files directly.
+// Add sql to sourceExts so Metro bundles them as modules (returns the SQL string).
+config.resolver.sourceExts.push("sql");
+
 module.exports = withNativeWind(config, { input: "./global.css" });

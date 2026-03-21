@@ -1,32 +1,36 @@
 import React from "react";
-import { SQLiteProvider, useSQLiteContext } from "expo-sqlite";
-import { initializeDatabase } from "./sqlite";
-import { seedDatabase } from "./seed-data";
+import { drizzle } from "drizzle-orm/expo-sqlite";
+import { openDatabaseSync } from "expo-sqlite";
+import { useMigrations } from "drizzle-orm/expo-sqlite";
+import * as schema from "./schema";
+import migrations from "../../drizzle/migrations/migrations";
 
 const DATABASE_NAME = "kneeback.db";
 
-async function onDatabaseInit(db: ReturnType<typeof useSQLiteContext>): Promise<void> {
-  try {
-    initializeDatabase(db);
-    seedDatabase(db);
-  } catch (error) {
-    console.error('[DatabaseProvider] Failed to initialize database:', error);
-    throw error; // Re-throw so SQLiteProvider surfaces it to error boundary
-  }
-}
+const expo = openDatabaseSync(DATABASE_NAME, { enableChangeListener: true });
+export const db = drizzle(expo, { schema });
 
 interface DatabaseProviderProps {
   children: React.ReactNode;
 }
 
 export function DatabaseProvider({ children }: DatabaseProviderProps) {
-  return (
-    <SQLiteProvider databaseName={DATABASE_NAME} onInit={onDatabaseInit}>
-      {children}
-    </SQLiteProvider>
-  );
+  const { success, error } = useMigrations(db, migrations);
+
+  if (error) {
+    throw error; // Let error boundary handle it
+  }
+
+  if (!success) {
+    return null; // Migrations still running
+  }
+
+  return <>{children}</>;
 }
 
+// Export type for use in repositories
+export type DrizzleDb = typeof db;
+
 export function useDatabase() {
-  return useSQLiteContext();
+  return db;
 }
