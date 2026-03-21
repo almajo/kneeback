@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { View, Text, TouchableOpacity, Switch, Alert, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
-import { useSQLiteContext } from "expo-sqlite";
 import { useOnboarding } from "../../lib/onboarding-context";
 import { createProfile } from "../../lib/db/repositories/profile-repo";
 import { createUserExercise } from "../../lib/db/repositories/user-exercise-repo";
@@ -19,7 +18,6 @@ function pad(n: number) {
 
 export default function SetReminder() {
   const router = useRouter();
-  const db = useSQLiteContext();
   const { data } = useOnboarding();
   const [hour, setHour] = useState(data.reminderHour);
   const [minute, setMinute] = useState(data.reminderMinute);
@@ -33,7 +31,7 @@ export default function SetReminder() {
       const deviceId = await getDeviceId();
 
       // Create local profile (single row)
-      createProfile(db, {
+      await createProfile({
         id: generateId(),
         name: data.name,
         username: data.username,
@@ -46,8 +44,9 @@ export default function SetReminder() {
       });
 
       // Create user exercises
-      data.selectedExercises.forEach((ex, i) => {
-        createUserExercise(db, {
+      for (let i = 0; i < data.selectedExercises.length; i++) {
+        const ex = data.selectedExercises[i];
+        await createUserExercise({
           id: generateId(),
           exercise_id: ex.exerciseId,
           sets: ex.sets,
@@ -55,10 +54,10 @@ export default function SetReminder() {
           hold_seconds: ex.hold_seconds,
           sort_order: i,
         });
-      });
+      }
 
       // Create notification preferences
-      createOrUpdateNotificationPreferences(db, {
+      await createOrUpdateNotificationPreferences({
         daily_reminder_time: `${pad(hour)}:${pad(minute)}`,
         evening_nudge_enabled: eveningNudge,
         evening_nudge_time: "20:00",

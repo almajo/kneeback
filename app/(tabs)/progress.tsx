@@ -8,7 +8,6 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useSQLiteContext } from "expo-sqlite";
 import { Colors } from "../../constants/colors";
 import { RomDualChart } from "../../components/RomDualChart";
 import { QuadStreak } from "../../components/QuadStreak";
@@ -40,7 +39,6 @@ function getLast30Dates(): string[] {
 }
 
 export default function ProgressScreen() {
-  const db = useSQLiteContext();
   const [loading, setLoading] = useState(true);
   const [romSheetOpen, setRomSheetOpen] = useState(false);
   const { milestones, addMilestone, deleteMilestone } = useMilestones();
@@ -70,8 +68,8 @@ export default function ProgressScreen() {
     latestFlexion
   );
 
-  const loadMeasurements = useCallback(() => {
-    const romRows = getAllRomMeasurements(db);
+  const loadMeasurements = useCallback(async () => {
+    const romRows = await getAllRomMeasurements();
     setMeasurements(romRows.slice().reverse());
     setRomData(
       romRows.map((r) => ({
@@ -83,20 +81,23 @@ export default function ProgressScreen() {
     setActivationDays(
       new Set(romRows.filter((r) => r.quad_activation).map((r) => r.date))
     );
-  }, [db]);
+  }, []);
 
   useEffect(() => {
-    const profile = getProfile(db);
-    if (profile?.surgery_date) {
-      setSurgeryDate(profile.surgery_date);
-      const diff = Math.floor(
-        (Date.now() - new Date(profile.surgery_date).getTime()) / 86_400_000
-      );
-      setSurgeryStatus(diff >= 0 ? "post_surgery" : "pre_surgery");
+    async function loadData() {
+      const profile = await getProfile();
+      if (profile?.surgery_date) {
+        setSurgeryDate(profile.surgery_date);
+        const diff = Math.floor(
+          (Date.now() - new Date(profile.surgery_date).getTime()) / 86_400_000
+        );
+        setSurgeryStatus(diff >= 0 ? "post_surgery" : "pre_surgery");
+      }
+      await loadMeasurements();
+      setLoading(false);
     }
-    loadMeasurements();
-    setLoading(false);
-  }, [db, loadMeasurements]);
+    loadData();
+  }, [loadMeasurements]);
 
   async function handleSaveRom(payload: {
     date: string;
@@ -105,11 +106,11 @@ export default function ProgressScreen() {
     quad_activation: boolean;
   }): Promise<void> {
     try {
-      createRomMeasurement(db, {
+      await createRomMeasurement({
         id: generateId(),
         ...payload,
       });
-      loadMeasurements();
+      await loadMeasurements();
     } catch (err) {
       Alert.alert("Error", err instanceof Error ? err.message : "Failed to save measurement");
     }
@@ -130,7 +131,7 @@ export default function ProgressScreen() {
 
   async function handleShareWin(message: string) {
     if (!pendingShareWin) return;
-    const profile = getProfile(db);
+    const profile = await getProfile();
     const identity = await getCommunityIdentity(profile);
     const { error } = await submitCommunityPost(identity, {
       post_type: "win",

@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { useSQLiteContext } from "expo-sqlite";
 import { GATE_DEFINITIONS } from "../phase-gates";
 import {
   getAllGateCriteria,
@@ -91,15 +90,13 @@ export function usePhaseGate(
   surgeryStatus: SurgeryStatus,
   latestFlexion: number | null
 ) {
-  const db = useSQLiteContext();
-
   const [confirmedRows, setConfirmedRows] = useState<LocalUserGateCriterion[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchCriteria = useCallback(() => {
+  const fetchCriteria = useCallback(async () => {
     setLoading(true);
     try {
-      const rows = getAllGateCriteria(db);
+      const rows = await getAllGateCriteria();
       setConfirmedRows(rows);
     } catch (err) {
       console.error("[usePhaseGate] Failed to fetch user_gate_criteria:", err);
@@ -107,7 +104,7 @@ export function usePhaseGate(
     } finally {
       setLoading(false);
     }
-  }, [db]);
+  }, []);
 
   useEffect(() => {
     fetchCriteria();
@@ -126,18 +123,20 @@ export function usePhaseGate(
       const compositeKey = `${gateKey}:${criterionKey}`;
       const isCurrentlyConfirmed = confirmedCriteria.has(compositeKey);
 
-      try {
-        if (isCurrentlyConfirmed) {
-          removeGateCriterion(db, gateKey, criterionKey);
-        } else {
-          confirmGateCriterion(db, gateKey, criterionKey);
+      (async () => {
+        try {
+          if (isCurrentlyConfirmed) {
+            await removeGateCriterion(gateKey, criterionKey);
+          } else {
+            await confirmGateCriterion(gateKey, criterionKey);
+          }
+          fetchCriteria();
+        } catch (err) {
+          console.error("[usePhaseGate] Unexpected error in toggleCriterion:", err);
         }
-        fetchCriteria();
-      } catch (err) {
-        console.error("[usePhaseGate] Unexpected error in toggleCriterion:", err);
-      }
+      })();
     },
-    [db, confirmedCriteria, fetchCriteria]
+    [confirmedCriteria, fetchCriteria]
   );
 
   return {

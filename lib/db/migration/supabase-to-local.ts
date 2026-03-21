@@ -25,7 +25,7 @@ export async function migrateSupabaseToLocal(
   } = await supabase.auth.getSession();
   if (!session) return { error: null };
 
-  const existing = getProfile(db);
+  const existing = await getProfile();
   if (existing) {
     await AsyncStorage.setItem(MIGRATION_KEY, "true");
     return { error: null };
@@ -45,7 +45,7 @@ export async function migrateSupabaseToLocal(
   const deviceId = await getDeviceId();
 
   try {
-    createProfile(db, {
+    await createProfile({
       id: generateId(),
       name: remoteProfile.name ?? remoteProfile.username ?? "",
       username: remoteProfile.username ?? remoteProfile.name ?? "user",

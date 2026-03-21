@@ -12,7 +12,6 @@ import {
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useSQLiteContext } from "expo-sqlite";
 import { useAuth } from "../../lib/auth-context";
 import { registerForPushNotifications, scheduleDailyReminder } from "../../lib/notifications";
 import { Colors } from "../../constants/colors";
@@ -34,6 +33,7 @@ import { pushAll, pullAll, deltaSync, deleteRemoteUserData } from "../../lib/db/
 import { purgeAllUserData } from "../../lib/db/purge-user-data";
 import { DataConflictModal } from "../../components/DataConflictModal";
 import { supabase } from "../../lib/supabase";
+import { db as drizzleDb } from "../../lib/db/database-context";
 
 const GRAFT_TYPE_OPTIONS: { value: GraftType; label: string }[] = [
   { value: "patellar", label: "Patellar Tendon" },
@@ -48,7 +48,6 @@ function pad(n: number) {
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const db = useSQLiteContext();
   const { session, signOut } = useAuth();
   const [profile, setProfile] = useState<LocalProfile | null>(null);
   const [notifPrefs, setNotifPrefs] = useState<LocalNotificationPreferences | null>(null);
@@ -79,42 +78,45 @@ export default function ProfileScreen() {
   const [conflictLoading, setConflictLoading] = useState(false);
 
   useEffect(() => {
-    const prof = getProfile(db);
-    setProfile(prof);
-    const prefs = getNotificationPreferences(db);
-    setNotifPrefs(prefs);
-    if (prefs?.daily_reminder_time) {
-      const [h, m] = prefs.daily_reminder_time.split(":").map(Number);
-      setReminderHour(h);
-      setReminderMinute(m);
-      const d = new Date();
-      d.setHours(h, m, 0, 0);
-      setReminderDate(d);
-      // Schedule push notification if we have a push token
-      if (prof?.device_id) {
-        registerForPushNotifications(prof.device_id).then(() =>
-          scheduleDailyReminder(h, m)
-        );
+    async function loadData() {
+      const prof = await getProfile();
+      setProfile(prof);
+      const prefs = await getNotificationPreferences();
+      setNotifPrefs(prefs);
+      if (prefs?.daily_reminder_time) {
+        const [h, m] = prefs.daily_reminder_time.split(":").map(Number);
+        setReminderHour(h);
+        setReminderMinute(m);
+        const d = new Date();
+        d.setHours(h, m, 0, 0);
+        setReminderDate(d);
+        // Schedule push notification if we have a push token
+        if (prof?.device_id) {
+          registerForPushNotifications(prof.device_id).then(() =>
+            scheduleDailyReminder(h, m)
+          );
+        }
       }
+      setLoading(false);
     }
-    setLoading(false);
-  }, [db]);
+    loadData();
+  }, []);
 
-  function toggleEveningNudge(value: boolean) {
+  async function toggleEveningNudge(value: boolean) {
     if (!notifPrefs) return;
     setSavingNotif(true);
-    const updated = createOrUpdateNotificationPreferences(db, {
+    const updated = await createOrUpdateNotificationPreferences({
       evening_nudge_enabled: value,
     });
     setNotifPrefs(updated);
     setSavingNotif(false);
   }
 
-  function saveReminderTime(h = reminderHour, m = reminderMinute) {
+  async function saveReminderTime(h = reminderHour, m = reminderMinute) {
     if (!notifPrefs) return;
     setSavingNotif(true);
     const timeStr = `${pad(h)}:${pad(m)}`;
-    const updated = createOrUpdateNotificationPreferences(db, {
+    const updated = await createOrUpdateNotificationPreferences({
       daily_reminder_time: timeStr,
     });
     setNotifPrefs(updated);
@@ -124,9 +126,9 @@ export default function ProfileScreen() {
   }
 
   async function handleExportData() {
-    const milestones = getAllMilestones(db);
-    const roms = getAllRomMeasurements(db);
-    const achievements = getUnlockedAchievements(db);
+    const milestones = await getAllMilestones();
+    const roms = await getAllRomMeasurements();
+    const achievements = await getUnlockedAchievements();
 
     const exportData = {
       profile,
@@ -142,20 +144,20 @@ export default function ProfileScreen() {
     });
   }
 
-  function saveGraftType(graftType: GraftType) {
+  async function saveGraftType(graftType: GraftType) {
     if (!profile) return;
     setSavingGraftType(true);
-    const updated = updateProfile(db, { graft_type: graftType });
+    const updated = await updateProfile({ graft_type: graftType });
     setProfile(updated);
     setEditingGraftType(false);
     setSavingGraftType(false);
   }
 
-  function saveSurgeryDate(date: Date) {
+  async function saveSurgeryDate(date: Date) {
     if (!profile) return;
     setSavingSurgeryDate(true);
     const dateStr = date.toISOString().split("T")[0];
-    const updated = updateProfile(db, { surgery_date: dateStr });
+    const updated = await updateProfile({ surgery_date: dateStr });
     setProfile(updated);
     setEditingSurgeryDate(false);
     setSavingSurgeryDate(false);
@@ -172,7 +174,7 @@ export default function ProfileScreen() {
   async function confirmResetApp() {
     setDeleting(true);
     try {
-      await purgeAllUserData(db);
+      await purgeAllUserData();
       try {
         await signOut();
       } catch (err) {
@@ -197,7 +199,7 @@ export default function ProfileScreen() {
       } catch (err) {
         console.error("[confirmDeleteAccount] signOut error:", err);
       }
-      await purgeAllUserData(db);
+      await purgeAllUserData();
       router.replace("/(intro)");
     } catch (err) {
       console.error("[confirmDeleteAccount] error:", err);
@@ -209,7 +211,7 @@ export default function ProfileScreen() {
   async function handleAuthSuccess(userId: string) {
     setAuthModalVisible(false);
 
-    const hasLocalData = detectLocalData(db);
+    const hasLocalData = await detectLocalData();
     const hasCloudData = await detectCloudData(userId);
 
     if (hasLocalData && hasCloudData) {
@@ -221,13 +223,13 @@ export default function ProfileScreen() {
 
     // No conflict: push local data up, or pull cloud data down
     if (hasLocalData) {
-      const push = await pushAll(db, userId);
+      const push = await pushAll(userId);
       if (push.error) {
         setSyncError(`Signed in but sync failed: ${push.error}`);
         return;
       }
     } else {
-      const pull = await pullAll(db, userId);
+      const pull = await pullAll(userId);
       if (pull.error) {
         setSyncError(`Signed in but sync failed: ${pull.error}`);
         return;
@@ -235,7 +237,7 @@ export default function ProfileScreen() {
     }
 
     const now = new Date().toISOString();
-    const updated = updateProfile(db, { supabase_user_id: userId, last_synced_at: now });
+    const updated = await updateProfile({ supabase_user_id: userId, last_synced_at: now });
     setProfile(updated);
   }
 
@@ -244,16 +246,16 @@ export default function ProfileScreen() {
     setConflictLoading(true);
     try {
       // Purge local data first so the pull is a clean replace, not a merge
-      await purgeAllUserData(db);
-      const pull = await pullAll(db, conflictUserId);
+      await purgeAllUserData();
+      const pull = await pullAll(conflictUserId);
       if (pull.error) {
         setSyncError(`Sync failed: ${pull.error}`);
         return;
       }
       const now = new Date().toISOString();
-      const existingProfile = getProfile(db);
+      const existingProfile = await getProfile();
       if (existingProfile) {
-        const updated = updateProfile(db, { supabase_user_id: conflictUserId, last_synced_at: now });
+        const updated = await updateProfile({ supabase_user_id: conflictUserId, last_synced_at: now });
         setProfile(updated);
       }
     } catch (error) {
@@ -270,13 +272,13 @@ export default function ProfileScreen() {
     if (!conflictUserId) return;
     setConflictLoading(true);
     try {
-      const push = await pushAll(db, conflictUserId);
+      const push = await pushAll(conflictUserId);
       if (push.error) {
         setSyncError(`Sync failed: ${push.error}`);
         return;
       }
       const now = new Date().toISOString();
-      const updated = updateProfile(db, { supabase_user_id: conflictUserId, last_synced_at: now });
+      const updated = await updateProfile({ supabase_user_id: conflictUserId, last_synced_at: now });
       setProfile(updated);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
@@ -294,12 +296,12 @@ export default function ProfileScreen() {
     setSyncError(null);
 
     const lastSyncedAt = profile?.last_synced_at ?? new Date(0).toISOString();
-    const result = await deltaSync(db, session.user.id, lastSyncedAt);
+    const result = await deltaSync(session.user.id, lastSyncedAt);
 
     if (result.error) {
       setSyncError(result.error);
     } else {
-      setProfile(getProfile(db));
+      setProfile(await getProfile());
     }
 
     setSyncing(false);
@@ -786,11 +788,11 @@ const CLOUD_DATA_TABLES = [
   "milestones",
 ] as const;
 
-function detectLocalData(db: ReturnType<typeof useSQLiteContext>): boolean {
-  const localProfile = getProfile(db);
+async function detectLocalData(): Promise<boolean> {
+  const localProfile = await getProfile();
   if (localProfile?.surgery_date || localProfile?.graft_type) return true;
   for (const table of LOCAL_DATA_TABLES) {
-    const row = db.getFirstSync<{ id: string }>(`SELECT id FROM ${table} LIMIT 1`);
+    const row = drizzleDb.$client.getFirstSync<{ id: string }>(`SELECT id FROM ${table} LIMIT 1`);
     if (row) return true;
   }
   return false;

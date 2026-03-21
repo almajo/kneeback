@@ -1,12 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../supabase";
-import { useSQLiteContext } from "expo-sqlite";
 import { getProfile } from "../db/repositories/profile-repo";
 import { getCommunityIdentity } from "../community-identity";
 import type { CommunityPost, CommunityComment } from "../types";
 
 export function usePost(postId: string) {
-  const db = useSQLiteContext();
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [post, setPost] = useState<CommunityPost | null>(null);
   const [comments, setComments] = useState<CommunityComment[]>([]);
@@ -104,7 +102,7 @@ export function usePost(postId: string) {
   async function addComment(body: string) {
     if (!deviceId || !postId || !body.trim()) return;
 
-    const profile = getProfile(db);
+    const profile = await getProfile();
     const identity = await getCommunityIdentity(profile);
 
     const optimistic: CommunityComment = {

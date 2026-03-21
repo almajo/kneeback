@@ -29,22 +29,23 @@ function RootLayoutNav() {
     const inTabsGroup = segments[0] === "(tabs)";
     if (!inTabsGroup) return; // Let index.tsx handle initial routing
 
-    const localProfile = getProfile(db);
-    if (!localProfile) {
-      if (session && !migrationInProgress.current) {
-        migrationInProgress.current = true;
-        router.replace("/(migration)");
-        migrateSupabaseToLocal(db).then(({ error }) => {
-          if (error) {
-            console.error("[layout] Migration completed with error:", error);
-          }
-          migrationInProgress.current = false;
-          router.replace("/(tabs)/today");
-        });
-      } else if (!session) {
-        router.replace("/(onboarding)/surgery-details");
+    getProfile().then((localProfile) => {
+      if (!localProfile) {
+        if (session && !migrationInProgress.current) {
+          migrationInProgress.current = true;
+          router.replace("/(migration)");
+          migrateSupabaseToLocal(db).then(({ error }) => {
+            if (error) {
+              console.error("[layout] Migration completed with error:", error);
+            }
+            migrationInProgress.current = false;
+            router.replace("/(tabs)/today");
+          });
+        } else if (!session) {
+          router.replace("/(onboarding)/surgery-details");
+        }
       }
-    }
+    });
   }, [segments, db, session, authLoading]);
 
   return (

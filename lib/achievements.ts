@@ -17,13 +17,11 @@ interface UserState {
   hasQuadActivation: boolean;
 }
 
-export function checkAchievements(state: UserState): Content[] {
-  const { db } = state;
-
-  const allAchievements = getAllContent(db, "achievement");
+export async function checkAchievements(state: UserState): Promise<Content[]> {
+  const allAchievements = await getAllContent("achievement");
   if (allAchievements.length === 0) return [];
 
-  const unlocked = getUnlockedAchievements(db);
+  const unlocked = await getUnlockedAchievements();
   const unlockedIds = new Set(unlocked.map((u) => u.content_id));
 
   const newlyUnlocked: Content[] = [];
@@ -68,7 +66,7 @@ export function checkAchievements(state: UserState): Content[] {
     }
 
     if (matched) {
-      unlockAchievement(db, achievement.id);
+      await unlockAchievement(achievement.id);
       newlyUnlocked.push(achievement);
     }
   }

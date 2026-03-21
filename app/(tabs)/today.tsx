@@ -87,7 +87,7 @@ export default function TodayScreen() {
 
   const isRestDay = dailyLog?.is_rest_day ?? false;
 
-  function runAchievementCheck(overrides?: Partial<{
+  async function runAchievementCheck(overrides?: Partial<{
     isFirstExercise: boolean;
     isFirstRestDay: boolean;
     completed: boolean;
@@ -110,7 +110,7 @@ export default function TodayScreen() {
     );
     const rom = romRows[0] ?? null;
 
-    const newAchievements = checkAchievements({
+    const newAchievements = await checkAchievements({
       db,
       daysSinceSurgery,
       streak,
@@ -130,10 +130,10 @@ export default function TodayScreen() {
     }
   }
 
-  function toggleRestDay() {
+  async function toggleRestDay() {
     if (!dailyLog) return;
     const newIsRest = !isRestDay;
-    updateDailyLog(db, dailyLog.id, { is_rest_day: newIsRest });
+    await updateDailyLog(dailyLog.id, { is_rest_day: newIsRest });
     refetch();
     if (newIsRest) {
       const prevRestDays = db.getAllSync<{ id: string }>(
@@ -143,7 +143,7 @@ export default function TodayScreen() {
     }
   }
 
-  function updateExerciseLog(
+  async function updateExerciseLog(
     userExerciseId: string,
     updates: Record<string, unknown>
   ) {
@@ -178,7 +178,7 @@ export default function TodayScreen() {
     }
 
     const upsertId = existing?.id ?? generateId();
-    const persisted = upsertExerciseLog(db, {
+    const persisted = await upsertExerciseLog({
       id: upsertId,
       daily_log_id: dailyLog.id,
       user_exercise_id: userExerciseId,
@@ -204,7 +204,7 @@ export default function TodayScreen() {
   function handleReorder(reordered: LocalUserExercise[]) {
     setUserExercises(reordered);
     for (let index = 0; index < reordered.length; index++) {
-      updateUserExerciseSortOrder(db, reordered[index].id, index);
+      void updateUserExerciseSortOrder(reordered[index].id, index);
     }
   }
 

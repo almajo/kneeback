@@ -11,7 +11,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useSQLiteContext } from "expo-sqlite";
 import { ExerciseStepper } from "../components/ExerciseStepper";
 import { MuscleTag } from "../components/MuscleTag";
 import { Colors } from "../constants/colors";
@@ -46,7 +45,6 @@ import { generateId } from "../lib/utils/uuid";
 
 export default function ExercisePicker() {
   const router = useRouter();
-  const db = useSQLiteContext();
 
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [userExercisesMap, setUserExercisesMap] = useState<
@@ -71,15 +69,16 @@ export default function ExercisePicker() {
   const { gateProgress } = usePhaseGate(daysSinceSurgery, surgeryStatus, null);
 
   useEffect(() => {
-    getAllExercises(db).then((exs) => {
+    async function loadData() {
+      const exs = await getAllExercises();
       setExercises(exs);
 
-      const ues = getAllUserExercises(db);
+      const ues = await getAllUserExercises();
       const map = new Map<string, LocalUserExercise>();
       for (const ue of ues) map.set(ue.exercise_id, ue);
       setUserExercisesMap(map);
 
-      const profile = getProfile(db);
+      const profile = await getProfile();
       if (profile?.surgery_date) {
         const diff = Math.floor(
           (Date.now() - new Date(profile.surgery_date).getTime()) / 86400000
@@ -93,8 +92,9 @@ export default function ExercisePicker() {
       }
 
       setLoading(false);
-    });
-  }, [db]);
+    }
+    loadData();
+  }, []);
 
   const currentPhase = getPhaseFromDays(daysSinceSurgery, surgeryStatus);
 
@@ -117,19 +117,19 @@ export default function ExercisePicker() {
     return null;
   }
 
-  function performToggle(exercise: Exercise) {
+  async function performToggle(exercise: Exercise) {
     setSaving((prev) => new Set(prev).add(exercise.id));
     const existing = userExercisesMap.get(exercise.id);
 
     if (existing) {
-      deleteUserExercise(db, existing.id);
+      await deleteUserExercise(existing.id);
       setUserExercisesMap((prev) => {
         const next = new Map(prev);
         next.delete(exercise.id);
         return next;
       });
     } else {
-      const inserted = createUserExercise(db, {
+      const inserted = await createUserExercise({
         id: generateId(),
         exercise_id: exercise.id,
         sets: exercise.default_sets,
@@ -162,14 +162,14 @@ export default function ExercisePicker() {
     performToggle(exercise);
   }
 
-  function onStepperChange(
+  async function onStepperChange(
     exerciseId: string,
     field: "sets" | "reps" | "hold_seconds",
     value: number
   ) {
     const existing = userExercisesMap.get(exerciseId);
     if (!existing) return;
-    const updated = updateUserExercise(db, existing.id, { [field]: value });
+    const updated = await updateUserExercise(existing.id, { [field]: value });
     setUserExercisesMap((prev) => new Map(prev).set(exerciseId, updated));
   }
 

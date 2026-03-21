@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSQLiteContext } from 'expo-sqlite';
 import { getAllExercises } from '../../lib/db/repositories/exercise-repo';
 import { useOnboarding } from '../../lib/onboarding-context';
 import { MuscleTag } from '../../components/MuscleTag';
@@ -15,7 +14,6 @@ import type { SurgeryStatus } from '../../lib/hooks/use-today';
 
 export default function QuickSetup() {
   const router = useRouter();
-  const db = useSQLiteContext();
   const { data, toggleExercise } = useOnboarding();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,7 +34,7 @@ export default function QuickSetup() {
   const alreadySelected = data.selectedExercises.length > 0;
 
   useEffect(() => {
-    getAllExercises(db).then((all) => {
+    getAllExercises().then((all) => {
       setExercises(all);
       if (!alreadySelected) {
         const quickSet = getQuickSetupExercises(all, stablePhase, stableStatus);
