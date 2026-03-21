@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -31,11 +31,22 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (!visible) {
+      setEmail("");
+      setPassword("");
+      setError(null);
+      setMode("signIn");
+      setLoading(false);
+    }
+  }, [visible]);
+
   function handleClose() {
     setEmail("");
     setPassword("");
     setError(null);
     setMode("signIn");
+    setLoading(false);
     onClose();
   }
 
