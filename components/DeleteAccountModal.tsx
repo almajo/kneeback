@@ -12,6 +12,7 @@ export interface DeleteAccountModalProps {
   onClose: () => void;
   onConfirm: () => Promise<void>;
   deleting: boolean;
+  mode: "reset" | "delete";
 }
 
 export function DeleteAccountModal({
@@ -19,7 +20,16 @@ export function DeleteAccountModal({
   onClose,
   onConfirm,
   deleting,
+  mode,
 }: DeleteAccountModalProps) {
+  const isReset = mode === "reset";
+
+  const title = isReset ? "Reset App?" : "Delete Account?";
+  const body = isReset
+    ? "This will erase all your local recovery data and return you to the welcome screen. This cannot be undone."
+    : "This will permanently delete your account and all data (local and cloud). This cannot be undone.";
+  const buttonLabel = isReset ? "Reset Everything" : "Delete My Account";
+
   return (
     <Modal
       visible={visible}
@@ -39,11 +49,10 @@ export function DeleteAccountModal({
             className="text-xl font-bold mb-2"
             style={{ color: "#2D2D2D" }}
           >
-            Delete Account?
+            {title}
           </Text>
           <Text className="text-base mb-6" style={{ color: "#6B6B6B" }}>
-            This will permanently delete all your data including progress,
-            logs, and achievements. This cannot be undone.
+            {body}
           </Text>
           <TouchableOpacity
             className={`rounded-xl py-3 items-center mb-3 ${deleting ? "opacity-50" : ""}`}
@@ -55,7 +64,7 @@ export function DeleteAccountModal({
               <ActivityIndicator color="white" />
             ) : (
               <Text className="text-white font-bold text-base">
-                Delete My Account
+                {buttonLabel}
               </Text>
             )}
           </TouchableOpacity>

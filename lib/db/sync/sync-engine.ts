@@ -251,3 +251,24 @@ export async function deltaSync(
 
   return { error: null, syncedAt };
 }
+
+/**
+ * Best-effort deletion of all remote user data.
+ * RLS may block some deletes — errors are logged but do not throw.
+ */
+export async function deleteRemoteUserData(userId: string): Promise<void> {
+  for (const table of USER_DATA_TABLES) {
+    const { error } = await getSupabaseTable(table).delete().eq("user_id", userId);
+    if (error) {
+      console.error(`[deleteRemoteUserData] Failed to delete from ${table}:`, error.message);
+    }
+  }
+
+  const { error: profileError } = await supabase
+    .from("profiles" as never)
+    .delete()
+    .eq("user_id", userId);
+  if (profileError) {
+    console.error("[deleteRemoteUserData] Failed to delete profile:", profileError.message);
+  }
+}

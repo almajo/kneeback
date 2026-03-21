@@ -30,7 +30,8 @@ import type { GraftType } from "../../lib/types";
 import { PrivacyPolicyModal } from "../../components/PrivacyPolicyModal";
 import { AuthModal } from "../../components/AuthModal";
 import { DeleteAccountModal } from "../../components/DeleteAccountModal";
-import { pushAll, deltaSync } from "../../lib/db/sync/sync-engine";
+import { pushAll, deltaSync, deleteRemoteUserData } from "../../lib/db/sync/sync-engine";
+import { purgeAllUserData } from "../../lib/db/purge-user-data";
 
 const GRAFT_TYPE_OPTIONS: { value: GraftType; label: string }[] = [
   { value: "patellar", label: "Patellar Tendon" },
@@ -163,18 +164,41 @@ export default function ProfileScreen() {
     setDeleteModalVisible(true);
   }
 
+  async function confirmResetApp() {
+    setDeleting(true);
+    try {
+      await purgeAllUserData(db);
+      try {
+        await signOut();
+      } catch (err) {
+        console.error("[confirmResetApp] signOut error:", err);
+      }
+      router.replace("/(intro)");
+    } catch (err) {
+      console.error("[confirmResetApp] error:", err);
+      setDeleting(false);
+      setDeleteModalVisible(false);
+    }
+  }
+
   async function confirmDeleteAccount() {
     setDeleting(true);
     try {
-      await signOut();
+      if (session?.user.id) {
+        await deleteRemoteUserData(session.user.id);
+      }
+      try {
+        await signOut();
+      } catch (err) {
+        console.error("[confirmDeleteAccount] signOut error:", err);
+      }
+      await purgeAllUserData(db);
+      router.replace("/(intro)");
     } catch (err) {
-      console.error("[confirmDeleteAccount] signOut error:", err);
+      console.error("[confirmDeleteAccount] error:", err);
+      setDeleting(false);
+      setDeleteModalVisible(false);
     }
-    // proceed with clearing data regardless
-    updateProfile(db, { supabase_user_id: null, last_synced_at: null });
-    setProfile(getProfile(db));
-    setDeleting(false);
-    setDeleteModalVisible(false);
   }
 
   async function handleAuthSuccess(userId: string) {
@@ -572,22 +596,12 @@ export default function ProfileScreen() {
             <Text className="text-sm mb-4" style={{ color: "#6B6B6B" }}>
               Sync your recovery data across devices with a free account.
             </Text>
-            <View className="flex-row gap-3">
-              <TouchableOpacity
-                className="flex-1 bg-primary rounded-xl py-3 items-center"
-                onPress={() => setAuthModalVisible(true)}
-              >
-                <Text className="text-white font-semibold">Create Account</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                className="flex-1 rounded-xl py-3 items-center border border-border bg-background"
-                onPress={() => setAuthModalVisible(true)}
-              >
-                <Text className="font-semibold" style={{ color: "#2D2D2D" }}>
-                  Sign In
-                </Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              className="bg-primary rounded-xl py-3 items-center"
+              onPress={() => setAuthModalVisible(true)}
+            >
+              <Text className="text-white font-semibold">Sign In or Create Account</Text>
+            </TouchableOpacity>
           </>
         ) : (
           <>
@@ -647,8 +661,8 @@ export default function ProfileScreen() {
           />
         )}
         <ActionRow
-          icon="trash-outline"
-          label="Delete Account"
+          icon={session ? "trash-outline" : "refresh-outline"}
+          label={session ? "Delete Account" : "Reset App"}
           onPress={handleDeleteAccount}
           destructive
           last
@@ -669,8 +683,9 @@ export default function ProfileScreen() {
       <DeleteAccountModal
         visible={deleteModalVisible}
         onClose={() => setDeleteModalVisible(false)}
-        onConfirm={confirmDeleteAccount}
+        onConfirm={session ? confirmDeleteAccount : confirmResetApp}
         deleting={deleting}
+        mode={session ? "delete" : "reset"}
       />
     </ScrollView>
   );

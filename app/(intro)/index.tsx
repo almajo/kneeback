@@ -129,17 +129,7 @@ export default function IntroScreen() {
     };
   }, [width]);
 
-  const handleSignIn = useCallback(async () => {
-    await completeIntro();
-    router.replace("/(auth)/sign-in");
-  }, [router]);
-
-  const handleCreateAccount = useCallback(async () => {
-    await completeIntro();
-    router.replace("/(auth)/sign-up");
-  }, [router]);
-
-  const handleContinueWithoutAccount = useCallback(async () => {
+  const handleGetStarted = useCallback(async () => {
     await completeIntro();
     router.replace("/(onboarding)/surgery-details");
   }, [router]);
@@ -196,17 +186,9 @@ export default function IntroScreen() {
       {/* Navigation buttons */}
       <View style={styles.buttonContainer}>
         {isLast ? (
-          <>
-            <TouchableOpacity style={styles.primaryButton} onPress={handleCreateAccount}>
-              <Text style={styles.primaryButtonText}>Create Account</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.secondaryButton} onPress={handleSignIn}>
-              <Text style={styles.secondaryButtonText}>Sign In</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleContinueWithoutAccount} style={styles.skipButton}>
-              <Text style={styles.skipButtonText}>Continue without account</Text>
-            </TouchableOpacity>
-          </>
+          <TouchableOpacity style={styles.primaryButton} onPress={handleGetStarted}>
+            <Text style={styles.primaryButtonText}>Get Started</Text>
+          </TouchableOpacity>
         ) : (
           <TouchableOpacity style={styles.primaryButton} onPress={goNext}>
             <Text style={styles.primaryButtonText}>Next</Text>
@@ -282,24 +264,5 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "700",
-  },
-  secondaryButton: {
-    backgroundColor: "#2EC4B6",
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-  secondaryButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  skipButton: {
-    alignItems: "center",
-    paddingVertical: 8,
-  },
-  skipButtonText: {
-    color: "#A0A0A0",
-    fontSize: 14,
   },
 });
