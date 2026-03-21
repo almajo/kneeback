@@ -1,5 +1,5 @@
-import type { SQLiteDatabase } from "expo-sqlite";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { db } from "./database-context";
 
 // User data tables in FK-safe deletion order
 const USER_DATA_TABLES_PURGE_ORDER = [
@@ -25,11 +25,11 @@ const ASYNC_STORAGE_KEYS = [
  * Deletes all user data from SQLite (preserves catalog tables + schema).
  * Clears AsyncStorage flags to reset app to fresh-install state.
  */
-export async function purgeAllUserData(db: SQLiteDatabase): Promise<void> {
-  db.withTransactionSync(() => {
+export async function purgeAllUserData(): Promise<void> {
+  db.$client.withTransactionSync(() => {
     for (const table of USER_DATA_TABLES_PURGE_ORDER) {
       try {
-        db.runSync(`DELETE FROM ${table}`);
+        db.$client.runSync(`DELETE FROM ${table}`);
       } catch (err) {
         console.error(`[purgeAllUserData] Failed to delete from ${table}:`, err);
       }

@@ -1,4 +1,4 @@
-import type { SQLiteDatabase } from "expo-sqlite";
+import { db } from "../database-context";
 import { supabase } from "../../supabase";
 import { resolveConflict } from "./conflict-resolver";
 import { getProfile, updateProfile, createProfile } from "../repositories/profile-repo";
@@ -34,18 +34,18 @@ function getSupabaseTable(table: TableName) {
   return supabase.from(table as AnySupabaseTable);
 }
 
-function getAllRows(db: SQLiteDatabase, table: TableName): SyncRow[] {
-  return db.getAllSync<SyncRow>(`SELECT * FROM ${table}`);
+function getAllRows(table: TableName): SyncRow[] {
+  return db.$client.getAllSync<SyncRow>(`SELECT * FROM ${table}`);
 }
 
-function upsertLocalRow(db: SQLiteDatabase, table: TableName, row: SyncRow): void {
+function upsertLocalRow(table: TableName, row: SyncRow): void {
   const keys = Object.keys(row).filter((k) => k !== "user_id");
   const placeholders = keys.map(() => "?").join(", ");
   const updates = keys.map((k) => `${k} = excluded.${k}`).join(", ");
   const values = keys.map((k) => row[k] as string | number | null);
 
   // table is constrained to USER_DATA_TABLES (const string union) — not user input
-  db.runSync(
+  db.$client.runSync(
     `INSERT INTO ${table} (${keys.join(", ")}) VALUES (${placeholders})
      ON CONFLICT(id) DO UPDATE SET ${updates}`,
     values
@@ -56,12 +56,9 @@ function rowsToRemotePayload(rows: SyncRow[], userId: string): SyncRow[] {
   return rows.map((row) => ({ ...row, user_id: userId }));
 }
 
-export async function pushAll(
-  db: SQLiteDatabase,
-  userId: string
-): Promise<{ error: string | null }> {
+export async function pushAll(userId: string): Promise<{ error: string | null }> {
   for (const table of USER_DATA_TABLES) {
-    const rows = getAllRows(db, table);
+    const rows = getAllRows(table);
     if (rows.length === 0) continue;
 
     const payload = rowsToRemotePayload(rows, userId);
@@ -72,7 +69,7 @@ export async function pushAll(
   }
 
   // Push profile (best-effort — log errors, don't fail the whole sync)
-  const localProfile = getProfile(db);
+  const localProfile = await getProfile();
   if (localProfile) {
     const { error: profileError } = await supabase.from("profiles" as never).upsert({
       id: userId,
@@ -91,10 +88,7 @@ export async function pushAll(
   return { error: null };
 }
 
-export async function pullAll(
-  db: SQLiteDatabase,
-  userId: string
-): Promise<{ error: string | null }> {
+export async function pullAll(userId: string): Promise<{ error: string | null }> {
   for (const table of USER_DATA_TABLES) {
     const { data, error } = await getSupabaseTable(table)
       .select("*")
@@ -107,7 +101,7 @@ export async function pullAll(
     if (!data || data.length === 0) continue;
 
     for (const remoteRow of data as unknown as SyncRow[]) {
-      upsertLocalRow(db, table, remoteRow);
+      upsertLocalRow(table, remoteRow);
     }
   }
 
@@ -122,10 +116,10 @@ export async function pullAll(
     console.error("[pullAll] Failed to pull profile:", profileError.message);
   } else if (remoteProfile) {
     const rp = remoteProfile as Record<string, unknown>;
-    const existingProfile = getProfile(db);
+    const existingProfile = await getProfile();
     if (existingProfile) {
       try {
-        updateProfile(db, {
+        await updateProfile({
           name: rp.name as string | undefined,
           username: rp.username as string | undefined,
           surgery_date: (rp.surgery_date as string | null) ?? null,
@@ -138,7 +132,7 @@ export async function pullAll(
     } else {
       try {
         const deviceId = await getDeviceId();
-        createProfile(db, {
+        await createProfile({
           id: generateId(),
           name: (rp.name as string) ?? (rp.username as string) ?? "",
           username: (rp.username as string) ?? (rp.name as string) ?? "user",
@@ -159,7 +153,6 @@ export async function pullAll(
 }
 
 export async function deltaSync(
-  db: SQLiteDatabase,
   userId: string,
   lastSyncedAt: string
 ): Promise<{ error: string | null; syncedAt: string }> {
@@ -178,7 +171,7 @@ export async function deltaSync(
     }
 
     // Push local rows changed since last sync
-    const localChanged = getAllRows(db, table).filter(
+    const localChanged = getAllRows(table).filter(
       (row) => row.updated_at > lastSyncedAt
     );
 
@@ -200,10 +193,10 @@ export async function deltaSync(
 
       if (remote && local) {
         const winner = resolveConflict(local, remote);
-        upsertLocalRow(db, table, winner);
+        upsertLocalRow(table, winner);
         rowsToRemote.push({ ...winner, user_id: userId });
       } else if (remote) {
-        upsertLocalRow(db, table, remote);
+        upsertLocalRow(table, remote);
       } else if (local) {
         rowsToRemote.push({ ...local, user_id: userId });
       }
@@ -222,7 +215,7 @@ export async function deltaSync(
 
   // Reconcile user_exercises deletions: remove remote rows that no longer exist locally
   const localExerciseIds = new Set(
-    getAllRows(db, "user_exercises").map((r) => r.id)
+    getAllRows("user_exercises").map((r) => r.id)
   );
   const { data: remoteExerciseRows, error: reconcileError } = await getSupabaseTable("user_exercises")
     .select("id")
@@ -252,7 +245,7 @@ export async function deltaSync(
     console.error("[deltaSync] Failed to fetch remote profile:", remoteProfileError.message);
   } else if (remoteProfile) {
     const rp = remoteProfile as Record<string, unknown> & { updated_at?: string };
-    const localProfile = getProfile(db);
+    const localProfile = await getProfile();
     if (localProfile) {
       // Use conflict resolution: whichever was updated more recently wins
       const remoteUpdatedAt = rp.updated_at ?? "";
@@ -260,7 +253,7 @@ export async function deltaSync(
       if (remoteUpdatedAt > localUpdatedAt) {
         // Remote wins — pull into local
         try {
-          updateProfile(db, {
+          await updateProfile({
             name: rp.name as string | undefined,
             username: rp.username as string | undefined,
             surgery_date: (rp.surgery_date as string | null) ?? null,
@@ -290,7 +283,7 @@ export async function deltaSync(
 
   // Capture syncedAt just before writing to profile — after all sync operations succeed
   const syncedAt = new Date().toISOString();
-  await updateProfile(db, { last_synced_at: syncedAt });
+  await updateProfile({ last_synced_at: syncedAt });
 
   return { error: null, syncedAt };
 }
