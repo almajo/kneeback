@@ -782,9 +782,9 @@ async function detectCloudData(userId: string): Promise<boolean> {
   // Check profiles table first
   const { data: cloudProfile } = await supabase
     .from("profiles" as never)
-    .select("user_id")
-    .eq("user_id", userId)
-    .maybeSingle() as { data: { user_id: string } | null };
+    .select("id")
+    .eq("id", userId)
+    .maybeSingle() as { data: { id: string } | null };
   if (cloudProfile) return true;
 
   // Check key user data tables

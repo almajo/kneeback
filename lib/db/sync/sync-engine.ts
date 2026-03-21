@@ -73,7 +73,7 @@ export async function pushAll(
   const localProfile = getProfile(db);
   if (localProfile) {
     const { error: profileError } = await supabase.from("profiles" as never).upsert({
-      user_id: userId,
+      id: userId,
       name: localProfile.name,
       username: localProfile.username,
       surgery_date: localProfile.surgery_date,
@@ -113,7 +113,7 @@ export async function pullAll(
   const { data: remoteProfile, error: profileError } = await supabase
     .from("profiles" as never)
     .select("*")
-    .eq("user_id", userId)
+    .eq("id", userId)
     .single();
 
   if (profileError) {
@@ -202,7 +202,7 @@ export async function deltaSync(
   const { data: remoteProfile, error: remoteProfileError } = await supabase
     .from("profiles" as never)
     .select("*")
-    .eq("user_id", userId)
+    .eq("id", userId)
     .single();
 
   if (remoteProfileError) {
@@ -230,7 +230,7 @@ export async function deltaSync(
       } else {
         // Local wins — push to remote
         const { error: pushProfileError } = await supabase.from("profiles" as never).upsert({
-          user_id: userId,
+          id: userId,
           name: localProfile.name,
           username: localProfile.username,
           surgery_date: localProfile.surgery_date,
@@ -267,7 +267,7 @@ export async function deleteRemoteUserData(userId: string): Promise<void> {
   const { error: profileError } = await supabase
     .from("profiles" as never)
     .delete()
-    .eq("user_id", userId);
+    .eq("id", userId);
   if (profileError) {
     console.error("[deleteRemoteUserData] Failed to delete profile:", profileError.message);
   }
