@@ -5,7 +5,6 @@ import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "../lib/auth-context";
 import { DatabaseProvider } from "../lib/db/database-context";
-import { useSQLiteContext } from "expo-sqlite";
 import { getProfile } from "../lib/db/repositories/profile-repo";
 import { migrateSupabaseToLocal } from "../lib/db/migration/supabase-to-local";
 import {
@@ -17,7 +16,6 @@ import {
 } from "@expo-google-fonts/outfit";
 
 function RootLayoutNav() {
-  const db = useSQLiteContext();
   const segments = useSegments();
   const router = useRouter();
   const { session, loading: authLoading } = useAuth();
@@ -34,7 +32,7 @@ function RootLayoutNav() {
         if (session && !migrationInProgress.current) {
           migrationInProgress.current = true;
           router.replace("/(migration)");
-          migrateSupabaseToLocal(db).then(({ error }) => {
+          migrateSupabaseToLocal().then(({ error }) => {
             if (error) {
               console.error("[layout] Migration completed with error:", error);
             }
@@ -46,7 +44,7 @@ function RootLayoutNav() {
         }
       }
     });
-  }, [segments, db, session, authLoading]);
+  }, [segments, session, authLoading]);
 
   return (
     <>
