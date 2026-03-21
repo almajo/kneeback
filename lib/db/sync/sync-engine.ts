@@ -71,15 +71,17 @@ export async function pushAll(userId: string): Promise<{ error: string | null }>
   // Push profile (best-effort — log errors, don't fail the whole sync)
   const localProfile = await getProfile();
   if (localProfile) {
-    const { error: profileError } = await supabase.from("profiles" as never).upsert({
-      id: userId,
-      name: localProfile.name,
-      username: localProfile.username,
-      surgery_date: localProfile.surgery_date,
-      graft_type: localProfile.graft_type,
-      knee_side: localProfile.knee_side,
-      updated_at: localProfile.updated_at,
-    });
+    const { error: profileError } = await supabase
+      .from("profiles" as AnySupabaseTable)
+      .upsert({
+        id: userId,
+        name: localProfile.name,
+        username: localProfile.username,
+        surgery_date: localProfile.surgery_date,
+        graft_type: localProfile.graft_type,
+        knee_side: localProfile.knee_side,
+        updated_at: localProfile.updated_at,
+      });
     if (profileError) {
       console.error("[pushAll] Failed to push profile:", profileError.message);
     }
@@ -265,15 +267,17 @@ export async function deltaSync(
         }
       } else {
         // Local wins — push to remote
-        const { error: pushProfileError } = await supabase.from("profiles" as never).upsert({
-          id: userId,
-          name: localProfile.name,
-          username: localProfile.username,
-          surgery_date: localProfile.surgery_date,
-          graft_type: localProfile.graft_type,
-          knee_side: localProfile.knee_side,
-          updated_at: localProfile.updated_at,
-        });
+        const { error: pushProfileError } = await supabase
+          .from("profiles" as AnySupabaseTable)
+          .upsert({
+            id: userId,
+            name: localProfile.name,
+            username: localProfile.username,
+            surgery_date: localProfile.surgery_date,
+            graft_type: localProfile.graft_type,
+            knee_side: localProfile.knee_side,
+            updated_at: localProfile.updated_at,
+          });
         if (pushProfileError) {
           console.error("[deltaSync] Failed to push profile:", pushProfileError.message);
         }
