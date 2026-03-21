@@ -1,7 +1,9 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 import { supabase } from "../../supabase";
 import { resolveConflict } from "./conflict-resolver";
-import { getProfile, updateProfile } from "../repositories/profile-repo";
+import { getProfile, updateProfile, createProfile } from "../repositories/profile-repo";
+import { generateId } from "../../utils/uuid";
+import { getDeviceId } from "../../device-identity";
 
 // Tables to sync — catalog tables (exercises, content) are excluded
 const USER_DATA_TABLES = [
@@ -73,7 +75,7 @@ export async function pushAll(
   const localProfile = getProfile(db);
   if (localProfile) {
     const { error: profileError } = await supabase.from("profiles" as never).upsert({
-      user_id: userId,
+      id: userId,
       name: localProfile.name,
       username: localProfile.username,
       surgery_date: localProfile.surgery_date,
@@ -113,23 +115,43 @@ export async function pullAll(
   const { data: remoteProfile, error: profileError } = await supabase
     .from("profiles" as never)
     .select("*")
-    .eq("user_id", userId)
+    .eq("id", userId)
     .single();
 
   if (profileError) {
     console.error("[pullAll] Failed to pull profile:", profileError.message);
   } else if (remoteProfile) {
     const rp = remoteProfile as Record<string, unknown>;
-    try {
-      updateProfile(db, {
-        name: rp.name as string | undefined,
-        username: rp.username as string | undefined,
-        surgery_date: (rp.surgery_date as string | null) ?? null,
-        graft_type: (rp.graft_type as import("../../types").GraftType | null) ?? null,
-        knee_side: rp.knee_side as import("../../types").KneeSide | undefined,
-      });
-    } catch (err) {
-      console.error("[pullAll] Failed to update local profile:", err);
+    const existingProfile = getProfile(db);
+    if (existingProfile) {
+      try {
+        updateProfile(db, {
+          name: rp.name as string | undefined,
+          username: rp.username as string | undefined,
+          surgery_date: (rp.surgery_date as string | null) ?? null,
+          graft_type: (rp.graft_type as import("../../types").GraftType | null) ?? null,
+          knee_side: rp.knee_side as import("../../types").KneeSide | undefined,
+        });
+      } catch (err) {
+        console.error("[pullAll] Failed to update local profile:", err);
+      }
+    } else {
+      try {
+        const deviceId = await getDeviceId();
+        createProfile(db, {
+          id: generateId(),
+          name: (rp.name as string) ?? (rp.username as string) ?? "",
+          username: (rp.username as string) ?? (rp.name as string) ?? "user",
+          surgery_date: (rp.surgery_date as string | null) ?? null,
+          graft_type: (rp.graft_type as import("../../types").GraftType | null) ?? null,
+          knee_side: (rp.knee_side as import("../../types").KneeSide) ?? "right",
+          device_id: deviceId,
+          supabase_user_id: userId,
+          last_synced_at: null,
+        });
+      } catch (err) {
+        console.error("[pullAll] Failed to create local profile from cloud:", err);
+      }
     }
   }
 
@@ -198,11 +220,32 @@ export async function deltaSync(
     }
   }
 
+  // Reconcile user_exercises deletions: remove remote rows that no longer exist locally
+  const localExerciseIds = new Set(
+    getAllRows(db, "user_exercises").map((r) => r.id)
+  );
+  const { data: remoteExerciseRows, error: reconcileError } = await getSupabaseTable("user_exercises")
+    .select("id")
+    .eq("user_id", userId);
+  if (reconcileError) {
+    console.error("[deltaSync] Failed to fetch remote exercise IDs for reconciliation:", reconcileError.message);
+  } else if (remoteExerciseRows) {
+    const toDelete = (remoteExerciseRows as unknown as { id: string }[])
+      .map((r) => r.id)
+      .filter((id) => !localExerciseIds.has(id));
+    for (const id of toDelete) {
+      const { error: deleteError } = await getSupabaseTable("user_exercises").delete().eq("id", id);
+      if (deleteError) {
+        console.error(`[deltaSync] Failed to delete remote exercise ${id}:`, deleteError.message);
+      }
+    }
+  }
+
   // Sync profile (best-effort — log errors, don't fail the whole sync)
   const { data: remoteProfile, error: remoteProfileError } = await supabase
     .from("profiles" as never)
     .select("*")
-    .eq("user_id", userId)
+    .eq("id", userId)
     .single();
 
   if (remoteProfileError) {
@@ -230,7 +273,7 @@ export async function deltaSync(
       } else {
         // Local wins — push to remote
         const { error: pushProfileError } = await supabase.from("profiles" as never).upsert({
-          user_id: userId,
+          id: userId,
           name: localProfile.name,
           username: localProfile.username,
           surgery_date: localProfile.surgery_date,
@@ -250,4 +293,25 @@ export async function deltaSync(
   await updateProfile(db, { last_synced_at: syncedAt });
 
   return { error: null, syncedAt };
+}
+
+/**
+ * Best-effort deletion of all remote user data.
+ * RLS may block some deletes — errors are logged but do not throw.
+ */
+export async function deleteRemoteUserData(userId: string): Promise<void> {
+  for (const table of USER_DATA_TABLES) {
+    const { error } = await getSupabaseTable(table).delete().eq("user_id", userId);
+    if (error) {
+      console.error(`[deleteRemoteUserData] Failed to delete from ${table}:`, error.message);
+    }
+  }
+
+  const { error: profileError } = await supabase
+    .from("profiles" as never)
+    .delete()
+    .eq("id", userId);
+  if (profileError) {
+    console.error("[deleteRemoteUserData] Failed to delete profile:", profileError.message);
+  }
 }

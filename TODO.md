@@ -1,15 +1,14 @@
 # Open Todos
 
-## Git
-
-- [x] Change workflow to Feature branch > PR > Review using Copilot > Merge into Main
-- [x] Add branch rules to protect main and the project. I have to accept a PR so it can be merged.
-- [x] create preview-deployment on feature branches (vercel command without --prod)
-
 ## bugs
+
+- when doing an exercice with time-based (and audio timer), the voice starts too late in the first set. it works correctly in the following ones.
+- Update README to latest features of the repo
+- On native, I can barely see my battery or notifications because it's the same color as the font color there (nearly white) - can we add like a safe offset (like we did on the tab bottom) to make the task bar be better visible
 
 ## new features
 
+- add "local-first" to intro (maybe on last slide) to emphasize data privacy
 - remove "quad activation" in measuring as I dont find that too relevant
 - On sign up exercice plan creation (quick-setup), don't automatically add ALL exercices but handpick a good selection (8 exercices)
 - open to other knee injuries

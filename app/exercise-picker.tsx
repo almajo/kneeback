@@ -36,6 +36,7 @@ import {
   getAllUserExercises,
   createUserExercise,
   updateUserExercise,
+  deleteUserExercise,
   type LocalUserExercise,
 } from "../lib/db/repositories/user-exercise-repo";
 import { getProfile } from "../lib/db/repositories/profile-repo";
@@ -120,16 +121,13 @@ export default function ExercisePicker() {
     setSaving((prev) => new Set(prev).add(exercise.id));
     const existing = userExercisesMap.get(exercise.id);
 
-    if (existing?.is_active) {
-      const updated = updateUserExercise(db, existing.id, { is_active: false });
-      setUserExercisesMap((prev) =>
-        new Map(prev).set(exercise.id, updated)
-      );
-    } else if (existing && !existing.is_active) {
-      const updated = updateUserExercise(db, existing.id, { is_active: true });
-      setUserExercisesMap((prev) =>
-        new Map(prev).set(exercise.id, updated)
-      );
+    if (existing) {
+      deleteUserExercise(db, existing.id);
+      setUserExercisesMap((prev) => {
+        const next = new Map(prev);
+        next.delete(exercise.id);
+        return next;
+      });
     } else {
       const inserted = createUserExercise(db, {
         id: generateId(),
@@ -137,7 +135,6 @@ export default function ExercisePicker() {
         sets: exercise.default_sets,
         reps: exercise.default_reps,
         hold_seconds: exercise.default_hold_seconds,
-        is_active: true,
         sort_order: 99,
       });
       setUserExercisesMap((prev) =>
@@ -153,7 +150,7 @@ export default function ExercisePicker() {
   }
 
   function onToggle(exercise: Exercise) {
-    if (userExercisesMap.get(exercise.id)?.is_active) {
+    if (userExercisesMap.has(exercise.id)) {
       performToggle(exercise);
       return;
     }
@@ -647,7 +644,7 @@ function ExerciseRow({
   altExpanded = false,
   onToggleAlternatives,
 }: ExerciseRowProps) {
-  const isActive = userExercise?.is_active ?? false;
+  const isActive = !!userExercise;
   const sets = userExercise?.sets ?? exercise.default_sets;
   const reps = userExercise?.reps ?? exercise.default_reps;
   const holdSeconds = userExercise?.hold_seconds ?? exercise.default_hold_seconds;

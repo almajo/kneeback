@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,8 +9,13 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import * as WebBrowser from "expo-web-browser";
+import { makeRedirectUri } from "expo-auth-session";
 import { useAuth } from "../lib/auth-context";
+import { supabase } from "../lib/supabase";
 import { Colors } from "../constants/colors";
+
+WebBrowser.maybeCompleteAuthSession();
 
 export interface AuthModalProps {
   visible: boolean;
@@ -26,11 +31,22 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (!visible) {
+      setEmail("");
+      setPassword("");
+      setError(null);
+      setMode("signIn");
+      setLoading(false);
+    }
+  }, [visible]);
+
   function handleClose() {
     setEmail("");
     setPassword("");
     setError(null);
     setMode("signIn");
+    setLoading(false);
     onClose();
   }
 
@@ -54,10 +70,7 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
       return;
     }
 
-    // Get the current session after sign-in/sign-up
-    const { data } = await import("../lib/supabase").then((m) =>
-      m.supabase.auth.getSession()
-    );
+    const { data } = await supabase.auth.getSession();
     const userId = data.session?.user.id;
 
     if (!userId) {
@@ -67,7 +80,69 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
     }
 
     onSuccess(userId);
-    // Note: loading and close are managed by onSuccess callback in parent
+  }
+
+  async function handleGoogleSignIn() {
+    setError(null);
+    setLoading(true);
+    try {
+      if (Platform.OS === "web") {
+        const { error: oauthError } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: { redirectTo: window.location.origin },
+        });
+        if (oauthError) {
+          setError(oauthError.message);
+          setLoading(false);
+        }
+        // On web, the page redirects — no further action needed here
+        return;
+      }
+
+      const redirectUri = makeRedirectUri({ scheme: "kneebackapp" });
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: redirectUri, skipBrowserRedirect: true },
+      });
+
+      if (oauthError) {
+        setError(oauthError.message);
+        setLoading(false);
+        return;
+      }
+
+      if (!data.url) {
+        setError("Could not start Google sign-in");
+        setLoading(false);
+        return;
+      }
+
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUri);
+      if (result.type === "success") {
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(result.url);
+        if (exchangeError) {
+          setError(exchangeError.message);
+          setLoading(false);
+          return;
+        }
+
+        const { data: sessionData } = await supabase.auth.getSession();
+        const userId = sessionData.session?.user.id;
+
+        if (!userId) {
+          setError("Signed in but could not retrieve session.");
+          setLoading(false);
+          return;
+        }
+
+        onSuccess(userId);
+      } else {
+        setLoading(false);
+      }
+    } catch {
+      setError("Google sign-in failed");
+      setLoading(false);
+    }
   }
 
   return (
@@ -134,6 +209,22 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
                 {mode === "signIn" ? "Sign In" : "Create Account"}
               </Text>
             )}
+          </TouchableOpacity>
+
+          <View className="flex-row items-center mb-3">
+            <View className="flex-1 h-px bg-border" />
+            <Text className="mx-4 text-sm" style={{ color: "#A0A0A0" }}>or</Text>
+            <View className="flex-1 h-px bg-border" />
+          </View>
+
+          <TouchableOpacity
+            className={`rounded-xl py-3 items-center mb-3 border border-border bg-background ${loading ? "opacity-50" : ""}`}
+            onPress={handleGoogleSignIn}
+            disabled={loading}
+          >
+            <Text className="font-bold text-base" style={{ color: "#2D2D2D" }}>
+              Continue with Google
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity

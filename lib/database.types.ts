@@ -490,7 +490,6 @@ export type Database = {
           exercise_id: string
           hold_seconds: number | null
           id: string
-          is_active: boolean
           reps: number
           sets: number
           sort_order: number
@@ -500,7 +499,6 @@ export type Database = {
           exercise_id: string
           hold_seconds?: number | null
           id?: string
-          is_active?: boolean
           reps?: number
           sets?: number
           sort_order?: number
@@ -510,7 +508,6 @@ export type Database = {
           exercise_id?: string
           hold_seconds?: number | null
           id?: string
-          is_active?: boolean
           reps?: number
           sets?: number
           sort_order?: number

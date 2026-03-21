@@ -30,7 +30,10 @@ import type { GraftType } from "../../lib/types";
 import { PrivacyPolicyModal } from "../../components/PrivacyPolicyModal";
 import { AuthModal } from "../../components/AuthModal";
 import { DeleteAccountModal } from "../../components/DeleteAccountModal";
-import { pushAll, deltaSync } from "../../lib/db/sync/sync-engine";
+import { pushAll, pullAll, deltaSync, deleteRemoteUserData } from "../../lib/db/sync/sync-engine";
+import { purgeAllUserData } from "../../lib/db/purge-user-data";
+import { DataConflictModal } from "../../components/DataConflictModal";
+import { supabase } from "../../lib/supabase";
 
 const GRAFT_TYPE_OPTIONS: { value: GraftType; label: string }[] = [
   { value: "patellar", label: "Patellar Tendon" },
@@ -71,6 +74,9 @@ export default function ProfileScreen() {
   const [authModalVisible, setAuthModalVisible] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [conflictModalVisible, setConflictModalVisible] = useState(false);
+  const [conflictUserId, setConflictUserId] = useState<string | null>(null);
+  const [conflictLoading, setConflictLoading] = useState(false);
 
   useEffect(() => {
     const prof = getProfile(db);
@@ -163,37 +169,123 @@ export default function ProfileScreen() {
     setDeleteModalVisible(true);
   }
 
+  async function confirmResetApp() {
+    setDeleting(true);
+    try {
+      await purgeAllUserData(db);
+      try {
+        await signOut();
+      } catch (err) {
+        console.error("[confirmResetApp] signOut error:", err);
+      }
+      router.replace("/(intro)");
+    } catch (err) {
+      console.error("[confirmResetApp] error:", err);
+      setDeleting(false);
+      setDeleteModalVisible(false);
+    }
+  }
+
   async function confirmDeleteAccount() {
     setDeleting(true);
     try {
-      await signOut();
+      if (session?.user.id) {
+        await deleteRemoteUserData(session.user.id);
+      }
+      try {
+        await signOut();
+      } catch (err) {
+        console.error("[confirmDeleteAccount] signOut error:", err);
+      }
+      await purgeAllUserData(db);
+      router.replace("/(intro)");
     } catch (err) {
-      console.error("[confirmDeleteAccount] signOut error:", err);
+      console.error("[confirmDeleteAccount] error:", err);
+      setDeleting(false);
+      setDeleteModalVisible(false);
     }
-    // proceed with clearing data regardless
-    updateProfile(db, { supabase_user_id: null, last_synced_at: null });
-    setProfile(getProfile(db));
-    setDeleting(false);
-    setDeleteModalVisible(false);
   }
 
   async function handleAuthSuccess(userId: string) {
-    const push = await pushAll(db, userId);
-    if (push.error) {
-      // Push failed — keep modal open to show error
-      // AuthModal will surface this via onSuccess not being called cleanly;
-      // we close the modal only on full success below
-      setAuthModalVisible(false);
-      setSyncError(`Signed in but sync failed: ${push.error}`);
+    setAuthModalVisible(false);
+
+    const hasLocalData = detectLocalData(db);
+    const hasCloudData = await detectCloudData(userId);
+
+    if (hasLocalData && hasCloudData) {
+      // Both sides have data — let the user choose
+      setConflictUserId(userId);
+      setConflictModalVisible(true);
       return;
     }
+
+    // No conflict: push local data up, or pull cloud data down
+    if (hasLocalData) {
+      const push = await pushAll(db, userId);
+      if (push.error) {
+        setSyncError(`Signed in but sync failed: ${push.error}`);
+        return;
+      }
+    } else {
+      const pull = await pullAll(db, userId);
+      if (pull.error) {
+        setSyncError(`Signed in but sync failed: ${pull.error}`);
+        return;
+      }
+    }
+
     const now = new Date().toISOString();
-    const updated = updateProfile(db, {
-      supabase_user_id: userId,
-      last_synced_at: now,
-    });
+    const updated = updateProfile(db, { supabase_user_id: userId, last_synced_at: now });
     setProfile(updated);
-    setAuthModalVisible(false);
+  }
+
+  async function handleUseCloudData() {
+    if (!conflictUserId) return;
+    setConflictLoading(true);
+    try {
+      // Purge local data first so the pull is a clean replace, not a merge
+      await purgeAllUserData(db);
+      const pull = await pullAll(db, conflictUserId);
+      if (pull.error) {
+        setSyncError(`Sync failed: ${pull.error}`);
+        return;
+      }
+      const now = new Date().toISOString();
+      const existingProfile = getProfile(db);
+      if (existingProfile) {
+        const updated = updateProfile(db, { supabase_user_id: conflictUserId, last_synced_at: now });
+        setProfile(updated);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      setSyncError(`Sync failed: ${message}`);
+    } finally {
+      setConflictLoading(false);
+      setConflictModalVisible(false);
+      setConflictUserId(null);
+    }
+  }
+
+  async function handleKeepLocalData() {
+    if (!conflictUserId) return;
+    setConflictLoading(true);
+    try {
+      const push = await pushAll(db, conflictUserId);
+      if (push.error) {
+        setSyncError(`Sync failed: ${push.error}`);
+        return;
+      }
+      const now = new Date().toISOString();
+      const updated = updateProfile(db, { supabase_user_id: conflictUserId, last_synced_at: now });
+      setProfile(updated);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      setSyncError(`Sync failed: ${message}`);
+    } finally {
+      setConflictLoading(false);
+      setConflictModalVisible(false);
+      setConflictUserId(null);
+    }
   }
 
   async function handleSyncNow() {
@@ -572,22 +664,12 @@ export default function ProfileScreen() {
             <Text className="text-sm mb-4" style={{ color: "#6B6B6B" }}>
               Sync your recovery data across devices with a free account.
             </Text>
-            <View className="flex-row gap-3">
-              <TouchableOpacity
-                className="flex-1 bg-primary rounded-xl py-3 items-center"
-                onPress={() => setAuthModalVisible(true)}
-              >
-                <Text className="text-white font-semibold">Create Account</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                className="flex-1 rounded-xl py-3 items-center border border-border bg-background"
-                onPress={() => setAuthModalVisible(true)}
-              >
-                <Text className="font-semibold" style={{ color: "#2D2D2D" }}>
-                  Sign In
-                </Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              className="bg-primary rounded-xl py-3 items-center"
+              onPress={() => setAuthModalVisible(true)}
+            >
+              <Text className="text-white font-semibold">Sign In or Create Account</Text>
+            </TouchableOpacity>
           </>
         ) : (
           <>
@@ -647,8 +729,8 @@ export default function ProfileScreen() {
           />
         )}
         <ActionRow
-          icon="trash-outline"
-          label="Delete Account"
+          icon={session ? "trash-outline" : "refresh-outline"}
+          label={session ? "Delete Account" : "Reset App"}
           onPress={handleDeleteAccount}
           destructive
           last
@@ -669,11 +751,80 @@ export default function ProfileScreen() {
       <DeleteAccountModal
         visible={deleteModalVisible}
         onClose={() => setDeleteModalVisible(false)}
-        onConfirm={confirmDeleteAccount}
+        onConfirm={session ? confirmDeleteAccount : confirmResetApp}
         deleting={deleting}
+        mode={session ? "delete" : "reset"}
+      />
+
+      <DataConflictModal
+        visible={conflictModalVisible}
+        onUseCloud={handleUseCloudData}
+        onKeepLocal={handleKeepLocalData}
+        loading={conflictLoading}
+        onDismiss={() => { if (!conflictLoading) { setConflictModalVisible(false); setConflictUserId(null); } }}
       />
     </ScrollView>
   );
+}
+
+const LOCAL_DATA_TABLES = [
+  "user_exercises",
+  "daily_logs",
+  "exercise_logs",
+  "rom_measurements",
+  "milestones",
+  "user_achievements",
+  "user_gate_criteria",
+  "notification_preferences",
+] as const;
+
+const CLOUD_DATA_TABLES = [
+  "user_exercises",
+  "daily_logs",
+  "exercise_logs",
+  "rom_measurements",
+  "milestones",
+] as const;
+
+function detectLocalData(db: ReturnType<typeof useSQLiteContext>): boolean {
+  const localProfile = getProfile(db);
+  if (localProfile?.surgery_date || localProfile?.graft_type) return true;
+  for (const table of LOCAL_DATA_TABLES) {
+    const row = db.getFirstSync<{ id: string }>(`SELECT id FROM ${table} LIMIT 1`);
+    if (row) return true;
+  }
+  return false;
+}
+
+async function detectCloudData(userId: string): Promise<boolean> {
+  // Check profiles table first
+  const { data: cloudProfile, error: profileError } = await supabase
+    .from("profiles" as never)
+    .select("id")
+    .eq("id", userId)
+    .maybeSingle() as { data: { id: string } | null; error: unknown };
+
+  if (profileError) {
+    console.error("[detectCloudData] Error checking cloud profile:", profileError);
+    return true; // conservative: assume data exists on error
+  }
+  if (cloudProfile) return true;
+
+  // Check key user data tables
+  for (const table of CLOUD_DATA_TABLES) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from(table as any) as any)
+      .select("id")
+      .eq("user_id", userId)
+      .limit(1) as { data: { id: string }[] | null; error: unknown };
+
+    if (error) {
+      console.error(`[detectCloudData] Error checking cloud table ${table}:`, error);
+      return true; // conservative: assume data exists on error
+    }
+    if (data && data.length > 0) return true;
+  }
+  return false;
 }
 
 function isSurgeryDateEditable(dateStr: string | null | undefined): boolean {
