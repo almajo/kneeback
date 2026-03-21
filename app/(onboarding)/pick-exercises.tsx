@@ -40,9 +40,10 @@ export default function PickExercises() {
   const currentPhase = getPhaseFromDays(daysSinceSurgery, surgeryStatus);
 
   useEffect(() => {
-    const all = getAllExercises(db);
-    setExercises(all);
-    setLoading(false);
+    getAllExercises(db).then((all) => {
+      setExercises(all);
+      setLoading(false);
+    });
   }, []);
 
   const searchLower = search.toLowerCase();

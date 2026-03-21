@@ -39,8 +39,8 @@ function parseExercise(raw: RawExercise): Exercise {
   };
 }
 
-export function getAllExercises(db: SQLite.SQLiteDatabase): Exercise[] {
-  const rows = db.getAllSync<RawExercise>(
+export async function getAllExercises(db: SQLite.SQLiteDatabase): Promise<Exercise[]> {
+  const rows = await db.getAllAsync<RawExercise>(
     "SELECT * FROM exercises ORDER BY sort_order ASC"
   );
   return rows.map(parseExercise);

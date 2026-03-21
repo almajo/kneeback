@@ -69,28 +69,29 @@ export default function ExercisePicker() {
   const { gateProgress } = usePhaseGate(daysSinceSurgery, surgeryStatus, null);
 
   useEffect(() => {
-    const exs = getAllExercises(db);
-    setExercises(exs);
+    getAllExercises(db).then((exs) => {
+      setExercises(exs);
 
-    const ues = getAllUserExercises(db);
-    const map = new Map<string, LocalUserExercise>();
-    for (const ue of ues) map.set(ue.exercise_id, ue);
-    setUserExercisesMap(map);
+      const ues = getAllUserExercises(db);
+      const map = new Map<string, LocalUserExercise>();
+      for (const ue of ues) map.set(ue.exercise_id, ue);
+      setUserExercisesMap(map);
 
-    const profile = getProfile(db);
-    if (profile?.surgery_date) {
-      const diff = Math.floor(
-        (Date.now() - new Date(profile.surgery_date).getTime()) / 86400000
-      );
-      if (diff >= 0) {
-        setDaysSinceSurgery(diff);
-        setSurgeryStatus("post_surgery");
-      } else {
-        setSurgeryStatus("pre_surgery");
+      const profile = getProfile(db);
+      if (profile?.surgery_date) {
+        const diff = Math.floor(
+          (Date.now() - new Date(profile.surgery_date).getTime()) / 86400000
+        );
+        if (diff >= 0) {
+          setDaysSinceSurgery(diff);
+          setSurgeryStatus("post_surgery");
+        } else {
+          setSurgeryStatus("pre_surgery");
+        }
       }
-    }
 
-    setLoading(false);
+      setLoading(false);
+    });
   }, [db]);
 
   const currentPhase = getPhaseFromDays(daysSinceSurgery, surgeryStatus);

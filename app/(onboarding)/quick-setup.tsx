@@ -36,13 +36,14 @@ export default function QuickSetup() {
   const alreadySelected = data.selectedExercises.length > 0;
 
   useEffect(() => {
-    const all = getAllExercises(db);
-    setExercises(all);
-    if (!alreadySelected) {
-      const quickSet = getQuickSetupExercises(all, stablePhase, stableStatus);
-      for (const ex of quickSet) toggleExercise(ex);
-    }
-    setLoading(false);
+    getAllExercises(db).then((all) => {
+      setExercises(all);
+      if (!alreadySelected) {
+        const quickSet = getQuickSetupExercises(all, stablePhase, stableStatus);
+        for (const ex of quickSet) toggleExercise(ex);
+      }
+      setLoading(false);
+    });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const quickExercises = getQuickSetupExercises(exercises, currentPhase, surgeryStatus);
