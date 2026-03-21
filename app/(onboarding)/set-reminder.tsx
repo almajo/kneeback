@@ -53,7 +53,6 @@ export default function SetReminder() {
           sets: ex.sets,
           reps: ex.reps,
           hold_seconds: ex.hold_seconds,
-          is_active: true,
           sort_order: i,
         });
       });

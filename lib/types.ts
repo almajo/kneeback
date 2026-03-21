@@ -83,7 +83,6 @@ export interface UserExercise {
   sets: number;
   reps: number;
   hold_seconds: number | null;
-  is_active: boolean;
   sort_order: number;
   exercise?: Exercise; // joined
 }

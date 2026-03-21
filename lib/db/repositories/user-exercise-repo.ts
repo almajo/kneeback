@@ -7,7 +7,6 @@ export interface LocalUserExercise {
   sets: number;
   reps: number;
   hold_seconds: number | null;
-  is_active: boolean;
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -20,7 +19,6 @@ type RawUserExercise = {
   sets: number;
   reps: number;
   hold_seconds: number | null;
-  is_active: number;
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -70,10 +68,7 @@ function parseExerciseFromJoin(row: RawJoinedRow): Exercise {
 }
 
 function parseUserExercise(raw: RawUserExercise): LocalUserExercise {
-  return {
-    ...raw,
-    is_active: raw.is_active === 1,
-  };
+  return { ...raw };
 }
 
 function parseJoinedUserExercise(row: RawJoinedRow): LocalUserExercise {
@@ -83,7 +78,6 @@ function parseJoinedUserExercise(row: RawJoinedRow): LocalUserExercise {
     sets: row.sets,
     reps: row.reps,
     hold_seconds: row.hold_seconds,
-    is_active: row.is_active === 1,
     sort_order: row.sort_order,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -93,7 +87,7 @@ function parseJoinedUserExercise(row: RawJoinedRow): LocalUserExercise {
 
 const JOIN_QUERY = `
   SELECT
-    ue.id, ue.exercise_id, ue.sets, ue.reps, ue.hold_seconds, ue.is_active,
+    ue.id, ue.exercise_id, ue.sets, ue.reps, ue.hold_seconds,
     ue.sort_order, ue.created_at, ue.updated_at,
     e.id as ex_id, e.name as ex_name, e.description as ex_description,
     e.phase_start as ex_phase_start, e.phase_end as ex_phase_end,
@@ -115,15 +109,6 @@ export function getAllUserExercises(
   return rows.map(parseJoinedUserExercise);
 }
 
-export function getActiveUserExercises(
-  db: SQLite.SQLiteDatabase
-): LocalUserExercise[] {
-  const rows = db.getAllSync<RawJoinedRow>(
-    `${JOIN_QUERY} WHERE ue.is_active = 1 ORDER BY ue.sort_order ASC`
-  );
-  return rows.map(parseJoinedUserExercise);
-}
-
 export type CreateUserExerciseData = Omit<
   LocalUserExercise,
   "created_at" | "updated_at" | "exercise"
@@ -135,15 +120,14 @@ export function createUserExercise(
 ): LocalUserExercise {
   db.runSync(
     `INSERT INTO user_exercises
-      (id, exercise_id, sets, reps, hold_seconds, is_active, sort_order)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      (id, exercise_id, sets, reps, hold_seconds, sort_order)
+     VALUES (?, ?, ?, ?, ?, ?)`,
     [
       data.id,
       data.exercise_id,
       data.sets,
       data.reps,
       data.hold_seconds ?? null,
-      data.is_active ? 1 : 0,
       data.sort_order,
     ]
   );
@@ -183,10 +167,6 @@ export function updateUserExercise(
   if (data.hold_seconds !== undefined) {
     fields.push("hold_seconds = ?");
     values.push(data.hold_seconds ?? null);
-  }
-  if (data.is_active !== undefined) {
-    fields.push("is_active = ?");
-    values.push(data.is_active ? 1 : 0);
   }
   if (data.sort_order !== undefined) {
     fields.push("sort_order = ?");
@@ -228,12 +208,12 @@ export function updateUserExerciseSortOrder(
   }
 }
 
-export function deactivateUserExercise(
+export function deleteUserExercise(
   db: SQLite.SQLiteDatabase,
   id: string
 ): void {
   const result = db.runSync(
-    "UPDATE user_exercises SET is_active = 0, updated_at = datetime('now') WHERE id = ?",
+    "DELETE FROM user_exercises WHERE id = ?",
     [id]
   );
   if (result.changes === 0) {

@@ -1,6 +1,6 @@
 import * as SQLite from "expo-sqlite";
 
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
 
 // schema_version is an internal migration-tracking table.
 // It intentionally omits a primary key `id` column and is exempt from the
@@ -72,7 +72,6 @@ const CREATE_USER_EXERCISES = `
     sets INTEGER NOT NULL DEFAULT 3,
     reps INTEGER NOT NULL DEFAULT 10,
     hold_seconds INTEGER,
-    is_active INTEGER NOT NULL DEFAULT 1,
     sort_order INTEGER NOT NULL DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
@@ -207,6 +206,12 @@ export function initializeDatabase(db: SQLite.SQLiteDatabase): void {
     db.execSync(CREATE_USER_ACHIEVEMENTS);
     db.execSync(CREATE_USER_GATE_CRITERIA);
     db.execSync(CREATE_NOTIFICATION_PREFERENCES);
+  }
+
+  // Migration v1 → v2: remove is_active — presence = active
+  if (currentVersion < 2) {
+    db.execSync("DELETE FROM user_exercises WHERE is_active = 0");
+    db.execSync("ALTER TABLE user_exercises DROP COLUMN is_active");
   }
 
   setSchemaVersion(db, CURRENT_SCHEMA_VERSION);

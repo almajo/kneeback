@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSQLiteContext } from "expo-sqlite";
 import { getProfile } from "../db/repositories/profile-repo";
-import { getActiveUserExercises } from "../db/repositories/user-exercise-repo";
+import { getAllUserExercises } from "../db/repositories/user-exercise-repo";
 import { getOrCreateDailyLog } from "../db/repositories/daily-log-repo";
 import { getExerciseLogsByDailyLogId } from "../db/repositories/exercise-log-repo";
 import { getStreak } from "../achievements";
@@ -31,7 +31,7 @@ export function useToday() {
     const prof = getProfile(db);
     setProfile(prof ? { surgery_date: prof.surgery_date } : null);
 
-    const exercises = getActiveUserExercises(db);
+    const exercises = getAllUserExercises(db);
     setUserExercises(exercises);
 
     const log = getOrCreateDailyLog(db, today);

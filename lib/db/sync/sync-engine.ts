@@ -220,6 +220,27 @@ export async function deltaSync(
     }
   }
 
+  // Reconcile user_exercises deletions: remove remote rows that no longer exist locally
+  const localExerciseIds = new Set(
+    getAllRows(db, "user_exercises").map((r) => r.id)
+  );
+  const { data: remoteExerciseRows, error: reconcileError } = await getSupabaseTable("user_exercises")
+    .select("id")
+    .eq("user_id", userId);
+  if (reconcileError) {
+    console.error("[deltaSync] Failed to fetch remote exercise IDs for reconciliation:", reconcileError.message);
+  } else if (remoteExerciseRows) {
+    const toDelete = (remoteExerciseRows as unknown as { id: string }[])
+      .map((r) => r.id)
+      .filter((id) => !localExerciseIds.has(id));
+    for (const id of toDelete) {
+      const { error: deleteError } = await getSupabaseTable("user_exercises").delete().eq("id", id);
+      if (deleteError) {
+        console.error(`[deltaSync] Failed to delete remote exercise ${id}:`, deleteError.message);
+      }
+    }
+  }
+
   // Sync profile (best-effort — log errors, don't fail the whole sync)
   const { data: remoteProfile, error: remoteProfileError } = await supabase
     .from("profiles" as never)
