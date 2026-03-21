@@ -13,6 +13,11 @@ export function RestTimer({ seconds, onTimerComplete }: Props) {
   const [running, setRunning] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Pre-warm speech synthesizer on mount to avoid initialization delay on first use
+  useEffect(() => {
+    Speech.speak("", { rate: 1.2 }).catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (running && remaining > 0) {
       intervalRef.current = setInterval(() => {

@@ -23,16 +23,23 @@ It is **not** a replacement for your physiotherapist. It is the Duolingo-style h
 
 ## Features
 
+### Local-First Data Privacy
+- **Your data stays on your device** — all exercises, progress, and personal information are stored locally on your phone
+- Optional cloud sync for backup and multi-device access — you control when and what data is synced
+- No server-side tracking or analytics of your rehabilitation data
+- Your privacy is protected by design, not by policy
+
 ### Today's Workout
 - Day counter since surgery (because you absolutely know the exact number)
 - Editable daily exercise checklist from a pre-built rehab library
-- Built-in rest timer and rep counter
+- Built-in rest timer with voice countdown and audio feedback
+- Rep counter with rest intervals
 - Smart Rest mode — log a swelling day, freeze your streak, get a supportive message about being medically obligated to lie on the couch
 
 ### Progress Tracking
 - Flexion and extension angle tracking (the real milestones)
-- Quad activation logging (binary: fired / did not fire)
 - Charts and milestone timelines to see the actual curve of recovery
+- Detailed exercise history and performance logs
 
 ### Personality Layer
 - Humorous achievement system: *"First Shower Without Panic"*, *"Straight Leg Jedi"*
