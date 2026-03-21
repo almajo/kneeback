@@ -242,6 +242,8 @@ export default function ProfileScreen() {
   async function handleUseCloudData() {
     if (!conflictUserId) return;
     setConflictLoading(true);
+    // Purge local data first so the pull is a clean replace, not a merge
+    await purgeAllUserData(db);
     const pull = await pullAll(db, conflictUserId);
     if (pull.error) {
       setSyncError(`Sync failed: ${pull.error}`);
