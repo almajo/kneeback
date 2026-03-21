@@ -15,7 +15,11 @@ export function RestTimer({ seconds, onTimerComplete }: Props) {
 
   // Pre-warm speech synthesizer on mount to avoid initialization delay on first use
   useEffect(() => {
-    Speech.speak("", { rate: 1.2 }).catch(() => {});
+    try {
+      Speech.speak("", { rate: 1.2 });
+    } catch {
+      // Silently ignore errors - this is just a warm-up call
+    }
   }, []);
 
   useEffect(() => {
