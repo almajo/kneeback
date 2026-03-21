@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { generateId } from "./utils/uuid";
 
 const DEVICE_ID_KEY = "device_id";
 const DEVICE_ANIMAL_NAME_KEY = "device_animal_name";
@@ -40,7 +41,7 @@ const ANIMALS = [
 ];
 
 function generateUUID(): string {
-  return crypto.randomUUID();
+  return generateId();
 }
 
 function generateAnimalName(): string {

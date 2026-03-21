@@ -27,6 +27,7 @@ import {
 import { ShareWinPrompt } from "../../components/community/ShareWinPrompt";
 import { submitCommunityPost } from "../../lib/community";
 import { getCommunityIdentity } from "../../lib/community-identity";
+import { generateId } from "../../lib/utils/uuid";
 
 function getLast30Dates(): string[] {
   const dates: string[] = [];
@@ -105,7 +106,7 @@ export default function ProgressScreen() {
   }): Promise<void> {
     try {
       createRomMeasurement(db, {
-        id: crypto.randomUUID(),
+        id: generateId(),
         ...payload,
       });
       loadMeasurements();

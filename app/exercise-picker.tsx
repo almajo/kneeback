@@ -41,6 +41,7 @@ import {
 import { getProfile } from "../lib/db/repositories/profile-repo";
 import type { Exercise, ExercisePhase, GateDefinition } from "../lib/types";
 import type { SurgeryStatus } from "../lib/hooks/use-today";
+import { generateId } from "../lib/utils/uuid";
 
 export default function ExercisePicker() {
   const router = useRouter();
@@ -131,7 +132,7 @@ export default function ExercisePicker() {
       );
     } else {
       const inserted = createUserExercise(db, {
-        id: crypto.randomUUID(),
+        id: generateId(),
         exercise_id: exercise.id,
         sets: exercise.default_sets,
         reps: exercise.default_reps,

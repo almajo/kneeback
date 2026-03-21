@@ -1,4 +1,5 @@
 import * as SQLite from "expo-sqlite";
+import { generateId } from "../../utils/uuid";
 
 export interface LocalUserGateCriterion {
   id: string;
@@ -41,7 +42,7 @@ export function confirmGateCriterion(
     return existing;
   }
 
-  const id = crypto.randomUUID();
+  const id = generateId();
   const confirmedAt = new Date().toISOString();
 
   db.runSync(

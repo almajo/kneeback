@@ -22,6 +22,7 @@ import { useKeepAwake } from "../../lib/hooks/use-keep-awake";
 import type { Content } from "../../lib/types";
 import type { LocalUserExercise } from "../../lib/db/repositories/user-exercise-repo";
 import type { LocalExerciseLog } from "../../lib/db/repositories/exercise-log-repo";
+import { generateId } from "../../lib/utils/uuid";
 
 export default function TodayScreen() {
   useKeepAwake();
@@ -174,7 +175,7 @@ export default function TodayScreen() {
       setExerciseLogs((prev) => [...prev, newLog]);
     }
 
-    const upsertId = existing?.id ?? crypto.randomUUID();
+    const upsertId = existing?.id ?? generateId();
     const persisted = upsertExerciseLog(db, {
       id: upsertId,
       daily_log_id: dailyLog.id,

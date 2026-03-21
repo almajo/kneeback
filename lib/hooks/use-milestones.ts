@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSQLiteContext } from "expo-sqlite";
+import { generateId } from "../utils/uuid";
 import {
   getAllMilestones,
   createMilestone,
@@ -31,7 +32,7 @@ export function useMilestones() {
     notes?: string;
     template_key?: string;
   }) {
-    const id = crypto.randomUUID();
+    const id = generateId();
     const created = createMilestone(db, {
       id,
       title: input.title,

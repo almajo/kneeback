@@ -1,4 +1,5 @@
 import * as SQLite from "expo-sqlite";
+import { generateId } from "../../utils/uuid";
 
 export interface LocalNotificationPreferences {
   id: string;
@@ -92,7 +93,7 @@ export function createOrUpdateNotificationPreferences(
     return parsePreferences(updated);
   }
 
-  const id = crypto.randomUUID();
+  const id = generateId();
   db.runSync(
     `INSERT INTO notification_preferences
       (id, daily_reminder_time, evening_nudge_enabled, evening_nudge_time,

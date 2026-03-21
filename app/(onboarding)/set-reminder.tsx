@@ -7,6 +7,7 @@ import { createProfile } from "../../lib/db/repositories/profile-repo";
 import { createUserExercise } from "../../lib/db/repositories/user-exercise-repo";
 import { createOrUpdateNotificationPreferences } from "../../lib/db/repositories/notification-repo";
 import { getDeviceId } from "../../lib/device-identity";
+import { generateId } from "../../lib/utils/uuid";
 import { registerForPushNotifications, scheduleDailyReminder } from "../../lib/notifications";
 import { Colors } from "../../constants/colors";
 
@@ -33,7 +34,7 @@ export default function SetReminder() {
 
       // Create local profile (single row)
       createProfile(db, {
-        id: crypto.randomUUID(),
+        id: generateId(),
         name: data.name,
         username: data.username,
         surgery_date: data.surgeryDate,
@@ -47,7 +48,7 @@ export default function SetReminder() {
       // Create user exercises
       data.selectedExercises.forEach((ex, i) => {
         createUserExercise(db, {
-          id: crypto.randomUUID(),
+          id: generateId(),
           exercise_id: ex.exerciseId,
           sets: ex.sets,
           reps: ex.reps,

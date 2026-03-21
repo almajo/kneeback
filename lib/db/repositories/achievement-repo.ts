@@ -1,4 +1,5 @@
 import * as SQLite from "expo-sqlite";
+import { generateId } from "../../utils/uuid";
 
 export interface LocalUserAchievement {
   id: string;
@@ -29,7 +30,7 @@ export function unlockAchievement(
     return existing;
   }
 
-  const id = crypto.randomUUID();
+  const id = generateId();
   const unlockedAt = new Date().toISOString();
 
   db.runSync(

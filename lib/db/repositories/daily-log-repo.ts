@@ -1,4 +1,5 @@
 import * as SQLite from "expo-sqlite";
+import { generateId } from "../../utils/uuid";
 
 export interface LocalDailyLog {
   id: string;
@@ -33,7 +34,7 @@ export function getOrCreateDailyLog(
     return parseDailyLog(existing);
   }
 
-  const id = crypto.randomUUID();
+  const id = generateId();
   db.runSync(
     "INSERT INTO daily_logs (id, date, is_rest_day, notes) VALUES (?, ?, 0, NULL)",
     [id, date]

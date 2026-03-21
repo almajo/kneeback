@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { generateId } from "../../utils/uuid";
 import type { SQLiteDatabase, SQLiteBindValue } from "expo-sqlite";
 import { supabase } from "../../supabase";
 import { getDeviceId } from "../../device-identity";
@@ -45,7 +46,7 @@ export async function migrateSupabaseToLocal(
 
   try {
     createProfile(db, {
-      id: crypto.randomUUID(),
+      id: generateId(),
       name: remoteProfile.name ?? remoteProfile.username ?? "",
       username: remoteProfile.username ?? remoteProfile.name ?? "user",
       surgery_date: remoteProfile.surgery_date ?? null,
