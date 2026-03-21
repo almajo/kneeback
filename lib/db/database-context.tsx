@@ -1,7 +1,7 @@
 import React from "react";
 import { drizzle } from "drizzle-orm/expo-sqlite";
 import { openDatabaseSync } from "expo-sqlite";
-import { useMigrations } from "drizzle-orm/expo-sqlite";
+import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
 import * as schema from "./schema";
 import migrations from "../../drizzle/migrations/migrations";
 
