@@ -209,16 +209,8 @@ export default function ProfileScreen() {
   async function handleAuthSuccess(userId: string) {
     setAuthModalVisible(false);
 
-    const localProfile = getProfile(db);
-    const hasLocalData = !!(localProfile?.surgery_date || localProfile?.graft_type);
-
-    // Check whether this account already has cloud data
-    const { data: cloudProfile } = await supabase
-      .from("profiles" as never)
-      .select("user_id")
-      .eq("user_id", userId)
-      .maybeSingle() as { data: { user_id: string } | null };
-    const hasCloudData = !!cloudProfile;
+    const hasLocalData = detectLocalData(db);
+    const hasCloudData = await detectCloudData(userId);
 
     if (hasLocalData && hasCloudData) {
       // Both sides have data — let the user choose
@@ -755,6 +747,56 @@ export default function ProfileScreen() {
       />
     </ScrollView>
   );
+}
+
+const LOCAL_DATA_TABLES = [
+  "user_exercises",
+  "daily_logs",
+  "exercise_logs",
+  "rom_measurements",
+  "milestones",
+  "user_achievements",
+  "user_gate_criteria",
+  "notification_preferences",
+] as const;
+
+const CLOUD_DATA_TABLES = [
+  "user_exercises",
+  "daily_logs",
+  "exercise_logs",
+  "rom_measurements",
+  "milestones",
+] as const;
+
+function detectLocalData(db: ReturnType<typeof useSQLiteContext>): boolean {
+  const localProfile = getProfile(db);
+  if (localProfile?.surgery_date || localProfile?.graft_type) return true;
+  for (const table of LOCAL_DATA_TABLES) {
+    const row = db.getFirstSync<{ id: string }>(`SELECT id FROM ${table} LIMIT 1`);
+    if (row) return true;
+  }
+  return false;
+}
+
+async function detectCloudData(userId: string): Promise<boolean> {
+  // Check profiles table first
+  const { data: cloudProfile } = await supabase
+    .from("profiles" as never)
+    .select("user_id")
+    .eq("user_id", userId)
+    .maybeSingle() as { data: { user_id: string } | null };
+  if (cloudProfile) return true;
+
+  // Check key user data tables
+  for (const table of CLOUD_DATA_TABLES) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (supabase.from(table as any) as any)
+      .select("id")
+      .eq("user_id", userId)
+      .limit(1);
+    if (data && data.length > 0) return true;
+  }
+  return false;
 }
 
 function isSurgeryDateEditable(dateStr: string | null | undefined): boolean {
