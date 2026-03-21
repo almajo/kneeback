@@ -12,6 +12,7 @@ export interface DataConflictModalProps {
   onUseCloud: () => Promise<void>;
   onKeepLocal: () => Promise<void>;
   loading: boolean;
+  onDismiss?: () => void;
 }
 
 export function DataConflictModal({
@@ -19,9 +20,10 @@ export function DataConflictModal({
   onUseCloud,
   onKeepLocal,
   loading,
+  onDismiss,
 }: DataConflictModalProps) {
   return (
-    <Modal visible={visible} transparent animationType="fade">
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onDismiss}>
       <View
         className="flex-1 justify-center items-center"
         style={{ backgroundColor: "rgba(0,0,0,0.5)" }}

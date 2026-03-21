@@ -26,13 +26,15 @@ const ASYNC_STORAGE_KEYS = [
  * Clears AsyncStorage flags to reset app to fresh-install state.
  */
 export async function purgeAllUserData(db: SQLiteDatabase): Promise<void> {
-  for (const table of USER_DATA_TABLES_PURGE_ORDER) {
-    try {
-      db.runSync(`DELETE FROM ${table}`);
-    } catch (err) {
-      console.error(`[purgeAllUserData] Failed to delete from ${table}:`, err);
+  db.withTransactionSync(() => {
+    for (const table of USER_DATA_TABLES_PURGE_ORDER) {
+      try {
+        db.runSync(`DELETE FROM ${table}`);
+      } catch (err) {
+        console.error(`[purgeAllUserData] Failed to delete from ${table}:`, err);
+      }
     }
-  }
+  });
 
   try {
     await AsyncStorage.multiRemove(ASYNC_STORAGE_KEYS);

@@ -242,35 +242,50 @@ export default function ProfileScreen() {
   async function handleUseCloudData() {
     if (!conflictUserId) return;
     setConflictLoading(true);
-    // Purge local data first so the pull is a clean replace, not a merge
-    await purgeAllUserData(db);
-    const pull = await pullAll(db, conflictUserId);
-    if (pull.error) {
-      setSyncError(`Sync failed: ${pull.error}`);
-    } else {
+    try {
+      // Purge local data first so the pull is a clean replace, not a merge
+      await purgeAllUserData(db);
+      const pull = await pullAll(db, conflictUserId);
+      if (pull.error) {
+        setSyncError(`Sync failed: ${pull.error}`);
+        return;
+      }
       const now = new Date().toISOString();
-      const updated = updateProfile(db, { supabase_user_id: conflictUserId, last_synced_at: now });
-      setProfile(updated);
+      const existingProfile = getProfile(db);
+      if (existingProfile) {
+        const updated = updateProfile(db, { supabase_user_id: conflictUserId, last_synced_at: now });
+        setProfile(updated);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      setSyncError(`Sync failed: ${message}`);
+    } finally {
+      setConflictLoading(false);
+      setConflictModalVisible(false);
+      setConflictUserId(null);
     }
-    setConflictLoading(false);
-    setConflictModalVisible(false);
-    setConflictUserId(null);
   }
 
   async function handleKeepLocalData() {
     if (!conflictUserId) return;
     setConflictLoading(true);
-    const push = await pushAll(db, conflictUserId);
-    if (push.error) {
-      setSyncError(`Sync failed: ${push.error}`);
-    } else {
+    try {
+      const push = await pushAll(db, conflictUserId);
+      if (push.error) {
+        setSyncError(`Sync failed: ${push.error}`);
+        return;
+      }
       const now = new Date().toISOString();
       const updated = updateProfile(db, { supabase_user_id: conflictUserId, last_synced_at: now });
       setProfile(updated);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      setSyncError(`Sync failed: ${message}`);
+    } finally {
+      setConflictLoading(false);
+      setConflictModalVisible(false);
+      setConflictUserId(null);
     }
-    setConflictLoading(false);
-    setConflictModalVisible(false);
-    setConflictUserId(null);
   }
 
   async function handleSyncNow() {
@@ -746,6 +761,7 @@ export default function ProfileScreen() {
         onUseCloud={handleUseCloudData}
         onKeepLocal={handleKeepLocalData}
         loading={conflictLoading}
+        onDismiss={() => { if (!conflictLoading) { setConflictModalVisible(false); setConflictUserId(null); } }}
       />
     </ScrollView>
   );
@@ -782,20 +798,30 @@ function detectLocalData(db: ReturnType<typeof useSQLiteContext>): boolean {
 
 async function detectCloudData(userId: string): Promise<boolean> {
   // Check profiles table first
-  const { data: cloudProfile } = await supabase
+  const { data: cloudProfile, error: profileError } = await supabase
     .from("profiles" as never)
     .select("id")
     .eq("id", userId)
-    .maybeSingle() as { data: { id: string } | null };
+    .maybeSingle() as { data: { id: string } | null; error: unknown };
+
+  if (profileError) {
+    console.error("[detectCloudData] Error checking cloud profile:", profileError);
+    return true; // conservative: assume data exists on error
+  }
   if (cloudProfile) return true;
 
   // Check key user data tables
   for (const table of CLOUD_DATA_TABLES) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data } = await (supabase.from(table as any) as any)
+    const { data, error } = await (supabase.from(table as any) as any)
       .select("id")
       .eq("user_id", userId)
-      .limit(1);
+      .limit(1) as { data: { id: string }[] | null; error: unknown };
+
+    if (error) {
+      console.error(`[detectCloudData] Error checking cloud table ${table}:`, error);
+      return true; // conservative: assume data exists on error
+    }
     if (data && data.length > 0) return true;
   }
   return false;

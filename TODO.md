@@ -8,7 +8,7 @@
 
 ## bugs
 
-Update README to latest features of the repo
+- Update README to latest features of the repo
 
 ## new features
 

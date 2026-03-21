@@ -34,7 +34,7 @@ export async function migrateSupabaseToLocal(
   const { data: remoteProfile, error: profileError } = await supabase
     .from("profiles")
     .select("*")
-    .eq("user_id", session.user.id)
+    .eq("id", session.user.id)
     .single();
 
   if (profileError) {
