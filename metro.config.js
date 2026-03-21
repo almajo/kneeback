@@ -12,7 +12,8 @@ config.resolver.sourceExts = config.resolver.sourceExts.filter(
 );
 
 // drizzle-orm/expo-sqlite migrations.js imports .sql files directly.
-// Add sql to sourceExts so Metro bundles them as modules (returns the SQL string).
+// babel-plugin-inline-import (babel.config.js) inlines SQL as string literals so
+// Metro never tries to parse raw SQL as JavaScript (backtick identifiers = invalid JS).
 config.resolver.sourceExts.push("sql");
 
 module.exports = withNativeWind(config, { input: "./global.css" });
