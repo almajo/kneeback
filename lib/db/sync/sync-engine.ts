@@ -1,7 +1,9 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 import { supabase } from "../../supabase";
 import { resolveConflict } from "./conflict-resolver";
-import { getProfile, updateProfile } from "../repositories/profile-repo";
+import { getProfile, updateProfile, createProfile } from "../repositories/profile-repo";
+import { generateId } from "../../utils/uuid";
+import { getDeviceId } from "../../device-identity";
 
 // Tables to sync — catalog tables (exercises, content) are excluded
 const USER_DATA_TABLES = [
@@ -120,16 +122,36 @@ export async function pullAll(
     console.error("[pullAll] Failed to pull profile:", profileError.message);
   } else if (remoteProfile) {
     const rp = remoteProfile as Record<string, unknown>;
-    try {
-      updateProfile(db, {
-        name: rp.name as string | undefined,
-        username: rp.username as string | undefined,
-        surgery_date: (rp.surgery_date as string | null) ?? null,
-        graft_type: (rp.graft_type as import("../../types").GraftType | null) ?? null,
-        knee_side: rp.knee_side as import("../../types").KneeSide | undefined,
-      });
-    } catch (err) {
-      console.error("[pullAll] Failed to update local profile:", err);
+    const existingProfile = getProfile(db);
+    if (existingProfile) {
+      try {
+        updateProfile(db, {
+          name: rp.name as string | undefined,
+          username: rp.username as string | undefined,
+          surgery_date: (rp.surgery_date as string | null) ?? null,
+          graft_type: (rp.graft_type as import("../../types").GraftType | null) ?? null,
+          knee_side: rp.knee_side as import("../../types").KneeSide | undefined,
+        });
+      } catch (err) {
+        console.error("[pullAll] Failed to update local profile:", err);
+      }
+    } else {
+      try {
+        const deviceId = await getDeviceId();
+        createProfile(db, {
+          id: generateId(),
+          name: (rp.name as string) ?? (rp.username as string) ?? "",
+          username: (rp.username as string) ?? (rp.name as string) ?? "user",
+          surgery_date: (rp.surgery_date as string | null) ?? null,
+          graft_type: (rp.graft_type as import("../../types").GraftType | null) ?? null,
+          knee_side: (rp.knee_side as import("../../types").KneeSide) ?? "right",
+          device_id: deviceId,
+          supabase_user_id: userId,
+          last_synced_at: null,
+        });
+      } catch (err) {
+        console.error("[pullAll] Failed to create local profile from cloud:", err);
+      }
     }
   }
 
