@@ -207,7 +207,9 @@ export default function TodayScreen() {
   function handleReorder(reordered: LocalUserExercise[]) {
     setUserExercises(reordered);
     for (let index = 0; index < reordered.length; index++) {
-      void updateUserExerciseSortOrder(reordered[index].id, index);
+      updateUserExerciseSortOrder(reordered[index].id, index).catch((err) =>
+        console.error("[handleReorder] Failed to persist sort order:", err)
+      );
     }
   }
 

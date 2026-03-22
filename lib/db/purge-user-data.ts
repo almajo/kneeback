@@ -1,18 +1,16 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { db } from "./database-context";
-
-// User data tables in FK-safe deletion order
-const USER_DATA_TABLES_PURGE_ORDER = [
-  "exercise_logs",
-  "user_achievements",
-  "user_gate_criteria",
-  "rom_measurements",
-  "milestones",
-  "daily_logs",
-  "user_exercises",
-  "notification_preferences",
-  "profile",
-] as const;
+import {
+  exercise_logs,
+  user_achievements,
+  user_gate_criteria,
+  rom_measurements,
+  milestones,
+  daily_logs,
+  user_exercises,
+  notification_preferences,
+  profile,
+} from "./schema";
 
 const ASYNC_STORAGE_KEYS = [
   "has_seen_intro",
@@ -26,14 +24,17 @@ const ASYNC_STORAGE_KEYS = [
  * Clears AsyncStorage flags to reset app to fresh-install state.
  */
 export async function purgeAllUserData(): Promise<void> {
-  db.$client.withTransactionSync(() => {
-    for (const table of USER_DATA_TABLES_PURGE_ORDER) {
-      try {
-        db.$client.runSync(`DELETE FROM ${table}`);
-      } catch (err) {
-        console.error(`[purgeAllUserData] Failed to delete from ${table}:`, err);
-      }
-    }
+  await db.transaction(async (tx) => {
+    // Delete in FK-safe order (children before parents)
+    await tx.delete(exercise_logs);
+    await tx.delete(user_achievements);
+    await tx.delete(user_gate_criteria);
+    await tx.delete(rom_measurements);
+    await tx.delete(milestones);
+    await tx.delete(daily_logs);
+    await tx.delete(user_exercises);
+    await tx.delete(notification_preferences);
+    await tx.delete(profile);
   });
 
   try {

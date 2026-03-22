@@ -15,7 +15,7 @@ const mockDelete = jest.fn();
 // Chainable query builder helper
 function makeChain(resolveWith: unknown) {
   const chain: Record<string, jest.Mock> = {};
-  const methods = ["from", "where", "limit", "values", "set", "returning"];
+  const methods = ["from", "where", "limit", "values", "set", "returning", "orderBy", "leftJoin"];
   for (const m of methods) {
     chain[m] = jest.fn().mockReturnValue(chain);
   }
@@ -68,30 +68,46 @@ const baseProfileRow = {
   updated_at: "2024-01-01T00:00:00Z",
 };
 
-// Helper to set up select mock chain
-function setupSelectChain(rows: unknown[]) {
-  const chain = {
-    from: jest.fn().mockReturnThis(),
-    where: jest.fn().mockReturnThis(),
-    limit: jest.fn().mockResolvedValue(rows),
-    then: undefined as unknown,
-  };
+type SelectChain = Record<string, jest.Mock> & {
+  then: (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) => Promise<unknown>;
+};
+
+// Builds a chainable select mock that is itself thenable.
+function makeSelectChain(rows: unknown[]): SelectChain {
+  const chain = {} as SelectChain;
+  for (const m of ["from", "where", "leftJoin"]) {
+    chain[m] = jest.fn().mockReturnValue(chain);
+  }
   chain.limit = jest.fn().mockResolvedValue(rows);
-  chain.where = jest.fn().mockReturnValue({ ...chain, then: undefined });
-  // Make the chain awaitable to resolve rows at end of chain
-  const awaitable = {
-    from: jest.fn().mockReturnThis(),
-    where: jest.fn().mockResolvedValue(rows),
-    limit: jest.fn().mockResolvedValue(rows),
-  };
-  mockSelect.mockReturnValue(awaitable);
-  return awaitable;
+  chain.orderBy = jest.fn().mockResolvedValue(rows);
+  // Make chain awaitable when where()/from() is the terminal call
+  chain.then = (res, rej) => Promise.resolve(rows).then(res, rej);
+  return chain;
+}
+
+// Builds and registers a select chain on mockSelect.
+function setupSelectChain(rows: unknown[]) {
+  const chain = makeSelectChain(rows);
+  mockSelect.mockReturnValue(chain);
+  return chain;
 }
 
 function setupInsertChain() {
-  const chain = {
-    values: jest.fn().mockResolvedValue(undefined),
-  };
+  const chain: Record<string, jest.Mock> = {};
+  chain.values = jest.fn().mockReturnValue(chain);
+  chain.onConflictDoUpdate = jest.fn().mockResolvedValue(undefined);
+  chain.onConflictDoNothing = jest.fn().mockResolvedValue(undefined);
+  // Also make values itself awaitable (for cases without onConflict)
+  chain.values = jest.fn().mockImplementation(() => {
+    const v: Record<string, jest.Mock> = {
+      onConflictDoUpdate: jest.fn().mockResolvedValue(undefined),
+      onConflictDoNothing: jest.fn().mockResolvedValue(undefined),
+    };
+    // Make v itself a thenable
+    (v as unknown as { then: unknown }).then = (res: (v: unknown) => unknown) =>
+      Promise.resolve(undefined).then(res);
+    return v;
+  });
   mockInsert.mockReturnValue(chain);
   return chain;
 }
@@ -260,12 +276,7 @@ describe("daily-log-repo", () => {
       let callCount = 0;
       mockSelect.mockImplementation(() => {
         callCount++;
-        const rows = callCount === 1 ? [] : [{ ...baseDailyLogRow }];
-        return {
-          from: jest.fn().mockReturnThis(),
-          where: jest.fn().mockResolvedValue(rows),
-          limit: jest.fn().mockResolvedValue(rows),
-        };
+        return makeSelectChain(callCount === 1 ? [] : [{ ...baseDailyLogRow }]);
       });
 
       const log = await getOrCreateDailyLog("2024-06-01");
@@ -276,11 +287,7 @@ describe("daily-log-repo", () => {
     it("throws if insert fails silently", async () => {
       setupInsertChain();
       // always returns empty (insert doesn't create the row)
-      mockSelect.mockImplementation(() => ({
-        from: jest.fn().mockReturnThis(),
-        where: jest.fn().mockResolvedValue([]),
-        limit: jest.fn().mockResolvedValue([]),
-      }));
+      mockSelect.mockImplementation(() => makeSelectChain([]));
 
       await expect(getOrCreateDailyLog("2024-06-01")).rejects.toThrow();
     });
@@ -288,12 +295,7 @@ describe("daily-log-repo", () => {
 
   describe("getDailyLogsByDateRange", () => {
     it("queries with correct date range and parses boolean fields", async () => {
-      const selectChain = {
-        from: jest.fn().mockReturnThis(),
-        where: jest.fn().mockResolvedValue([{ ...baseDailyLogRow, is_rest_day: 1, notes: "rest" }]),
-        limit: jest.fn().mockResolvedValue([]),
-      };
-      mockSelect.mockReturnValue(selectChain);
+      setupSelectChain([{ ...baseDailyLogRow, is_rest_day: 1, notes: "rest" }]);
 
       const logs = await getDailyLogsByDateRange("2024-06-01", "2024-06-30");
       expect(logs).toHaveLength(1);
@@ -304,11 +306,7 @@ describe("daily-log-repo", () => {
   describe("updateDailyLog", () => {
     it("throws if the log is not found after update", async () => {
       setupUpdateChain(0);
-      mockSelect.mockImplementation(() => ({
-        from: jest.fn().mockReturnThis(),
-        where: jest.fn().mockResolvedValue([]),
-        limit: jest.fn().mockResolvedValue([]),
-      }));
+      mockSelect.mockImplementation(() => makeSelectChain([]));
 
       await expect(
         updateDailyLog("log1", { is_rest_day: true })
@@ -344,12 +342,7 @@ describe("exercise-log-repo", () => {
 
   describe("getExerciseLogsByDailyLogId", () => {
     it("parses completed boolean from integer", async () => {
-      const selectChain = {
-        from: jest.fn().mockReturnThis(),
-        where: jest.fn().mockResolvedValue([{ ...baseExerciseLogRow }]),
-        limit: jest.fn().mockResolvedValue([]),
-      };
-      mockSelect.mockReturnValue(selectChain);
+      setupSelectChain([{ ...baseExerciseLogRow }]);
 
       const logs = await getExerciseLogsByDailyLogId("log1");
       expect(logs[0].completed).toBe(true);
@@ -359,11 +352,7 @@ describe("exercise-log-repo", () => {
   describe("upsertExerciseLog", () => {
     it("throws if upserted row is not found", async () => {
       setupInsertChain();
-      mockSelect.mockImplementation(() => ({
-        from: jest.fn().mockReturnThis(),
-        where: jest.fn().mockResolvedValue([]),
-        limit: jest.fn().mockResolvedValue([]),
-      }));
+      mockSelect.mockImplementation(() => makeSelectChain([]));
 
       await expect(
         upsertExerciseLog({
@@ -379,11 +368,7 @@ describe("exercise-log-repo", () => {
 
     it("inserts with correct boolean conversion and returns parsed row", async () => {
       setupInsertChain();
-      mockSelect.mockImplementation(() => ({
-        from: jest.fn().mockReturnThis(),
-        where: jest.fn().mockResolvedValue([{ ...baseExerciseLogRow }]),
-        limit: jest.fn().mockResolvedValue([{ ...baseExerciseLogRow }]),
-      }));
+      mockSelect.mockImplementation(() => makeSelectChain([{ ...baseExerciseLogRow }]));
 
       const result = await upsertExerciseLog({
         id: "el1",
@@ -417,9 +402,7 @@ describe("milestone-repo", () => {
 
   describe("getAllMilestones", () => {
     it("returns empty array when no milestones", async () => {
-      mockSelect.mockReturnValue({
-        from: jest.fn().mockResolvedValue([]),
-      });
+      setupSelectChain([]);
       const result = await getAllMilestones();
       expect(result).toEqual([]);
     });
@@ -435,9 +418,7 @@ describe("milestone-repo", () => {
         created_at: "2024-06-01T00:00:00Z",
         updated_at: "2024-06-01T00:00:00Z",
       };
-      mockSelect.mockReturnValue({
-        from: jest.fn().mockResolvedValue([row]),
-      });
+      setupSelectChain([row]);
 
       const milestones = await getAllMilestones();
       expect(milestones[0].category).toBe("milestone");
@@ -479,11 +460,7 @@ describe("gate-criteria-repo", () => {
 
   describe("getGateCriteriaByGate", () => {
     it("queries by gate_key", async () => {
-      const selectChain = {
-        from: jest.fn().mockReturnThis(),
-        where: jest.fn().mockResolvedValue([]),
-      };
-      mockSelect.mockReturnValue(selectChain);
+      setupSelectChain([]);
 
       await getGateCriteriaByGate("gate_1");
       expect(mockSelect).toHaveBeenCalledTimes(1);
@@ -492,11 +469,7 @@ describe("gate-criteria-repo", () => {
 
   describe("confirmGateCriterion", () => {
     it("returns existing criterion without insert if already confirmed", async () => {
-      const selectChain = {
-        from: jest.fn().mockReturnThis(),
-        where: jest.fn().mockResolvedValue([{ ...baseGateCriteriaRow }]),
-      };
-      mockSelect.mockReturnValue(selectChain);
+      setupSelectChain([{ ...baseGateCriteriaRow }]);
 
       const result = await confirmGateCriterion("gate_1", "criterion_a");
       expect(mockInsert).not.toHaveBeenCalled();
@@ -539,19 +512,13 @@ describe("notification-repo", () => {
 
   describe("getNotificationPreferences", () => {
     it("returns null when no row exists", async () => {
-      mockSelect.mockReturnValue({
-        from: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockResolvedValue([]),
-      });
+      setupSelectChain([]);
       const result = await getNotificationPreferences();
       expect(result).toBeNull();
     });
 
     it("parses boolean fields from integers", async () => {
-      mockSelect.mockReturnValue({
-        from: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockResolvedValue([{ ...baseNotifRow }]),
-      });
+      setupSelectChain([{ ...baseNotifRow }]);
 
       const prefs = await getNotificationPreferences();
       expect(prefs!.evening_nudge_enabled).toBe(false);
@@ -566,10 +533,7 @@ describe("notification-repo", () => {
       mockSelect.mockImplementation(() => {
         callCount++;
         const rows = callCount === 1 ? [] : [{ ...baseNotifRow, daily_reminder_time: "09:00" }];
-        return {
-          from: jest.fn().mockReturnThis(),
-          limit: jest.fn().mockResolvedValue(rows),
-        };
+        return makeSelectChain(rows);
       });
 
       const prefs = await createOrUpdateNotificationPreferences({

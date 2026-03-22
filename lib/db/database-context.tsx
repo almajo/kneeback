@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/expo-sqlite";
 import { openDatabaseAsync } from "expo-sqlite";
 import * as schema from "./schema";
 import migrations from "../../drizzle/migrations/migrations";
+import { seedDatabase } from "./seed-data";
 
 const DATABASE_NAME = "kneeback.db";
 
@@ -35,6 +36,23 @@ async function runMigrationsAsync(
     entries: Array<{ idx: number; tag: string; breakpoints: boolean }>;
   };
 
+  // Detect existing pre-Drizzle installs: if the DB already has user tables but no
+  // applied migrations, mark the baseline migration as already applied so we don't
+  // try to re-run CREATE TABLE statements that would fail with "table already exists".
+  if (appliedHashes.size === 0 && journal.entries.length > 0) {
+    const existingTables = await expo.getAllAsync<{ name: string }>(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != '__drizzle_migrations'"
+    );
+    if (existingTables.length > 0) {
+      const baselineTag = journal.entries[0].tag;
+      await expo.runAsync(
+        'INSERT INTO "__drizzle_migrations" (hash, created_at) VALUES (?, ?)',
+        [baselineTag, Date.now()]
+      );
+      appliedHashes.add(baselineTag);
+    }
+  }
+
   for (const entry of journal.entries) {
     if (appliedHashes.has(entry.tag)) continue;
 
@@ -46,15 +64,22 @@ async function runMigrationsAsync(
       ? sql.split("--> statement-breakpoint")
       : [sql];
 
-    for (const stmt of statements) {
-      const trimmed = stmt.trim();
-      if (trimmed) await expo.execAsync(trimmed);
+    // Run each migration atomically so a crash mid-migration leaves the DB consistent.
+    await expo.execAsync("BEGIN");
+    try {
+      for (const stmt of statements) {
+        const trimmed = stmt.trim();
+        if (trimmed) await expo.execAsync(trimmed);
+      }
+      await expo.runAsync(
+        'INSERT INTO "__drizzle_migrations" (hash, created_at) VALUES (?, ?)',
+        [entry.tag, Date.now()]
+      );
+      await expo.execAsync("COMMIT");
+    } catch (err) {
+      await expo.execAsync("ROLLBACK");
+      throw err;
     }
-
-    await expo.runAsync(
-      'INSERT INTO "__drizzle_migrations" (hash, created_at) VALUES (?, ?)',
-      [entry.tag, Date.now()]
-    );
   }
 }
 
@@ -71,6 +96,7 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
       .then(async (expo) => {
         await runMigrationsAsync(expo);
         db = drizzle(expo, { schema });
+        await seedDatabase();
         setReady(true);
       })
       .catch((err: Error) => setInitError(err));

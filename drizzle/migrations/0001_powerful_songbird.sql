@@ -15,7 +15,6 @@ CREATE TABLE `__new_content` (
 INSERT INTO `__new_content`("id", "type", "title", "body", "trigger_condition", "phase", "sort_order", "catalog_version", "created_at", "updated_at") SELECT "id", "type", "title", "body", "trigger_condition", "phase", "sort_order", "catalog_version", "created_at", "updated_at" FROM `content`;--> statement-breakpoint
 DROP TABLE `content`;--> statement-breakpoint
 ALTER TABLE `__new_content` RENAME TO `content`;--> statement-breakpoint
-PRAGMA foreign_keys=ON;--> statement-breakpoint
 CREATE TABLE `__new_daily_logs` (
 	`id` text PRIMARY KEY NOT NULL,
 	`date` text NOT NULL,
@@ -166,4 +165,5 @@ CREATE TABLE `__new_user_gate_criteria` (
 INSERT INTO `__new_user_gate_criteria`("id", "gate_key", "criterion_key", "confirmed_at", "created_at", "updated_at") SELECT "id", "gate_key", "criterion_key", "confirmed_at", "created_at", "updated_at" FROM `user_gate_criteria`;--> statement-breakpoint
 DROP TABLE `user_gate_criteria`;--> statement-breakpoint
 ALTER TABLE `__new_user_gate_criteria` RENAME TO `user_gate_criteria`;--> statement-breakpoint
-CREATE UNIQUE INDEX `user_gate_criteria_gate_criterion_idx` ON `user_gate_criteria` (`gate_key`,`criterion_key`);
+CREATE UNIQUE INDEX `user_gate_criteria_gate_criterion_idx` ON `user_gate_criteria` (`gate_key`,`criterion_key`);--> statement-breakpoint
+PRAGMA foreign_keys=ON;
