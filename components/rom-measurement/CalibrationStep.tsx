@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity, ActivityIndicator, Alert, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -16,6 +16,13 @@ type Phase = "thigh-idle" | "thigh-calibrating" | "thigh-success" | "thigh-faile
 
 export function CalibrationStep({ imu, onCalibrated }: Props) {
   const [phase, setPhase] = useState<Phase>("thigh-idle");
+  const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
+    };
+  }, []);
 
   async function handleCalibrateThigh() {
     setPhase("thigh-calibrating");
@@ -25,7 +32,7 @@ export function CalibrationStep({ imu, onCalibrated }: Props) {
       setPhase("thigh-success");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Speech.speak("Move phone to shin", { rate: 1.1 });
-      setTimeout(() => setPhase("shin-idle"), 1200);
+      transitionTimerRef.current = setTimeout(() => setPhase("shin-idle"), 1200);
     } else {
       setPhase("thigh-failed");
       if (Platform.OS !== "web") {
@@ -45,7 +52,7 @@ export function CalibrationStep({ imu, onCalibrated }: Props) {
       setPhase("shin-success");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Speech.speak("Ready. Bend your knee.", { rate: 1.1 });
-      setTimeout(onCalibrated, 1200);
+      transitionTimerRef.current = setTimeout(onCalibrated, 1200);
     } else {
       setPhase("shin-failed");
       if (Platform.OS !== "web") {

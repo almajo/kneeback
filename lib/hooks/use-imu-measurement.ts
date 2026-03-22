@@ -53,6 +53,7 @@ export function useImuMeasurement(): ImuMeasurementState {
   // Authoritative peak tracked in a ref so the listener closure never reads stale state
   const peakAngleRef = useRef<number | null>(null);
   const captureNowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const captureThighTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     // On web, only expose the sensor on mobile browsers (touch-primary devices).
@@ -79,6 +80,7 @@ export function useImuMeasurement(): ImuMeasurementState {
     return () => {
       removeSubscription();
       if (captureNowTimerRef.current) clearTimeout(captureNowTimerRef.current);
+      if (captureThighTimerRef.current) clearTimeout(captureThighTimerRef.current);
     };
   }, [removeSubscription]);
 
@@ -97,9 +99,10 @@ export function useImuMeasurement(): ImuMeasurementState {
     }
   }, []);
 
-  // Shared calibration implementation — collects CALIBRATION_SAMPLES stable
-  // readings, averages them, stores the result via onSuccess, then resolves.
-  // Handles iOS Safari permission, Chrome Permissions API, and timeout.
+  // Shared calibration implementation — collects CALIBRATION_SAMPLES valid
+  // readings (first valid samples received), averages them, stores the result
+  // via onSuccess, then resolves. Handles iOS Safari permission, Chrome
+  // Permissions API, and timeout.
   const runCalibration = useCallback(
     (onSuccess: (vec: { x: number; y: number; z: number }) => void): Promise<"success" | "failed"> => {
       return new Promise((resolve) => {
@@ -222,7 +225,7 @@ export function useImuMeasurement(): ImuMeasurementState {
     [runCalibration]
   );
 
-  // Captures the thigh angle at maximum bend by collecting a short stable sample,
+  // Captures the thigh angle at maximum bend by collecting a short valid sample,
   // then computing the angle relative to the thigh's calibration reference.
   const captureThigh = useCallback(() => {
     if (thighReferenceVectorRef.current === null) return;
@@ -236,37 +239,96 @@ export function useImuMeasurement(): ImuMeasurementState {
     let sumZ = 0;
     let done = false;
 
-    const timeout = setTimeout(() => {
-      if (!done) {
-        done = true;
-        removeSubscription();
-        setIsCapturingThigh(false);
-      }
-    }, THIGH_CAPTURE_TIMEOUT_MS);
-
-    removeSubscription();
-    Accelerometer.setUpdateInterval(UPDATE_INTERVAL_MS);
-
-    subscriptionRef.current = Accelerometer.addListener(({ x, y, z }) => {
+    function finishCapture() {
       if (done) return;
-      if (!isValidSample(x, y, z)) return;
-      sumX += x;
-      sumY += y;
-      sumZ += z;
-      samplesCollected++;
-      if (samplesCollected >= THIGH_CAPTURE_SAMPLES) {
-        done = true;
-        clearTimeout(timeout);
-        removeSubscription();
-        const ref = thighReferenceVectorRef.current!;
-        const avgX = sumX / samplesCollected;
-        const avgY = sumY / samplesCollected;
-        const avgZ = sumZ / samplesCollected;
-        const angle = computeFlexionAngle(ref.x, ref.y, ref.z, avgX, avgY, avgZ);
-        setThighAngle(angle);
-        setIsCapturingThigh(false);
+      done = true;
+      if (captureThighTimerRef.current) {
+        clearTimeout(captureThighTimerRef.current);
+        captureThighTimerRef.current = null;
       }
-    });
+      removeSubscription();
+      setIsCapturingThigh(false);
+    }
+
+    captureThighTimerRef.current = setTimeout(() => finishCapture(), THIGH_CAPTURE_TIMEOUT_MS);
+
+    function startListening() {
+      removeSubscription();
+      Accelerometer.setUpdateInterval(UPDATE_INTERVAL_MS);
+
+      subscriptionRef.current = Accelerometer.addListener(({ x, y, z }) => {
+        if (done) return;
+        if (!isValidSample(x, y, z)) return;
+        sumX += x;
+        sumY += y;
+        sumZ += z;
+        samplesCollected++;
+        if (samplesCollected >= THIGH_CAPTURE_SAMPLES) {
+          const ref = thighReferenceVectorRef.current!;
+          const angle = computeFlexionAngle(
+            ref.x, ref.y, ref.z,
+            sumX / samplesCollected,
+            sumY / samplesCollected,
+            sumZ / samplesCollected,
+          );
+          setThighAngle(angle);
+          finishCapture();
+        }
+      });
+    }
+
+    // Reuse the same permission flow as runCalibration so iOS Safari / Chrome
+    // web permission is requested if needed (permission may already be granted
+    // from the earlier calibration steps, but it is safer to go through the
+    // same path consistently).
+    async function requestPermissionAndListen() {
+      const hasSafariPermissionApi =
+        typeof DeviceMotionEvent !== "undefined" &&
+        // @ts-expect-error Safari-only API
+        typeof DeviceMotionEvent.requestPermission === "function";
+
+      if (hasSafariPermissionApi) {
+        try {
+          // @ts-expect-error Safari-only API
+          const result = await (DeviceMotionEvent.requestPermission() as Promise<string>);
+          if (result === "granted") {
+            startListening();
+          } else {
+            finishCapture();
+          }
+        } catch {
+          finishCapture();
+        }
+        return;
+      }
+
+      if (
+        typeof navigator !== "undefined" &&
+        navigator.permissions &&
+        typeof navigator.permissions.query === "function"
+      ) {
+        try {
+          const status = await navigator.permissions.query({
+            // @ts-expect-error Generic Sensor API permission name
+            name: "accelerometer",
+          });
+          if (status.state === "denied") {
+            finishCapture();
+            return;
+          }
+        } catch {
+          // fall through
+        }
+      }
+
+      startListening();
+    }
+
+    if (Platform.OS === "web") {
+      requestPermissionAndListen().catch(() => finishCapture());
+    } else {
+      startListening();
+    }
   }, [removeSubscription]);
 
   const startMeasurement = useCallback(() => {
@@ -360,6 +422,10 @@ export function useImuMeasurement(): ImuMeasurementState {
     if (captureNowTimerRef.current) {
       clearTimeout(captureNowTimerRef.current);
       captureNowTimerRef.current = null;
+    }
+    if (captureThighTimerRef.current) {
+      clearTimeout(captureThighTimerRef.current);
+      captureThighTimerRef.current = null;
     }
   }, [removeSubscription]);
 
