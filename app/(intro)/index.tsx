@@ -37,7 +37,7 @@ const SLIDES = [
   {
     id: "4",
     headline: "Ready to start your comeback?",
-    subtext: null,
+    subtext: "Your data stays on your device — fully local, fully private.",
     image: require("../../assets/images/slide4.png"),
   },
 ];

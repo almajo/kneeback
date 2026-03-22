@@ -12,19 +12,42 @@ export function RestTimer({ seconds, onTimerComplete }: Props) {
   const [remaining, setRemaining] = useState(seconds);
   const [running, setRunning] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isFirstAnnounceRef = useRef(true);
+  const onTimerCompleteRef = useRef(onTimerComplete);
+  const justCompletedRef = useRef(false);
+
+  useEffect(() => {
+    onTimerCompleteRef.current = onTimerComplete;
+  }, [onTimerComplete]);
+
+  // Fire the callback after the timer reaches zero, outside of the state updater
+  useEffect(() => {
+    if (remaining === 0 && justCompletedRef.current) {
+      justCompletedRef.current = false;
+      onTimerCompleteRef.current?.();
+    }
+  }, [remaining]);
 
   useEffect(() => {
     if (running && remaining > 0) {
       intervalRef.current = setInterval(() => {
         setRemaining((prev) => {
           if (prev <= 1) {
-            onTimerComplete?.();
             setRunning(false);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            justCompletedRef.current = true;
             return 0;
           }
           if (prev >= 2 && prev <= 4) {
-            Speech.speak(String(prev - 1), { rate: 1.2 });
+            // Queue speech asynchronously on first announce to avoid blocking
+            if (isFirstAnnounceRef.current) {
+              isFirstAnnounceRef.current = false;
+              queueMicrotask(() => {
+                Speech.speak(String(prev - 1), { rate: 1.2 });
+              });
+            } else {
+              Speech.speak(String(prev - 1), { rate: 1.2 });
+            }
           }
           return prev - 1;
         });
@@ -32,8 +55,9 @@ export function RestTimer({ seconds, onTimerComplete }: Props) {
     }
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      isFirstAnnounceRef.current = true;
     };
-  }, [running, remaining, onTimerComplete]);
+  }, [running, remaining]);
 
   function toggle() {
     if (remaining === 0) {

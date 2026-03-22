@@ -10,7 +10,6 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { RomDualChart } from "../../components/RomDualChart";
-import { QuadStreak } from "../../components/QuadStreak";
 import { LogRomSheet } from "../../components/LogRomSheet";
 import { ProgressCalendar } from "../../components/ProgressCalendar";
 import { useMilestones } from "../../lib/hooks/use-milestones";
@@ -28,16 +27,6 @@ import { submitCommunityPost } from "../../lib/community";
 import { getCommunityIdentity } from "../../lib/community-identity";
 import { generateId } from "../../lib/utils/uuid";
 
-function getLast30Dates(): string[] {
-  const dates: string[] = [];
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    dates.push(d.toISOString().split("T")[0]);
-  }
-  return dates;
-}
-
 export default function ProgressScreen() {
   const [loading, setLoading] = useState(true);
   const [romSheetOpen, setRomSheetOpen] = useState(false);
@@ -46,15 +35,12 @@ export default function ProgressScreen() {
     { date: string; flexion: number | null; extension: number | null }[]
   >([]);
   const [measurements, setMeasurements] = useState<LocalRomMeasurement[]>([]);
-  const [activationDays, setActivationDays] = useState<Set<string>>(new Set());
   const [surgeryDate, setSurgeryDate] = useState<string | null>(null);
   const [gateDetailKey, setGateDetailKey] = useState<string | null>(null);
   const [pendingShareWin, setPendingShareWin] = useState<string | null>(null);
   const [surgeryStatus, setSurgeryStatus] = useState<
     "no_date" | "pre_surgery" | "post_surgery"
   >("no_date");
-
-  const last30 = getLast30Dates();
 
   const daysSinceSurgery = surgeryDate
     ? Math.floor((Date.now() - new Date(surgeryDate).getTime()) / 86_400_000)
@@ -77,9 +63,6 @@ export default function ProgressScreen() {
         flexion: r.flexion_degrees,
         extension: r.extension_degrees,
       }))
-    );
-    setActivationDays(
-      new Set(romRows.filter((r) => r.quad_activation).map((r) => r.date))
     );
   }, []);
 
@@ -243,8 +226,6 @@ export default function ProgressScreen() {
           onDeleteMilestone={deleteMilestone}
           surgeryDate={surgeryDate}
         />
-        <View className="mx-4 my-2 border-b border-border" />
-        <QuadStreak activationDays={activationDays} last30={last30} />
       </ScrollView>
     </>
   );

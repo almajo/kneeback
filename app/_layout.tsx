@@ -49,7 +49,7 @@ function RootLayoutNav() {
   return (
     <>
       <Slot />
-      <StatusBar style="auto" />
+      <StatusBar style="dark" />
     </>
   );
 }
