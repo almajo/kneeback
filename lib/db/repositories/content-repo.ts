@@ -1,15 +1,7 @@
-import type { SQLiteDatabase } from "expo-sqlite";
+import { eq, asc } from "drizzle-orm";
+import { db } from "../database-context";
+import { content } from "../schema";
 import type { Content } from "../../types";
-
-interface RawContent {
-  id: string;
-  type: string;
-  title: string;
-  body: string;
-  trigger_condition: string | null;
-  phase: string | null;
-  sort_order: number;
-}
 
 function parseTriggerCondition(raw: string | null): Record<string, unknown> | null {
   if (!raw) return null;
@@ -20,24 +12,25 @@ function parseTriggerCondition(raw: string | null): Record<string, unknown> | nu
   }
 }
 
-export function parseRawContent(raw: RawContent): Content {
+export function parseRawContent(row: typeof content.$inferSelect): Content {
   return {
-    id: raw.id,
-    type: raw.type as Content["type"],
-    title: raw.title,
-    body: raw.body,
-    trigger_condition: parseTriggerCondition(raw.trigger_condition),
-    phase: raw.phase as Content["phase"],
-    sort_order: raw.sort_order,
+    id: row.id,
+    type: row.type as Content["type"],
+    title: row.title,
+    body: row.body,
+    trigger_condition: parseTriggerCondition(row.trigger_condition ?? null),
+    phase: row.phase as Content["phase"],
+    sort_order: row.sort_order,
   };
 }
 
-export function getAllContent(db: SQLiteDatabase, type?: string): Content[] {
+export async function getAllContent(type?: string): Promise<Content[]> {
   const rows = type
-    ? db.getAllSync<RawContent>(
-        "SELECT * FROM content WHERE type = ? ORDER BY sort_order ASC",
-        [type]
-      )
-    : db.getAllSync<RawContent>("SELECT * FROM content ORDER BY sort_order ASC");
+    ? await db
+        .select()
+        .from(content)
+        .where(eq(content.type, type))
+        .orderBy(asc(content.sort_order))
+    : await db.select().from(content).orderBy(asc(content.sort_order));
   return rows.map(parseRawContent);
 }

@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { useSQLiteContext } from "expo-sqlite";
 import { getProfile } from "../db/repositories/profile-repo";
 import { getAllUserExercises } from "../db/repositories/user-exercise-repo";
 import { getOrCreateDailyLog } from "../db/repositories/daily-log-repo";
@@ -14,7 +13,6 @@ import type { Content } from "../types";
 export type SurgeryStatus = "no_date" | "pre_surgery" | "post_surgery";
 
 export function useToday() {
-  const db = useSQLiteContext();
   const [profile, setProfile] = useState<{ surgery_date: string | null } | null>(null);
   const [userExercises, setUserExercises] = useState<LocalUserExercise[]>([]);
   const [dailyLog, setDailyLog] = useState<LocalDailyLog | null>(null);
@@ -25,33 +23,33 @@ export function useToday() {
 
   const today = new Date().toISOString().split("T")[0];
 
-  const fetchAll = useCallback(() => {
+  const fetchAll = useCallback(async () => {
     setLoading(true);
 
-    const prof = getProfile(db);
+    const prof = await getProfile();
     setProfile(prof ? { surgery_date: prof.surgery_date } : null);
 
-    const exercises = getAllUserExercises(db);
+    const exercises = await getAllUserExercises();
     setUserExercises(exercises);
 
-    const log = getOrCreateDailyLog(db, today);
+    const log = await getOrCreateDailyLog(today);
     setDailyLog(log);
 
-    const logs = getExerciseLogsByDailyLogId(db, log.id);
+    const logs = await getExerciseLogsByDailyLogId(log.id);
     setExerciseLogs(logs);
 
-    const messages = getAllContent(db, "daily_message");
+    const messages = await getAllContent("daily_message");
     if (messages.length > 0) {
       const dayIndex =
         Math.floor(new Date(today).getTime() / 86400000) % messages.length;
       setDailyMessage(messages[dayIndex]);
     }
 
-    const currentStreak = getStreak(db);
+    const currentStreak = await getStreak();
     setStreak(currentStreak);
 
     setLoading(false);
-  }, [db, today]);
+  }, [today]);
 
   useEffect(() => {
     fetchAll();

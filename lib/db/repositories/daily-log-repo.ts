@@ -1,4 +1,6 @@
-import * as SQLite from "expo-sqlite";
+import { eq, and, gte, lte, asc, sql } from "drizzle-orm";
+import { db } from "../database-context";
+import { daily_logs } from "../schema";
 import { generateId } from "../../utils/uuid";
 
 export interface LocalDailyLog {
@@ -10,98 +12,85 @@ export interface LocalDailyLog {
   updated_at: string;
 }
 
-type RawDailyLog = Omit<LocalDailyLog, "is_rest_day"> & {
-  is_rest_day: number;
-};
-
-function parseDailyLog(raw: RawDailyLog): LocalDailyLog {
+function rowToLocalDailyLog(row: typeof daily_logs.$inferSelect): LocalDailyLog {
   return {
-    ...raw,
-    is_rest_day: raw.is_rest_day === 1,
+    id: row.id,
+    date: row.date,
+    is_rest_day: row.is_rest_day === 1,
+    notes: row.notes ?? null,
+    created_at: row.created_at ?? "",
+    updated_at: row.updated_at ?? "",
   };
 }
 
-export function getOrCreateDailyLog(
-  db: SQLite.SQLiteDatabase,
-  date: string
-): LocalDailyLog {
-  const existing = db.getFirstSync<RawDailyLog>(
-    "SELECT * FROM daily_logs WHERE date = ?",
-    [date]
-  );
+export async function getOrCreateDailyLog(date: string): Promise<LocalDailyLog> {
+  const existing = await db
+    .select()
+    .from(daily_logs)
+    .where(eq(daily_logs.date, date));
 
-  if (existing) {
-    return parseDailyLog(existing);
+  if (existing.length > 0) {
+    return rowToLocalDailyLog(existing[0]);
   }
 
   const id = generateId();
-  db.runSync(
-    "INSERT INTO daily_logs (id, date, is_rest_day, notes) VALUES (?, ?, 0, NULL)",
-    [id, date]
-  );
+  await db.insert(daily_logs).values({
+    id,
+    date,
+    is_rest_day: 0,
+    notes: null,
+  });
 
-  const created = db.getFirstSync<RawDailyLog>(
-    "SELECT * FROM daily_logs WHERE id = ?",
-    [id]
-  );
+  const created = await db
+    .select()
+    .from(daily_logs)
+    .where(eq(daily_logs.id, id));
 
-  if (!created) {
+  if (created.length === 0) {
     throw new Error(`Failed to create daily log for date ${date}`);
   }
 
-  return parseDailyLog(created);
+  return rowToLocalDailyLog(created[0]);
 }
 
-export function getDailyLogsByDateRange(
-  db: SQLite.SQLiteDatabase,
+export async function getDailyLogsByDateRange(
   startDate: string,
   endDate: string
-): LocalDailyLog[] {
-  const rows = db.getAllSync<RawDailyLog>(
-    "SELECT * FROM daily_logs WHERE date >= ? AND date <= ? ORDER BY date ASC",
-    [startDate, endDate]
-  );
-  return rows.map(parseDailyLog);
+): Promise<LocalDailyLog[]> {
+  const rows = await db
+    .select()
+    .from(daily_logs)
+    .where(and(gte(daily_logs.date, startDate), lte(daily_logs.date, endDate)))
+    .orderBy(asc(daily_logs.date));
+  return rows.map(rowToLocalDailyLog);
 }
 
 export type UpdateDailyLogData = Partial<
   Pick<LocalDailyLog, "is_rest_day" | "notes">
 >;
 
-export function updateDailyLog(
-  db: SQLite.SQLiteDatabase,
+export async function updateDailyLog(
   id: string,
   data: UpdateDailyLogData
-): LocalDailyLog {
-  const fields: string[] = [];
-  const values: (string | number | null)[] = [];
+): Promise<LocalDailyLog> {
+  const updates: Partial<typeof daily_logs.$inferInsert> = {};
 
-  if (data.is_rest_day !== undefined) {
-    fields.push("is_rest_day = ?");
-    values.push(data.is_rest_day ? 1 : 0);
-  }
-  if (data.notes !== undefined) {
-    fields.push("notes = ?");
-    values.push(data.notes ?? null);
+  if (data.is_rest_day !== undefined) updates.is_rest_day = data.is_rest_day ? 1 : 0;
+  if (data.notes !== undefined) updates.notes = data.notes ?? null;
+
+  if (Object.keys(updates).length > 0) {
+    updates.updated_at = sql`(datetime('now'))` as unknown as string;
+    await db.update(daily_logs).set(updates).where(eq(daily_logs.id, id));
   }
 
-  if (fields.length > 0) {
-    fields.push("updated_at = datetime('now')");
-    values.push(id);
-    db.runSync(
-      `UPDATE daily_logs SET ${fields.join(", ")} WHERE id = ?`,
-      values
-    );
-  }
+  const rows = await db
+    .select()
+    .from(daily_logs)
+    .where(eq(daily_logs.id, id));
 
-  const updated = db.getFirstSync<RawDailyLog>(
-    "SELECT * FROM daily_logs WHERE id = ?",
-    [id]
-  );
-
-  if (!updated) {
+  if (rows.length === 0) {
     throw new Error(`Daily log not found: ${id}`);
   }
 
-  return parseDailyLog(updated);
+  return rowToLocalDailyLog(rows[0]);
 }

@@ -1,4 +1,6 @@
-import * as SQLite from "expo-sqlite";
+import { eq, desc, asc, sql } from "drizzle-orm";
+import { db } from "../database-context";
+import { milestones } from "../schema";
 
 export interface LocalMilestone {
   id: string;
@@ -11,35 +13,34 @@ export interface LocalMilestone {
   updated_at: string;
 }
 
-type RawMilestone = Omit<LocalMilestone, "category"> & {
-  category: string;
-};
-
-function parseMilestone(raw: RawMilestone): LocalMilestone {
+function rowToLocalMilestone(row: typeof milestones.$inferSelect): LocalMilestone {
   return {
-    ...raw,
-    category: raw.category as "milestone" | "win",
+    id: row.id,
+    title: row.title,
+    category: row.category as "milestone" | "win",
+    date: row.date,
+    notes: row.notes ?? null,
+    template_key: row.template_key ?? null,
+    created_at: row.created_at ?? "",
+    updated_at: row.updated_at ?? "",
   };
 }
 
-export function getAllMilestones(
-  db: SQLite.SQLiteDatabase
-): LocalMilestone[] {
-  const rows = db.getAllSync<RawMilestone>(
-    "SELECT * FROM milestones ORDER BY date DESC, created_at DESC"
-  );
-  return rows.map(parseMilestone);
+export async function getAllMilestones(): Promise<LocalMilestone[]> {
+  const rows = await db
+    .select()
+    .from(milestones)
+    .orderBy(desc(milestones.date), desc(milestones.created_at));
+  return rows.map(rowToLocalMilestone);
 }
 
-export function getMilestonesByDate(
-  db: SQLite.SQLiteDatabase,
-  date: string
-): LocalMilestone[] {
-  const rows = db.getAllSync<RawMilestone>(
-    "SELECT * FROM milestones WHERE date = ? ORDER BY created_at ASC",
-    [date]
-  );
-  return rows.map(parseMilestone);
+export async function getMilestonesByDate(date: string): Promise<LocalMilestone[]> {
+  const rows = await db
+    .select()
+    .from(milestones)
+    .where(eq(milestones.date, date))
+    .orderBy(asc(milestones.created_at));
+  return rows.map(rowToLocalMilestone);
 }
 
 export type CreateMilestoneData = Omit<
@@ -47,38 +48,30 @@ export type CreateMilestoneData = Omit<
   "created_at" | "updated_at"
 >;
 
-export function createMilestone(
-  db: SQLite.SQLiteDatabase,
+export async function createMilestone(
   data: CreateMilestoneData
-): LocalMilestone {
-  db.runSync(
-    `INSERT INTO milestones (id, title, category, date, notes, template_key)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [
-      data.id,
-      data.title,
-      data.category,
-      data.date,
-      data.notes ?? null,
-      data.template_key ?? null,
-    ]
-  );
+): Promise<LocalMilestone> {
+  await db.insert(milestones).values({
+    id: data.id,
+    title: data.title,
+    category: data.category,
+    date: data.date,
+    notes: data.notes ?? null,
+    template_key: data.template_key ?? null,
+  });
 
-  const created = db.getFirstSync<RawMilestone>(
-    "SELECT * FROM milestones WHERE id = ?",
-    [data.id]
-  );
+  const rows = await db
+    .select()
+    .from(milestones)
+    .where(eq(milestones.id, data.id));
 
-  if (!created) {
+  if (rows.length === 0) {
     throw new Error("Failed to create milestone");
   }
 
-  return parseMilestone(created);
+  return rowToLocalMilestone(rows[0]);
 }
 
-export function deleteMilestone(
-  db: SQLite.SQLiteDatabase,
-  id: string
-): void {
-  db.runSync("DELETE FROM milestones WHERE id = ?", [id]);
+export async function deleteMilestone(id: string): Promise<void> {
+  await db.delete(milestones).where(eq(milestones.id, id));
 }

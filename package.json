@@ -8,7 +8,11 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "web:dev": "node scripts/dev-proxy.js",
+    "lint": "expo lint",
+    "db:generate": "drizzle-kit generate",
+    "db:studio": "drizzle-kit studio",
+    "postinstall": "node scripts/patch-expo-sqlite.js"
   },
   "dependencies": {
     "@expo-google-fonts/outfit": "^0.4.3",
@@ -20,6 +24,8 @@
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
     "@supabase/supabase-js": "^2.98.0",
+    "babel-plugin-inline-import": "^3.0.0",
+    "drizzle-orm": "^0.45.1",
     "expo": "~54.0.33",
     "expo-auth-session": "~7.0.10",
     "expo-constants": "~18.0.13",
@@ -61,10 +67,12 @@
     "@testing-library/react": "^16.3.2",
     "@types/jest": "^29.5.14",
     "@types/react": "~19.1.0",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^30.3.0",
+    "patch-package": "^8.0.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "ts-jest": "^29.4.6",
     "typescript": "~5.9.2"

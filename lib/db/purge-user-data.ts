@@ -1,18 +1,5 @@
-import type { SQLiteDatabase } from "expo-sqlite";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
-// User data tables in FK-safe deletion order
-const USER_DATA_TABLES_PURGE_ORDER = [
-  "exercise_logs",
-  "user_achievements",
-  "user_gate_criteria",
-  "rom_measurements",
-  "milestones",
-  "daily_logs",
-  "user_exercises",
-  "notification_preferences",
-  "profile",
-] as const;
+import { db } from "./database-context";
 
 const ASYNC_STORAGE_KEYS = [
   "has_seen_intro",
@@ -24,17 +11,29 @@ const ASYNC_STORAGE_KEYS = [
 /**
  * Deletes all user data from SQLite (preserves catalog tables + schema).
  * Clears AsyncStorage flags to reset app to fresh-install state.
+ *
+ * Uses expo-sqlite's async API directly to avoid a deadlock that occurs when
+ * Drizzle's sync transaction wrapper is combined with an async callback on web.
  */
-export async function purgeAllUserData(db: SQLiteDatabase): Promise<void> {
-  db.withTransactionSync(() => {
-    for (const table of USER_DATA_TABLES_PURGE_ORDER) {
-      try {
-        db.runSync(`DELETE FROM ${table}`);
-      } catch (err) {
-        console.error(`[purgeAllUserData] Failed to delete from ${table}:`, err);
-      }
-    }
-  });
+export async function purgeAllUserData(): Promise<void> {
+  const expo = db.$client;
+  await expo.execAsync("BEGIN");
+  try {
+    // Delete in FK-safe order (children before parents)
+    await expo.execAsync("DELETE FROM exercise_logs");
+    await expo.execAsync("DELETE FROM user_achievements");
+    await expo.execAsync("DELETE FROM user_gate_criteria");
+    await expo.execAsync("DELETE FROM rom_measurements");
+    await expo.execAsync("DELETE FROM milestones");
+    await expo.execAsync("DELETE FROM daily_logs");
+    await expo.execAsync("DELETE FROM user_exercises");
+    await expo.execAsync("DELETE FROM notification_preferences");
+    await expo.execAsync("DELETE FROM profile");
+    await expo.execAsync("COMMIT");
+  } catch (err) {
+    await expo.execAsync("ROLLBACK");
+    throw err;
+  }
 
   try {
     await AsyncStorage.multiRemove(ASYNC_STORAGE_KEYS);

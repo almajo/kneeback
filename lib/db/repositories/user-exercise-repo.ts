@@ -1,4 +1,6 @@
-import * as SQLite from "expo-sqlite";
+import { eq, asc, sql } from "drizzle-orm";
+import { db } from "../database-context";
+import { user_exercises, exercises } from "../schema";
 import type { Exercise, ExerciseMuscleGroup, ExercisePhase, ExerciseRole, ExerciseCategory } from "../../types";
 
 export interface LocalUserExercise {
@@ -13,100 +15,56 @@ export interface LocalUserExercise {
   exercise?: Exercise;
 }
 
-type RawUserExercise = {
-  id: string;
-  exercise_id: string;
-  sets: number;
-  reps: number;
-  hold_seconds: number | null;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
-};
-
-type RawJoinedRow = RawUserExercise & {
-  ex_id: string;
-  ex_name: string;
-  ex_description: string;
-  ex_phase_start: string;
-  ex_phase_end: string | null;
-  ex_role: string;
-  ex_primary_exercise_id: string | null;
-  ex_muscle_groups: string;
-  ex_default_sets: number;
-  ex_default_reps: number;
-  ex_default_hold_seconds: number | null;
-  ex_category: string;
-  ex_sort_order: number;
-};
-
-function parseExerciseFromJoin(row: RawJoinedRow): Exercise {
+function rowToExercise(row: typeof exercises.$inferSelect): Exercise {
   let muscleGroups: ExerciseMuscleGroup[] = [];
   try {
-    muscleGroups = JSON.parse(row.ex_muscle_groups) as ExerciseMuscleGroup[];
+    muscleGroups = JSON.parse(row.muscle_groups) as ExerciseMuscleGroup[];
   } catch {
     muscleGroups = [];
   }
-
-  return {
-    id: row.ex_id,
-    name: row.ex_name,
-    description: row.ex_description,
-    phase_start: row.ex_phase_start as ExercisePhase,
-    phase_end: row.ex_phase_end as ExercisePhase | null,
-    role: row.ex_role as ExerciseRole,
-    primary_exercise_id: row.ex_primary_exercise_id,
-    muscle_groups: muscleGroups,
-    default_sets: row.ex_default_sets,
-    default_reps: row.ex_default_reps,
-    default_hold_seconds: row.ex_default_hold_seconds,
-    category: row.ex_category as ExerciseCategory,
-    submitted_by: null,
-    status: "approved",
-    sort_order: row.ex_sort_order,
-  };
-}
-
-function parseUserExercise(raw: RawUserExercise): LocalUserExercise {
-  return { ...raw };
-}
-
-function parseJoinedUserExercise(row: RawJoinedRow): LocalUserExercise {
   return {
     id: row.id,
-    exercise_id: row.exercise_id,
-    sets: row.sets,
-    reps: row.reps,
-    hold_seconds: row.hold_seconds,
+    name: row.name,
+    description: row.description,
+    phase_start: row.phase_start as ExercisePhase,
+    phase_end: (row.phase_end as ExercisePhase) ?? null,
+    role: row.role as ExerciseRole,
+    primary_exercise_id: row.primary_exercise_id ?? null,
+    muscle_groups: muscleGroups,
+    default_sets: row.default_sets,
+    default_reps: row.default_reps,
+    default_hold_seconds: row.default_hold_seconds ?? null,
+    category: row.category as ExerciseCategory,
+    submitted_by: null,
+    status: "approved",
     sort_order: row.sort_order,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-    exercise: parseExerciseFromJoin(row),
   };
 }
 
-const JOIN_QUERY = `
-  SELECT
-    ue.id, ue.exercise_id, ue.sets, ue.reps, ue.hold_seconds,
-    ue.sort_order, ue.created_at, ue.updated_at,
-    e.id as ex_id, e.name as ex_name, e.description as ex_description,
-    e.phase_start as ex_phase_start, e.phase_end as ex_phase_end,
-    e.role as ex_role, e.primary_exercise_id as ex_primary_exercise_id,
-    e.muscle_groups as ex_muscle_groups,
-    e.default_sets as ex_default_sets, e.default_reps as ex_default_reps,
-    e.default_hold_seconds as ex_default_hold_seconds,
-    e.category as ex_category, e.sort_order as ex_sort_order
-  FROM user_exercises ue
-  LEFT JOIN exercises e ON ue.exercise_id = e.id
-`;
+function rowToLocalUserExercise(
+  ue: typeof user_exercises.$inferSelect,
+  ex: typeof exercises.$inferSelect | null
+): LocalUserExercise {
+  return {
+    id: ue.id,
+    exercise_id: ue.exercise_id,
+    sets: ue.sets,
+    reps: ue.reps,
+    hold_seconds: ue.hold_seconds ?? null,
+    sort_order: ue.sort_order,
+    created_at: ue.created_at ?? "",
+    updated_at: ue.updated_at ?? "",
+    exercise: ex ? rowToExercise(ex) : undefined,
+  };
+}
 
-export function getAllUserExercises(
-  db: SQLite.SQLiteDatabase
-): LocalUserExercise[] {
-  const rows = db.getAllSync<RawJoinedRow>(
-    `${JOIN_QUERY} ORDER BY ue.sort_order ASC`
-  );
-  return rows.map(parseJoinedUserExercise);
+export async function getAllUserExercises(): Promise<LocalUserExercise[]> {
+  const rows = await db
+    .select()
+    .from(user_exercises)
+    .leftJoin(exercises, eq(user_exercises.exercise_id, exercises.id))
+    .orderBy(asc(user_exercises.sort_order));
+  return rows.map((r) => rowToLocalUserExercise(r.user_exercises, r.exercises));
 }
 
 export type CreateUserExerciseData = Omit<
@@ -114,108 +72,79 @@ export type CreateUserExerciseData = Omit<
   "created_at" | "updated_at" | "exercise"
 >;
 
-export function createUserExercise(
-  db: SQLite.SQLiteDatabase,
+export async function createUserExercise(
   data: CreateUserExerciseData
-): LocalUserExercise {
-  db.runSync(
-    `INSERT INTO user_exercises
-      (id, exercise_id, sets, reps, hold_seconds, sort_order)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [
-      data.id,
-      data.exercise_id,
-      data.sets,
-      data.reps,
-      data.hold_seconds ?? null,
-      data.sort_order,
-    ]
-  );
+): Promise<LocalUserExercise> {
+  await db.insert(user_exercises).values({
+    id: data.id,
+    exercise_id: data.exercise_id,
+    sets: data.sets,
+    reps: data.reps,
+    hold_seconds: data.hold_seconds ?? null,
+    sort_order: data.sort_order,
+  });
 
-  const row = db.getFirstSync<RawJoinedRow>(
-    `${JOIN_QUERY} WHERE ue.id = ?`,
-    [data.id]
-  );
+  const rows = await db
+    .select()
+    .from(user_exercises)
+    .leftJoin(exercises, eq(user_exercises.exercise_id, exercises.id))
+    .where(eq(user_exercises.id, data.id));
 
-  if (!row) {
+  if (rows.length === 0) {
     throw new Error("Failed to create user exercise");
   }
-
-  return parseJoinedUserExercise(row);
+  return rowToLocalUserExercise(rows[0].user_exercises, rows[0].exercises);
 }
 
 export type UpdateUserExerciseData = Partial<
   Omit<CreateUserExerciseData, "id" | "exercise_id">
 >;
 
-export function updateUserExercise(
-  db: SQLite.SQLiteDatabase,
+export async function updateUserExercise(
   id: string,
   data: UpdateUserExerciseData
-): LocalUserExercise {
-  const fields: string[] = [];
-  const values: (string | number | null)[] = [];
+): Promise<LocalUserExercise> {
+  const updates: Partial<typeof user_exercises.$inferInsert> = {};
 
-  if (data.sets !== undefined) {
-    fields.push("sets = ?");
-    values.push(data.sets);
-  }
-  if (data.reps !== undefined) {
-    fields.push("reps = ?");
-    values.push(data.reps);
-  }
-  if (data.hold_seconds !== undefined) {
-    fields.push("hold_seconds = ?");
-    values.push(data.hold_seconds ?? null);
-  }
-  if (data.sort_order !== undefined) {
-    fields.push("sort_order = ?");
-    values.push(data.sort_order);
+  if (data.sets !== undefined) updates.sets = data.sets;
+  if (data.reps !== undefined) updates.reps = data.reps;
+  if (data.hold_seconds !== undefined) updates.hold_seconds = data.hold_seconds ?? null;
+  if (data.sort_order !== undefined) updates.sort_order = data.sort_order;
+
+  if (Object.keys(updates).length > 0) {
+    updates.updated_at = sql`(datetime('now'))` as unknown as string;
+    await db.update(user_exercises).set(updates).where(eq(user_exercises.id, id));
   }
 
-  if (fields.length > 0) {
-    fields.push("updated_at = datetime('now')");
-    values.push(id);
-    db.runSync(
-      `UPDATE user_exercises SET ${fields.join(", ")} WHERE id = ?`,
-      values
-    );
-  }
+  const rows = await db
+    .select()
+    .from(user_exercises)
+    .leftJoin(exercises, eq(user_exercises.exercise_id, exercises.id))
+    .where(eq(user_exercises.id, id));
 
-  const row = db.getFirstSync<RawJoinedRow>(
-    `${JOIN_QUERY} WHERE ue.id = ?`,
-    [id]
-  );
-
-  if (!row) {
+  if (rows.length === 0) {
     throw new Error(`User exercise not found: ${id}`);
   }
-
-  return parseJoinedUserExercise(row);
+  return rowToLocalUserExercise(rows[0].user_exercises, rows[0].exercises);
 }
 
-export function updateUserExerciseSortOrder(
-  db: SQLite.SQLiteDatabase,
+export async function updateUserExerciseSortOrder(
   id: string,
   sortOrder: number
-): void {
-  const result = db.runSync(
-    "UPDATE user_exercises SET sort_order = ?, updated_at = datetime('now') WHERE id = ?",
-    [sortOrder, id]
-  );
+): Promise<void> {
+  const result = await db
+    .update(user_exercises)
+    .set({ sort_order: sortOrder, updated_at: sql`(datetime('now'))` as unknown as string })
+    .where(eq(user_exercises.id, id));
   if (result.changes === 0) {
     throw new Error(`UserExercise not found: ${id}`);
   }
 }
 
-export function deleteUserExercise(
-  db: SQLite.SQLiteDatabase,
-  id: string
-): void {
-  const result = db.runSync(
-    "DELETE FROM user_exercises WHERE id = ?",
-    [id]
-  );
+export async function deleteUserExercise(id: string): Promise<void> {
+  const result = await db
+    .delete(user_exercises)
+    .where(eq(user_exercises.id, id));
   if (result.changes === 0) {
     throw new Error(`UserExercise not found: ${id}`);
   }

@@ -1,10 +1,11 @@
-import type { SQLiteDatabase } from "expo-sqlite";
+import { desc } from "drizzle-orm";
+import { db } from "./db/database-context";
+import { daily_logs } from "./db/schema";
 import { getUnlockedAchievements, unlockAchievement } from "./db/repositories/achievement-repo";
 import { getAllContent } from "./db/repositories/content-repo";
 import type { Content } from "./types";
 
 interface UserState {
-  db: SQLiteDatabase;
   daysSinceSurgery: number;
   streak: number;
   totalExercisesCompleted: number;
@@ -17,13 +18,11 @@ interface UserState {
   hasQuadActivation: boolean;
 }
 
-export function checkAchievements(state: UserState): Content[] {
-  const { db } = state;
-
-  const allAchievements = getAllContent(db, "achievement");
+export async function checkAchievements(state: UserState): Promise<Content[]> {
+  const allAchievements = await getAllContent("achievement");
   if (allAchievements.length === 0) return [];
 
-  const unlocked = getUnlockedAchievements(db);
+  const unlocked = await getUnlockedAchievements();
   const unlockedIds = new Set(unlocked.map((u) => u.content_id));
 
   const newlyUnlocked: Content[] = [];
@@ -68,7 +67,7 @@ export function checkAchievements(state: UserState): Content[] {
     }
 
     if (matched) {
-      unlockAchievement(db, achievement.id);
+      await unlockAchievement(achievement.id);
       newlyUnlocked.push(achievement);
     }
   }
@@ -76,10 +75,12 @@ export function checkAchievements(state: UserState): Content[] {
   return newlyUnlocked;
 }
 
-export function getStreak(db: SQLiteDatabase): number {
-  const logs = db.getAllSync<{ date: string; is_rest_day: number }>(
-    "SELECT date, is_rest_day FROM daily_logs ORDER BY date DESC LIMIT 60"
-  );
+export async function getStreak(): Promise<number> {
+  const logs = await db
+    .select({ date: daily_logs.date, is_rest_day: daily_logs.is_rest_day })
+    .from(daily_logs)
+    .orderBy(desc(daily_logs.date))
+    .limit(60);
 
   if (logs.length === 0) return 0;
 

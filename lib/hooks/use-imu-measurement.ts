@@ -47,6 +47,18 @@ export function useImuMeasurement(): ImuMeasurementState {
   const captureNowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    // On web, only expose the sensor on mobile browsers (touch-primary devices).
+    // Desktop Chrome may report the accelerometer as available via the Generic
+    // Sensor API even though there is no physical IMU.
+    if (Platform.OS === "web") {
+      const isTouchPrimary =
+        typeof window !== "undefined" &&
+        window.matchMedia("(pointer: coarse)").matches;
+      if (!isTouchPrimary) {
+        setIsAvailable(false);
+        return;
+      }
+    }
     Accelerometer.isAvailableAsync().then(setIsAvailable);
   }, []);
 

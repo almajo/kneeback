@@ -2,22 +2,20 @@ import { useEffect } from "react";
 import { useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useSQLiteContext } from "expo-sqlite";
 import { getProfile } from "../lib/db/repositories/profile-repo";
 
 SplashScreen.preventAutoHideAsync();
 
 export default function Index() {
   const router = useRouter();
-  const db = useSQLiteContext();
 
   useEffect(() => {
     AsyncStorage.getItem("has_seen_intro")
-      .then((value) => {
+      .then(async (value) => {
         if (value !== "true") {
           router.replace("/(intro)");
         } else {
-          const profile = getProfile(db);
+          const profile = await getProfile();
           if (profile) {
             router.replace("/(tabs)/today");
           } else {
@@ -28,7 +26,7 @@ export default function Index() {
       .finally(() => {
         SplashScreen.hideAsync();
       });
-  }, [db]);
+  }, []);
 
   return null;
 }

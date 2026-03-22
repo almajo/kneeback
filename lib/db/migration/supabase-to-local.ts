@@ -1,9 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { generateId } from "../../utils/uuid";
-import type { SQLiteDatabase, SQLiteBindValue } from "expo-sqlite";
+import type { SQLiteBindValue } from "expo-sqlite";
 import { supabase } from "../../supabase";
 import { getDeviceId } from "../../device-identity";
 import { createProfile, getProfile } from "../repositories/profile-repo";
+import { db } from "../database-context";
 
 const MIGRATION_KEY = "migration_v1_complete";
 
@@ -15,9 +16,7 @@ export async function isMigrationComplete(): Promise<boolean> {
   return val === "true";
 }
 
-export async function migrateSupabaseToLocal(
-  db: SQLiteDatabase
-): Promise<{ error: string | null }> {
+export async function migrateSupabaseToLocal(): Promise<{ error: string | null }> {
   if (await isMigrationComplete()) return { error: null };
 
   const {
@@ -25,7 +24,7 @@ export async function migrateSupabaseToLocal(
   } = await supabase.auth.getSession();
   if (!session) return { error: null };
 
-  const existing = getProfile(db);
+  const existing = await getProfile();
   if (existing) {
     await AsyncStorage.setItem(MIGRATION_KEY, "true");
     return { error: null };
@@ -45,7 +44,7 @@ export async function migrateSupabaseToLocal(
   const deviceId = await getDeviceId();
 
   try {
-    createProfile(db, {
+    await createProfile({
       id: generateId(),
       name: remoteProfile.name ?? remoteProfile.username ?? "",
       username: remoteProfile.username ?? remoteProfile.name ?? "user",
@@ -63,11 +62,11 @@ export async function migrateSupabaseToLocal(
   }
 
   const results = await Promise.allSettled([
-    migrateTable(db, session.user.id, "user_exercises"),
-    migrateTable(db, session.user.id, "daily_logs"),
-    migrateTable(db, session.user.id, "exercise_logs"),
-    migrateTable(db, session.user.id, "rom_measurements"),
-    migrateTable(db, session.user.id, "milestones"),
+    migrateTable(session.user.id, "user_exercises"),
+    migrateTable(session.user.id, "daily_logs"),
+    migrateTable(session.user.id, "exercise_logs"),
+    migrateTable(session.user.id, "rom_measurements"),
+    migrateTable(session.user.id, "milestones"),
   ]);
 
   results.forEach((result, index) => {
@@ -82,7 +81,6 @@ export async function migrateSupabaseToLocal(
 }
 
 async function migrateTable(
-  db: SQLiteDatabase,
   userId: string,
   table: string
 ): Promise<void> {
@@ -110,7 +108,7 @@ async function migrateTable(
       const values = Object.values(filtered);
 
       // table is constrained to a known const array — not user input
-      db.runSync(
+      db.$client.runSync(
         `INSERT OR IGNORE INTO ${table} (${keys.join(", ")}) VALUES (${placeholders})`,
         values as SQLiteBindValue[]
       );

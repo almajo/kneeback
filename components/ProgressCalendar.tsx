@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useSQLiteContext } from "expo-sqlite";
+import { db } from "../lib/db/database-context";
 import { Colors } from "../constants/colors";
 import type { LocalMilestone } from "../lib/db/repositories/milestone-repo";
 import type { LocalRomMeasurement } from "../lib/db/repositories/rom-repo";
@@ -104,7 +104,7 @@ export function ProgressCalendar({
   onDeleteMilestone,
   surgeryDate,
 }: Props) {
-  const db = useSQLiteContext();
+  const sqliteDb = db.$client;
   const maxMonth = currentMonthString();
   const minMonth = surgeryDate ? toMonthString(surgeryDate) : twoYearsAgoMonth();
 
@@ -175,7 +175,7 @@ export function ProgressCalendar({
         return `${currentMonth}-${String(i + 1).padStart(2, "0")}`;
       });
 
-      const logs = db.getAllSync<{ date: string; is_rest_day: number; id: string }>(
+      const logs = sqliteDb.getAllSync<{ date: string; is_rest_day: number; id: string }>(
         "SELECT date, is_rest_day, id FROM daily_logs WHERE date >= ? AND date <= ?",
         [startDate, endDate]
       );
@@ -184,7 +184,7 @@ export function ProgressCalendar({
 
       const exLogs =
         logIds.length > 0
-          ? db.getAllSync<{ daily_log_id: string; completed: number }>(
+          ? sqliteDb.getAllSync<{ daily_log_id: string; completed: number }>(
               `SELECT daily_log_id, completed FROM exercise_logs WHERE daily_log_id IN (${logIds.map(() => "?").join(",")})`,
               logIds
             )
@@ -219,7 +219,7 @@ export function ProgressCalendar({
       setLoadingDays(false);
     }
     fetchMonthData();
-  }, [currentMonth, db]);
+  }, [currentMonth]);
 
   const offset = getMonthStartOffset(currentMonth);
 

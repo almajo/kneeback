@@ -1,4 +1,6 @@
-import * as SQLite from "expo-sqlite";
+import { eq, and, asc, sql } from "drizzle-orm";
+import { db } from "../database-context";
+import { exercise_logs } from "../schema";
 
 export interface LocalExerciseLog {
   id: string;
@@ -11,26 +13,28 @@ export interface LocalExerciseLog {
   updated_at: string;
 }
 
-type RawExerciseLog = Omit<LocalExerciseLog, "completed"> & {
-  completed: number;
-};
-
-function parseExerciseLog(raw: RawExerciseLog): LocalExerciseLog {
+function rowToLocalExerciseLog(row: typeof exercise_logs.$inferSelect): LocalExerciseLog {
   return {
-    ...raw,
-    completed: raw.completed === 1,
+    id: row.id,
+    daily_log_id: row.daily_log_id,
+    user_exercise_id: row.user_exercise_id,
+    completed: row.completed === 1,
+    actual_sets: row.actual_sets,
+    actual_reps: row.actual_reps,
+    created_at: row.created_at ?? "",
+    updated_at: row.updated_at ?? "",
   };
 }
 
-export function getExerciseLogsByDailyLogId(
-  db: SQLite.SQLiteDatabase,
+export async function getExerciseLogsByDailyLogId(
   dailyLogId: string
-): LocalExerciseLog[] {
-  const rows = db.getAllSync<RawExerciseLog>(
-    "SELECT * FROM exercise_logs WHERE daily_log_id = ? ORDER BY created_at ASC",
-    [dailyLogId]
-  );
-  return rows.map(parseExerciseLog);
+): Promise<LocalExerciseLog[]> {
+  const rows = await db
+    .select()
+    .from(exercise_logs)
+    .where(eq(exercise_logs.daily_log_id, dailyLogId))
+    .orderBy(asc(exercise_logs.created_at));
+  return rows.map(rowToLocalExerciseLog);
 }
 
 export type UpsertExerciseLogData = {
@@ -42,37 +46,42 @@ export type UpsertExerciseLogData = {
   actual_reps: number;
 };
 
-export function upsertExerciseLog(
-  db: SQLite.SQLiteDatabase,
+export async function upsertExerciseLog(
   data: UpsertExerciseLogData
-): LocalExerciseLog {
-  db.runSync(
-    `INSERT INTO exercise_logs
-      (id, daily_log_id, user_exercise_id, completed, actual_sets, actual_reps)
-     VALUES (?, ?, ?, ?, ?, ?)
-     ON CONFLICT(daily_log_id, user_exercise_id) DO UPDATE SET
-       completed = excluded.completed,
-       actual_sets = excluded.actual_sets,
-       actual_reps = excluded.actual_reps,
-       updated_at = datetime('now')`,
-    [
-      data.id,
-      data.daily_log_id,
-      data.user_exercise_id,
-      data.completed ? 1 : 0,
-      data.actual_sets,
-      data.actual_reps,
-    ]
-  );
+): Promise<LocalExerciseLog> {
+  await db
+    .insert(exercise_logs)
+    .values({
+      id: data.id,
+      daily_log_id: data.daily_log_id,
+      user_exercise_id: data.user_exercise_id,
+      completed: data.completed ? 1 : 0,
+      actual_sets: data.actual_sets,
+      actual_reps: data.actual_reps,
+    })
+    .onConflictDoUpdate({
+      target: [exercise_logs.daily_log_id, exercise_logs.user_exercise_id],
+      set: {
+        completed: data.completed ? 1 : 0,
+        actual_sets: data.actual_sets,
+        actual_reps: data.actual_reps,
+        updated_at: sql`(datetime('now'))`,
+      },
+    });
 
-  const row = db.getFirstSync<RawExerciseLog>(
-    "SELECT * FROM exercise_logs WHERE daily_log_id = ? AND user_exercise_id = ?",
-    [data.daily_log_id, data.user_exercise_id]
-  );
+  const rows = await db
+    .select()
+    .from(exercise_logs)
+    .where(
+      and(
+        eq(exercise_logs.daily_log_id, data.daily_log_id),
+        eq(exercise_logs.user_exercise_id, data.user_exercise_id)
+      )
+    );
 
-  if (!row) {
+  if (rows.length === 0) {
     throw new Error("Failed to upsert exercise log");
   }
 
-  return parseExerciseLog(row);
+  return rowToLocalExerciseLog(rows[0]);
 }

@@ -1,4 +1,6 @@
-import * as SQLite from "expo-sqlite";
+import { eq, sql } from "drizzle-orm";
+import { db } from "../database-context";
+import { profile } from "../schema";
 import type { GraftType, KneeSide } from "../../types";
 
 export interface LocalProfile {
@@ -15,137 +17,87 @@ export interface LocalProfile {
   updated_at: string;
 }
 
-type RawProfile = Omit<LocalProfile, "graft_type" | "knee_side"> & {
-  graft_type: string | null;
-  knee_side: string;
-};
-
-function parseProfile(raw: RawProfile): LocalProfile {
+function rowToLocalProfile(row: typeof profile.$inferSelect): LocalProfile {
   return {
-    ...raw,
-    graft_type: (raw.graft_type as GraftType) ?? null,
-    knee_side: raw.knee_side as KneeSide,
+    id: row.id,
+    name: row.name ?? "",
+    username: row.username ?? "",
+    surgery_date: row.surgery_date ?? null,
+    graft_type: (row.graft_type as GraftType) ?? null,
+    knee_side: (row.knee_side as KneeSide) ?? "right",
+    device_id: row.device_id ?? "",
+    supabase_user_id: row.supabase_user_id ?? null,
+    last_synced_at: row.last_synced_at ?? null,
+    created_at: row.created_at ?? "",
+    updated_at: row.updated_at ?? "",
   };
 }
 
-export function getProfile(
-  db: SQLite.SQLiteDatabase
-): LocalProfile | null {
-  const raw = db.getFirstSync<RawProfile>(
-    "SELECT * FROM profile LIMIT 1"
-  );
-  if (!raw) return null;
-  return parseProfile(raw);
+export async function getProfile(): Promise<LocalProfile | null> {
+  const rows = await db.select().from(profile).limit(1);
+  if (rows.length === 0) return null;
+  return rowToLocalProfile(rows[0]);
 }
 
 export type CreateProfileData = Omit<LocalProfile, "created_at" | "updated_at">;
 
-export function createProfile(
-  db: SQLite.SQLiteDatabase,
+export async function createProfile(
   data: CreateProfileData
-): LocalProfile {
-  db.runSync(
-    `INSERT INTO profile
-      (id, name, username, surgery_date, graft_type, knee_side, device_id,
-       supabase_user_id, last_synced_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      data.id,
-      data.name,
-      data.username,
-      data.surgery_date ?? null,
-      data.graft_type ?? null,
-      data.knee_side,
-      data.device_id,
-      data.supabase_user_id ?? null,
-      data.last_synced_at ?? null,
-    ]
-  );
+): Promise<LocalProfile> {
+  await db.insert(profile).values({
+    id: data.id,
+    name: data.name,
+    username: data.username,
+    surgery_date: data.surgery_date ?? null,
+    graft_type: data.graft_type ?? null,
+    knee_side: data.knee_side,
+    device_id: data.device_id,
+    supabase_user_id: data.supabase_user_id ?? null,
+    last_synced_at: data.last_synced_at ?? null,
+  });
 
-  const created = db.getFirstSync<RawProfile>(
-    "SELECT * FROM profile WHERE id = ?",
-    [data.id]
-  );
-
-  if (!created) {
+  const rows = await db.select().from(profile).where(eq(profile.id, data.id));
+  if (rows.length === 0) {
     throw new Error("Failed to create profile");
   }
-
-  return parseProfile(created);
+  return rowToLocalProfile(rows[0]);
 }
 
 export type UpdateProfileData = Partial<
   Omit<LocalProfile, "id" | "created_at" | "updated_at">
 >;
 
-export function updateProfile(
-  db: SQLite.SQLiteDatabase,
+export async function updateProfile(
   data: UpdateProfileData
-): LocalProfile {
-  const existing = db.getFirstSync<RawProfile>(
-    "SELECT * FROM profile LIMIT 1"
-  );
-
-  if (!existing) {
+): Promise<LocalProfile> {
+  const existing = await db.select().from(profile).limit(1);
+  if (existing.length === 0) {
     throw new Error("No profile found to update");
   }
 
-  const fields: string[] = [];
-  const values: (string | null)[] = [];
+  const id = existing[0].id;
+  const updates: Partial<typeof profile.$inferInsert> = {};
 
-  if (data.name !== undefined) {
-    fields.push("name = ?");
-    values.push(data.name);
-  }
-  if (data.username !== undefined) {
-    fields.push("username = ?");
-    values.push(data.username);
-  }
-  if (data.surgery_date !== undefined) {
-    fields.push("surgery_date = ?");
-    values.push(data.surgery_date ?? null);
-  }
-  if (data.graft_type !== undefined) {
-    fields.push("graft_type = ?");
-    values.push(data.graft_type ?? null);
-  }
-  if (data.knee_side !== undefined) {
-    fields.push("knee_side = ?");
-    values.push(data.knee_side);
-  }
-  if (data.device_id !== undefined) {
-    fields.push("device_id = ?");
-    values.push(data.device_id);
-  }
-  if (data.supabase_user_id !== undefined) {
-    fields.push("supabase_user_id = ?");
-    values.push(data.supabase_user_id ?? null);
-  }
-  if (data.last_synced_at !== undefined) {
-    fields.push("last_synced_at = ?");
-    values.push(data.last_synced_at ?? null);
+  if (data.name !== undefined) updates.name = data.name;
+  if (data.username !== undefined) updates.username = data.username;
+  if (data.surgery_date !== undefined) updates.surgery_date = data.surgery_date ?? null;
+  if (data.graft_type !== undefined) updates.graft_type = data.graft_type ?? null;
+  if (data.knee_side !== undefined) updates.knee_side = data.knee_side;
+  if (data.device_id !== undefined) updates.device_id = data.device_id;
+  if (data.supabase_user_id !== undefined) updates.supabase_user_id = data.supabase_user_id ?? null;
+  if (data.last_synced_at !== undefined) updates.last_synced_at = data.last_synced_at ?? null;
+
+  if (Object.keys(updates).length === 0) {
+    return rowToLocalProfile(existing[0]);
   }
 
-  if (fields.length === 0) {
-    return parseProfile(existing);
-  }
+  updates.updated_at = sql`(datetime('now'))` as unknown as string;
 
-  fields.push("updated_at = datetime('now')");
-  values.push(existing.id);
+  await db.update(profile).set(updates).where(eq(profile.id, id));
 
-  db.runSync(
-    `UPDATE profile SET ${fields.join(", ")} WHERE id = ?`,
-    values
-  );
-
-  const updated = db.getFirstSync<RawProfile>(
-    "SELECT * FROM profile WHERE id = ?",
-    [existing.id]
-  );
-
-  if (!updated) {
+  const rows = await db.select().from(profile).where(eq(profile.id, id));
+  if (rows.length === 0) {
     throw new Error("Failed to read updated profile");
   }
-
-  return parseProfile(updated);
+  return rowToLocalProfile(rows[0]);
 }

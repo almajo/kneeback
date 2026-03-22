@@ -1,4 +1,6 @@
-import * as SQLite from "expo-sqlite";
+import { eq, and, asc } from "drizzle-orm";
+import { db } from "../database-context";
+import { user_gate_criteria } from "../schema";
 import { generateId } from "../../utils/uuid";
 
 export interface LocalUserGateCriterion {
@@ -10,66 +12,88 @@ export interface LocalUserGateCriterion {
   updated_at: string;
 }
 
-export function getAllGateCriteria(
-  db: SQLite.SQLiteDatabase
-): LocalUserGateCriterion[] {
-  return db.getAllSync<LocalUserGateCriterion>(
-    "SELECT * FROM user_gate_criteria ORDER BY confirmed_at ASC"
-  );
+function rowToLocalUserGateCriterion(
+  row: typeof user_gate_criteria.$inferSelect
+): LocalUserGateCriterion {
+  return {
+    id: row.id,
+    gate_key: row.gate_key,
+    criterion_key: row.criterion_key,
+    confirmed_at: row.confirmed_at,
+    created_at: row.created_at ?? "",
+    updated_at: row.updated_at ?? "",
+  };
 }
 
-export function getGateCriteriaByGate(
-  db: SQLite.SQLiteDatabase,
+export async function getAllGateCriteria(): Promise<LocalUserGateCriterion[]> {
+  const rows = await db
+    .select()
+    .from(user_gate_criteria)
+    .orderBy(asc(user_gate_criteria.confirmed_at));
+  return rows.map(rowToLocalUserGateCriterion);
+}
+
+export async function getGateCriteriaByGate(
   gateKey: string
-): LocalUserGateCriterion[] {
-  return db.getAllSync<LocalUserGateCriterion>(
-    "SELECT * FROM user_gate_criteria WHERE gate_key = ? ORDER BY confirmed_at ASC",
-    [gateKey]
-  );
+): Promise<LocalUserGateCriterion[]> {
+  const rows = await db
+    .select()
+    .from(user_gate_criteria)
+    .where(eq(user_gate_criteria.gate_key, gateKey))
+    .orderBy(asc(user_gate_criteria.confirmed_at));
+  return rows.map(rowToLocalUserGateCriterion);
 }
 
-export function confirmGateCriterion(
-  db: SQLite.SQLiteDatabase,
+export async function confirmGateCriterion(
   gateKey: string,
   criterionKey: string
-): LocalUserGateCriterion {
-  const existing = db.getFirstSync<LocalUserGateCriterion>(
-    "SELECT * FROM user_gate_criteria WHERE gate_key = ? AND criterion_key = ?",
-    [gateKey, criterionKey]
-  );
+): Promise<LocalUserGateCriterion> {
+  const existing = await db
+    .select()
+    .from(user_gate_criteria)
+    .where(
+      and(
+        eq(user_gate_criteria.gate_key, gateKey),
+        eq(user_gate_criteria.criterion_key, criterionKey)
+      )
+    );
 
-  if (existing) {
-    return existing;
+  if (existing.length > 0) {
+    return rowToLocalUserGateCriterion(existing[0]);
   }
 
   const id = generateId();
   const confirmedAt = new Date().toISOString();
 
-  db.runSync(
-    `INSERT INTO user_gate_criteria (id, gate_key, criterion_key, confirmed_at)
-     VALUES (?, ?, ?, ?)`,
-    [id, gateKey, criterionKey, confirmedAt]
-  );
+  await db.insert(user_gate_criteria).values({
+    id,
+    gate_key: gateKey,
+    criterion_key: criterionKey,
+    confirmed_at: confirmedAt,
+  });
 
-  const created = db.getFirstSync<LocalUserGateCriterion>(
-    "SELECT * FROM user_gate_criteria WHERE id = ?",
-    [id]
-  );
+  const created = await db
+    .select()
+    .from(user_gate_criteria)
+    .where(eq(user_gate_criteria.id, id));
 
-  if (!created) {
+  if (created.length === 0) {
     throw new Error(`Failed to confirm gate criterion: ${gateKey}/${criterionKey}`);
   }
 
-  return created;
+  return rowToLocalUserGateCriterion(created[0]);
 }
 
-export function removeGateCriterion(
-  db: SQLite.SQLiteDatabase,
+export async function removeGateCriterion(
   gateKey: string,
   criterionKey: string
-): void {
-  db.runSync(
-    "DELETE FROM user_gate_criteria WHERE gate_key = ? AND criterion_key = ?",
-    [gateKey, criterionKey]
-  );
+): Promise<void> {
+  await db
+    .delete(user_gate_criteria)
+    .where(
+      and(
+        eq(user_gate_criteria.gate_key, gateKey),
+        eq(user_gate_criteria.criterion_key, criterionKey)
+      )
+    );
 }

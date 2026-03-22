@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { useSQLiteContext } from "expo-sqlite";
 import { generateId } from "../utils/uuid";
 import {
   getAllMilestones,
@@ -9,23 +8,22 @@ import {
 } from "../db/repositories/milestone-repo";
 
 export function useMilestones() {
-  const db = useSQLiteContext();
   const today = new Date().toISOString().split("T")[0];
   const [milestones, setMilestones] = useState<LocalMilestone[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchMilestones = useCallback(() => {
+  const fetchMilestones = useCallback(async () => {
     setLoading(true);
-    const data = getAllMilestones(db);
+    const data = await getAllMilestones();
     setMilestones(data);
     setLoading(false);
-  }, [db]);
+  }, []);
 
   useEffect(() => {
     fetchMilestones();
   }, [fetchMilestones]);
 
-  function addMilestone(input: {
+  async function addMilestone(input: {
     title: string;
     category: "milestone" | "win";
     date: string;
@@ -33,7 +31,7 @@ export function useMilestones() {
     template_key?: string;
   }) {
     const id = generateId();
-    const created = createMilestone(db, {
+    const created = await createMilestone({
       id,
       title: input.title,
       category: input.category,
@@ -46,8 +44,8 @@ export function useMilestones() {
     );
   }
 
-  function deleteMilestone(id: string) {
-    deleteMilestoneRepo(db, id);
+  async function deleteMilestone(id: string) {
+    await deleteMilestoneRepo(id);
     setMilestones((prev) => prev.filter((m) => m.id !== id));
   }
 
