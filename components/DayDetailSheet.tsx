@@ -9,7 +9,7 @@ import {
   Alert,
   StyleSheet,
 } from "react-native";
-import { useSQLiteContext } from "expo-sqlite";
+import { db } from "../lib/db/database-context";
 import { Colors } from "../constants/colors";
 import type { LocalMilestone } from "../lib/db/repositories/milestone-repo";
 import type { LocalRomMeasurement } from "../lib/db/repositories/rom-repo";
@@ -83,7 +83,7 @@ export function DayDetailSheet({
   onClose,
   onDeleteMilestone,
 }: Props) {
-  const db = useSQLiteContext();
+  const sqliteDb = db.$client;
   const [exercises, setExercises] = useState<ExerciseItem[]>([]);
   const [hasLog, setHasLog] = useState(false);
   const [isRestDay, setIsRestDay] = useState(false);
@@ -102,7 +102,7 @@ export function DayDetailSheet({
       setIsRestDay(false);
 
       try {
-        const log = db.getFirstSync<{ id: string; is_rest_day: number }>(
+        const log = sqliteDb.getFirstSync<{ id: string; is_rest_day: number }>(
           "SELECT id, is_rest_day FROM daily_logs WHERE date = ?",
           [date]
         );
@@ -119,7 +119,7 @@ export function DayDetailSheet({
         setIsRestDay(log.is_rest_day === 1);
 
         if (log.is_rest_day !== 1) {
-          const exerciseLogs = db.getAllSync<{
+          const exerciseLogs = sqliteDb.getAllSync<{
             completed: number;
             exercise_name: string;
           }>(
@@ -151,7 +151,7 @@ export function DayDetailSheet({
     return () => {
       cancelled = true;
     };
-  }, [date, db]);
+  }, [date]);
 
   function confirmDeleteMilestone(id: string, title: string) {
     Alert.alert(
