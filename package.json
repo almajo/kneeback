@@ -12,7 +12,7 @@
     "lint": "expo lint",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
-    "postinstall": "patch-package"
+    "postinstall": "node scripts/patch-expo-sqlite.js"
   },
   "dependencies": {
     "@expo-google-fonts/outfit": "^0.4.3",
