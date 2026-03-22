@@ -1,6 +1,4 @@
-import { eq, sql } from "drizzle-orm";
 import { db } from "../database-context";
-import { notification_preferences } from "../schema";
 import { generateId } from "../../utils/uuid";
 
 export interface LocalNotificationPreferences {
@@ -13,8 +11,18 @@ export interface LocalNotificationPreferences {
   updated_at: string;
 }
 
+interface NotificationPreferencesRow {
+  id: string;
+  daily_reminder_time: string;
+  evening_nudge_enabled: number;
+  evening_nudge_time: string;
+  completion_congrats_enabled: number;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
 function rowToLocalNotificationPreferences(
-  row: typeof notification_preferences.$inferSelect
+  row: NotificationPreferencesRow
 ): LocalNotificationPreferences {
   return {
     id: row.id,
@@ -28,9 +36,11 @@ function rowToLocalNotificationPreferences(
 }
 
 export async function getNotificationPreferences(): Promise<LocalNotificationPreferences | null> {
-  const rows = await db.select().from(notification_preferences).limit(1);
-  if (rows.length === 0) return null;
-  return rowToLocalNotificationPreferences(rows[0]);
+  const row = await db.$client.getFirstAsync<NotificationPreferencesRow>(
+    "SELECT * FROM notification_preferences LIMIT 1"
+  );
+  if (!row) return null;
+  return rowToLocalNotificationPreferences(row);
 }
 
 export type NotificationPreferencesData = Partial<
@@ -40,53 +50,66 @@ export type NotificationPreferencesData = Partial<
 export async function createOrUpdateNotificationPreferences(
   data: NotificationPreferencesData
 ): Promise<LocalNotificationPreferences> {
-  const existing = await db.select().from(notification_preferences).limit(1);
+  const expo = db.$client;
+  const existing = await expo.getFirstAsync<{ id: string }>(
+    "SELECT id FROM notification_preferences LIMIT 1"
+  );
 
-  if (existing.length > 0) {
-    const updates: Partial<typeof notification_preferences.$inferInsert> = {};
+  if (existing) {
+    const setClauses: string[] = [];
+    const values: (string | number)[] = [];
 
-    if (data.daily_reminder_time !== undefined) updates.daily_reminder_time = data.daily_reminder_time;
-    if (data.evening_nudge_enabled !== undefined) updates.evening_nudge_enabled = data.evening_nudge_enabled ? 1 : 0;
-    if (data.evening_nudge_time !== undefined) updates.evening_nudge_time = data.evening_nudge_time;
-    if (data.completion_congrats_enabled !== undefined) updates.completion_congrats_enabled = data.completion_congrats_enabled ? 1 : 0;
-
-    if (Object.keys(updates).length > 0) {
-      updates.updated_at = sql`(datetime('now'))` as unknown as string;
-      await db
-        .update(notification_preferences)
-        .set(updates)
-        .where(eq(notification_preferences.id, existing[0].id));
+    if (data.daily_reminder_time !== undefined) {
+      setClauses.push("daily_reminder_time = ?");
+      values.push(data.daily_reminder_time);
+    }
+    if (data.evening_nudge_enabled !== undefined) {
+      setClauses.push("evening_nudge_enabled = ?");
+      values.push(data.evening_nudge_enabled ? 1 : 0);
+    }
+    if (data.evening_nudge_time !== undefined) {
+      setClauses.push("evening_nudge_time = ?");
+      values.push(data.evening_nudge_time);
+    }
+    if (data.completion_congrats_enabled !== undefined) {
+      setClauses.push("completion_congrats_enabled = ?");
+      values.push(data.completion_congrats_enabled ? 1 : 0);
     }
 
-    const updated = await db
-      .select()
-      .from(notification_preferences)
-      .where(eq(notification_preferences.id, existing[0].id));
-
-    if (updated.length === 0) {
-      throw new Error("Failed to update notification preferences");
+    if (setClauses.length > 0) {
+      setClauses.push("updated_at = datetime('now')");
+      values.push(existing.id);
+      await expo.runAsync(
+        `UPDATE notification_preferences SET ${setClauses.join(", ")} WHERE id = ?`,
+        values
+      );
     }
 
-    return rowToLocalNotificationPreferences(updated[0]);
+    const updated = await expo.getFirstAsync<NotificationPreferencesRow>(
+      "SELECT * FROM notification_preferences WHERE id = ?",
+      [existing.id]
+    );
+    if (!updated) throw new Error("Failed to update notification preferences");
+    return rowToLocalNotificationPreferences(updated);
   }
 
   const id = generateId();
-  await db.insert(notification_preferences).values({
-    id,
-    daily_reminder_time: data.daily_reminder_time ?? "08:00",
-    evening_nudge_enabled: data.evening_nudge_enabled ? 1 : 0,
-    evening_nudge_time: data.evening_nudge_time ?? "20:00",
-    completion_congrats_enabled: data.completion_congrats_enabled !== false ? 1 : 0,
-  });
+  await expo.runAsync(
+    `INSERT INTO notification_preferences (id, daily_reminder_time, evening_nudge_enabled, evening_nudge_time, completion_congrats_enabled)
+     VALUES (?, ?, ?, ?, ?)`,
+    [
+      id,
+      data.daily_reminder_time ?? "08:00",
+      data.evening_nudge_enabled ? 1 : 0,
+      data.evening_nudge_time ?? "20:00",
+      data.completion_congrats_enabled !== false ? 1 : 0,
+    ]
+  );
 
-  const created = await db
-    .select()
-    .from(notification_preferences)
-    .where(eq(notification_preferences.id, id));
-
-  if (created.length === 0) {
-    throw new Error("Failed to create notification preferences");
-  }
-
-  return rowToLocalNotificationPreferences(created[0]);
+  const created = await expo.getFirstAsync<NotificationPreferencesRow>(
+    "SELECT * FROM notification_preferences WHERE id = ?",
+    [id]
+  );
+  if (!created) throw new Error("Failed to create notification preferences");
+  return rowToLocalNotificationPreferences(created);
 }
