@@ -26,6 +26,20 @@ export function computeFlexionAngle(
 }
 
 /**
+ * Returns the true knee flexion angle by subtracting the thigh's elevation
+ * (measured from its own calibration) from the shin's angle.
+ *
+ * This compensates for any hip/thigh movement during the knee bend so that
+ * the result reflects the angle between the thigh and the shin, not just the
+ * shin's absolute tilt from its resting position.
+ *
+ * Clamped at 0 — a negative result (thigh moved more than shin) is treated as 0°.
+ */
+export function computeKneeFlexion(shinAngle: number, thighAngle: number): number {
+  return Math.max(0, shinAngle - thighAngle);
+}
+
+/**
  * Returns the population standard deviation of an array of numbers.
  * Returns 0 for empty arrays.
  */
