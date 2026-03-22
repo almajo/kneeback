@@ -4,7 +4,9 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DraggableFlatList, { RenderItemParams } from "react-native-draggable-flatlist";
-import { useSQLiteContext } from "expo-sqlite";
+import { eq, desc } from "drizzle-orm";
+import { db } from "../../lib/db/database-context";
+import { exercise_logs as exerciseLogsTable, rom_measurements as romMeasurements, daily_logs as dailyLogsTable } from "../../lib/db/schema";
 import { useToday } from "../../lib/hooks/use-today";
 import { DayHeader } from "../../components/DayHeader";
 import { DailyMessage } from "../../components/DailyMessage";
@@ -27,7 +29,6 @@ import { generateId } from "../../lib/utils/uuid";
 export default function TodayScreen() {
   useKeepAwake();
   const router = useRouter();
-  const db = useSQLiteContext();
   const {
     loading,
     daysSinceSurgery,
@@ -92,26 +93,27 @@ export default function TodayScreen() {
     isFirstRestDay: boolean;
     completed: boolean;
   }>) {
-    const streak = getStreak(db);
+    const streak = await getStreak();
 
-    const logs = db.getAllSync<{ id: string; completed: number }>(
-      "SELECT id, completed FROM exercise_logs WHERE daily_log_id = ?",
-      [dailyLog?.id ?? ""]
-    );
-    const completedNow = logs.filter((l) => l.completed === 1).length;
+    const logs = await db
+      .select({ id: exerciseLogsTable.id, completed: exerciseLogsTable.completed })
+      .from(exerciseLogsTable)
+      .where(eq(exerciseLogsTable.daily_log_id, dailyLog?.id ?? ""));
+    const completedNow = logs.filter((l) => l.completed).length;
     const totalNow = userExercises.length;
 
-    const romRows = db.getAllSync<{
-      flexion_degrees: number | null;
-      extension_degrees: number | null;
-      quad_activation: number;
-    }>(
-      "SELECT flexion_degrees, extension_degrees, quad_activation FROM rom_measurements ORDER BY date DESC LIMIT 1"
-    );
+    const romRows = await db
+      .select({
+        flexion_degrees: romMeasurements.flexion_degrees,
+        extension_degrees: romMeasurements.extension_degrees,
+        quad_activation: romMeasurements.quad_activation,
+      })
+      .from(romMeasurements)
+      .orderBy(desc(romMeasurements.date))
+      .limit(1);
     const rom = romRows[0] ?? null;
 
     const newAchievements = await checkAchievements({
-      db,
       daysSinceSurgery,
       streak,
       totalExercisesCompleted: completedNow,
@@ -136,9 +138,10 @@ export default function TodayScreen() {
     await updateDailyLog(dailyLog.id, { is_rest_day: newIsRest });
     refetch();
     if (newIsRest) {
-      const prevRestDays = db.getAllSync<{ id: string }>(
-        "SELECT id FROM daily_logs WHERE is_rest_day = 1"
-      );
+      const prevRestDays = await db
+        .select({ id: dailyLogsTable.id })
+        .from(dailyLogsTable)
+        .where(eq(dailyLogsTable.is_rest_day, 1));
       runAchievementCheck({ isFirstRestDay: prevRestDays.length <= 1 });
     }
   }

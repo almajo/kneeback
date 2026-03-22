@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { useSQLiteContext } from "expo-sqlite";
 import { getProfile } from "../db/repositories/profile-repo";
 import { getAllUserExercises } from "../db/repositories/user-exercise-repo";
 import { getOrCreateDailyLog } from "../db/repositories/daily-log-repo";
@@ -14,7 +13,6 @@ import type { Content } from "../types";
 export type SurgeryStatus = "no_date" | "pre_surgery" | "post_surgery";
 
 export function useToday() {
-  const db = useSQLiteContext();
   const [profile, setProfile] = useState<{ surgery_date: string | null } | null>(null);
   const [userExercises, setUserExercises] = useState<LocalUserExercise[]>([]);
   const [dailyLog, setDailyLog] = useState<LocalDailyLog | null>(null);
@@ -47,11 +45,11 @@ export function useToday() {
       setDailyMessage(messages[dayIndex]);
     }
 
-    const currentStreak = getStreak(db);
+    const currentStreak = await getStreak();
     setStreak(currentStreak);
 
     setLoading(false);
-  }, [db, today]);
+  }, [today]);
 
   useEffect(() => {
     fetchAll();
