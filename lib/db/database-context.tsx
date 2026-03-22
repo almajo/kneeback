@@ -11,6 +11,10 @@ const DATABASE_NAME = "kneeback.db";
 // The definite assignment assertion (!) is safe: DatabaseProvider renders null
 // until openDatabaseAsync + migrations complete, so repos are never called before db is ready.
 export let db!: ReturnType<typeof drizzle<typeof schema>>;
+// Exposed for async queries that bypass the Drizzle sync worker path (avoids a
+// SharedArrayBuffer length-truncation bug in expo-sqlite ≤16.0.10 on web for
+// results larger than 255 bytes).
+export let expoDb!: Awaited<ReturnType<typeof openDatabaseAsync>>;
 
 export type DrizzleDb = typeof db;
 
@@ -95,6 +99,7 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
     openDatabaseAsync(DATABASE_NAME, { enableChangeListener: true })
       .then(async (expo) => {
         await runMigrationsAsync(expo);
+        expoDb = expo;
         db = drizzle(expo, { schema });
         await seedDatabase();
         setReady(true);
