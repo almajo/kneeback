@@ -1,16 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { db } from "./database-context";
-import {
-  exercise_logs,
-  user_achievements,
-  user_gate_criteria,
-  rom_measurements,
-  milestones,
-  daily_logs,
-  user_exercises,
-  notification_preferences,
-  profile,
-} from "./schema";
 
 const ASYNC_STORAGE_KEYS = [
   "has_seen_intro",
@@ -22,20 +11,29 @@ const ASYNC_STORAGE_KEYS = [
 /**
  * Deletes all user data from SQLite (preserves catalog tables + schema).
  * Clears AsyncStorage flags to reset app to fresh-install state.
+ *
+ * Uses expo-sqlite's async API directly to avoid a deadlock that occurs when
+ * Drizzle's sync transaction wrapper is combined with an async callback on web.
  */
 export async function purgeAllUserData(): Promise<void> {
-  await db.transaction(async (tx) => {
+  const expo = db.$client;
+  await expo.execAsync("BEGIN");
+  try {
     // Delete in FK-safe order (children before parents)
-    await tx.delete(exercise_logs);
-    await tx.delete(user_achievements);
-    await tx.delete(user_gate_criteria);
-    await tx.delete(rom_measurements);
-    await tx.delete(milestones);
-    await tx.delete(daily_logs);
-    await tx.delete(user_exercises);
-    await tx.delete(notification_preferences);
-    await tx.delete(profile);
-  });
+    await expo.execAsync("DELETE FROM exercise_logs");
+    await expo.execAsync("DELETE FROM user_achievements");
+    await expo.execAsync("DELETE FROM user_gate_criteria");
+    await expo.execAsync("DELETE FROM rom_measurements");
+    await expo.execAsync("DELETE FROM milestones");
+    await expo.execAsync("DELETE FROM daily_logs");
+    await expo.execAsync("DELETE FROM user_exercises");
+    await expo.execAsync("DELETE FROM notification_preferences");
+    await expo.execAsync("DELETE FROM profile");
+    await expo.execAsync("COMMIT");
+  } catch (err) {
+    await expo.execAsync("ROLLBACK");
+    throw err;
+  }
 
   try {
     await AsyncStorage.multiRemove(ASYNC_STORAGE_KEYS);
