@@ -1,5 +1,5 @@
 import { eq, asc, sql } from "drizzle-orm";
-import { db, expoDb } from "../database-context";
+import { db } from "../database-context";
 import { exercises } from "../schema";
 import type {
   Exercise,
@@ -37,13 +37,7 @@ function rowToExercise(row: typeof exercises.$inferSelect): Exercise {
 }
 
 export async function getAllExercises(): Promise<Exercise[]> {
-  // Use expo-sqlite's native async API to avoid a SharedArrayBuffer length-
-  // truncation bug in expo-sqlite ≤16.0.10 on web: the sync worker path only
-  // stores the low 8 bits of the result length, so any response > 255 bytes
-  // (i.e. all exercises) gets cut off and JSON.parse throws "Unterminated string".
-  const rows = await expoDb.getAllAsync<typeof exercises.$inferSelect>(
-    "SELECT * FROM exercises ORDER BY sort_order ASC"
-  );
+  const rows = await db.select().from(exercises).orderBy(asc(exercises.sort_order));
   return rows.map(rowToExercise);
 }
 
