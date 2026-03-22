@@ -3,6 +3,7 @@ import { Modal, View, Text, TouchableOpacity, SafeAreaView } from "react-native"
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
 import { useImuMeasurement } from "@/lib/hooks/use-imu-measurement";
+import { computeKneeFlexion } from "@/lib/imu-math";
 import { PositionStep } from "./PositionStep";
 import { CalibrationStep } from "./CalibrationStep";
 import { MeasurementStep } from "./MeasurementStep";
@@ -52,9 +53,10 @@ export function RomMeasurementWizard({ visible, onComplete, onDismiss, lastMeasu
     onComplete({ flexionDegrees });
   }
 
-  // Stable reference required by MeasurementStep's useEffect dep array
-  const handleCaptured = useCallback((degrees: number) => {
-    setFlexionDegrees(degrees);
+  // Stable reference required by MeasurementStep's useEffect dep array.
+  // shinDegrees = angle from shin calibration; thighDegrees = angle from thigh calibration.
+  const handleCaptured = useCallback((shinDegrees: number, thighDegrees: number) => {
+    setFlexionDegrees(computeKneeFlexion(shinDegrees, thighDegrees));
     setStep("review");
   }, []);
 
