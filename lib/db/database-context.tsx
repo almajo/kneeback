@@ -96,7 +96,7 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
       .then(async (expo) => {
         await runMigrationsAsync(expo);
         db = drizzle(expo, { schema });
-        await seedDatabase();
+        await seedDatabase(db);
         setReady(true);
       })
       .catch((err: Error) => setInitError(err));
