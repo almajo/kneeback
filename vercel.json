@@ -4,7 +4,9 @@
   "framework": null,
   "rewrites": [
     { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/privacy/:path*", "destination": "/privacy.html" },
     { "source": "/impressum", "destination": "/impressum.html" },
+    { "source": "/impressum/:path*", "destination": "/impressum.html" },
     { "source": "/app", "destination": "/app/index.html" },
     { "source": "/app/:path*", "destination": "/app/index.html" }
   ],
