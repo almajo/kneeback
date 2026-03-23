@@ -19,6 +19,10 @@ const MIN_FLEXION_DEGREES = -10;
 export interface ImuMeasurementState {
   isAvailable: boolean;
   calibrate: () => Promise<"success" | "failed">;
+  calibrateThigh: () => Promise<"success" | "failed">;
+  captureThigh: () => void;
+  isCapturingThigh: boolean;
+  thighAngle: number | null;
   startMeasurement: () => void;
   stopMeasurement: () => void;
   currentAngle: number;
@@ -38,13 +42,18 @@ export function useImuMeasurement(): ImuMeasurementState {
   const [isLocked, setIsLocked] = useState(false);
   const [showCaptureNow, setShowCaptureNow] = useState(false);
 
+  const [isCapturingThigh, setIsCapturingThigh] = useState(false);
+  const [thighAngle, setThighAngle] = useState<number | null>(null);
+
   const referenceVectorRef = useRef<{ x: number; y: number; z: number } | null>(null);
+  const thighReferenceVectorRef = useRef<{ x: number; y: number; z: number } | null>(null);
   const subscriptionRef = useRef<{ remove: () => void } | null>(null);
   const stableCountRef = useRef(0);
   const pitchWindowRef = useRef<number[]>([]);
   // Authoritative peak tracked in a ref so the listener closure never reads stale state
   const peakAngleRef = useRef<number | null>(null);
   const captureNowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const captureThighTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     // On web, only expose the sensor on mobile browsers (touch-primary devices).
@@ -71,6 +80,7 @@ export function useImuMeasurement(): ImuMeasurementState {
     return () => {
       removeSubscription();
       if (captureNowTimerRef.current) clearTimeout(captureNowTimerRef.current);
+      if (captureThighTimerRef.current) clearTimeout(captureThighTimerRef.current);
     };
   }, [removeSubscription]);
 
@@ -89,119 +99,236 @@ export function useImuMeasurement(): ImuMeasurementState {
     }
   }, []);
 
-  const calibrate = useCallback((): Promise<"success" | "failed"> => {
-    // Avoid the async-in-explicit-Promise anti-pattern:
-    // the outer function is NOT async; async work is nested in a named function
-    // so errors from awaited calls propagate to the resolve/reject correctly.
-    return new Promise((resolve) => {
-      // Timeout so calibration never hangs indefinitely (e.g. when the
-      // sensor API is unavailable or returns no data on a given platform).
-      const CALIBRATION_TIMEOUT_MS = 6000;
-      let resolved = false;
-      const timeout = setTimeout(() => {
-        if (!resolved) {
-          resolved = true;
-          removeSubscription();
-          resolve("failed");
-        }
-      }, CALIBRATION_TIMEOUT_MS);
-
-      function resolveOnce(result: "success" | "failed") {
-        if (!resolved) {
-          resolved = true;
-          clearTimeout(timeout);
-          removeSubscription();
-          resolve(result);
-        }
-      }
-
-      function startListening() {
-        let samplesCollected = 0;
-        let sumX = 0;
-        let sumY = 0;
-        let sumZ = 0;
-
-        Accelerometer.setUpdateInterval(UPDATE_INTERVAL_MS);
-
-        subscriptionRef.current = Accelerometer.addListener(({ x, y, z }) => {
-          if (!isValidSample(x, y, z)) {
-            resolveOnce("failed");
-            return;
+  // Shared calibration implementation — collects CALIBRATION_SAMPLES valid
+  // readings (first valid samples received), averages them, stores the result
+  // via onSuccess, then resolves. Handles iOS Safari permission, Chrome
+  // Permissions API, and timeout.
+  const runCalibration = useCallback(
+    (onSuccess: (vec: { x: number; y: number; z: number }) => void): Promise<"success" | "failed"> => {
+      return new Promise((resolve) => {
+        const CALIBRATION_TIMEOUT_MS = 6000;
+        let resolved = false;
+        const timeout = setTimeout(() => {
+          if (!resolved) {
+            resolved = true;
+            removeSubscription();
+            resolve("failed");
           }
-          sumX += x;
-          sumY += y;
-          sumZ += z;
-          samplesCollected++;
-          if (samplesCollected >= CALIBRATION_SAMPLES) {
-            referenceVectorRef.current = {
-              x: sumX / samplesCollected,
-              y: sumY / samplesCollected,
-              z: sumZ / samplesCollected,
-            };
-            resolveOnce("success");
-          }
-        });
-      }
+        }, CALIBRATION_TIMEOUT_MS);
 
-      async function requestPermissionAndListen() {
-        // iOS Safari requires a user-gesture-initiated permission call via
-        // the non-standard DeviceMotionEvent.requestPermission API.
-        const hasSafariPermissionApi =
-          typeof DeviceMotionEvent !== "undefined" &&
-          // @ts-expect-error Safari-only API
-          typeof DeviceMotionEvent.requestPermission === "function";
-
-        if (hasSafariPermissionApi) {
-          try {
-            // @ts-expect-error Safari-only API
-            const result = await (DeviceMotionEvent.requestPermission() as Promise<string>);
-            if (result === "granted") {
-              startListening();
-            } else {
-              resolveOnce("failed");
-            }
-          } catch {
-            resolveOnce("failed");
+        function resolveOnce(result: "success" | "failed") {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timeout);
+            removeSubscription();
+            resolve(result);
           }
-          return;
         }
 
-        // Chrome on Android exposes accelerometer permission via the
-        // Permissions API. Request it if available so that sensor events fire.
-        if (
-          typeof navigator !== "undefined" &&
-          navigator.permissions &&
-          typeof navigator.permissions.query === "function"
-        ) {
-          try {
-            const status = await navigator.permissions.query({
-              // @ts-expect-error "accelerometer" is a valid permission name per the
-              // Generic Sensor API spec but not yet in TS lib types
-              name: "accelerometer",
-            });
-            if (status.state === "denied") {
+        function startListening() {
+          let samplesCollected = 0;
+          let sumX = 0;
+          let sumY = 0;
+          let sumZ = 0;
+
+          Accelerometer.setUpdateInterval(UPDATE_INTERVAL_MS);
+
+          subscriptionRef.current = Accelerometer.addListener(({ x, y, z }) => {
+            if (!isValidSample(x, y, z)) {
               resolveOnce("failed");
               return;
             }
-            // "granted" or "prompt" — proceed; the browser will show its own
-            // prompt if needed when the sensor data starts arriving.
-          } catch {
-            // Permissions API query failed (unsupported permission name on
-            // this browser) — fall through and attempt to start listening anyway.
-          }
+            sumX += x;
+            sumY += y;
+            sumZ += z;
+            samplesCollected++;
+            if (samplesCollected >= CALIBRATION_SAMPLES) {
+              onSuccess({
+                x: sumX / samplesCollected,
+                y: sumY / samplesCollected,
+                z: sumZ / samplesCollected,
+              });
+              resolveOnce("success");
+            }
+          });
         }
 
-        startListening();
-      }
+        async function requestPermissionAndListen() {
+          // iOS Safari requires a user-gesture-initiated permission call via
+          // the non-standard DeviceMotionEvent.requestPermission API.
+          const hasSafariPermissionApi =
+            typeof DeviceMotionEvent !== "undefined" &&
+            // @ts-expect-error Safari-only API
+            typeof DeviceMotionEvent.requestPermission === "function";
 
+          if (hasSafariPermissionApi) {
+            try {
+              // @ts-expect-error Safari-only API
+              const result = await (DeviceMotionEvent.requestPermission() as Promise<string>);
+              if (result === "granted") {
+                startListening();
+              } else {
+                resolveOnce("failed");
+              }
+            } catch {
+              resolveOnce("failed");
+            }
+            return;
+          }
+
+          // Chrome on Android exposes accelerometer permission via the
+          // Permissions API. Request it if available so that sensor events fire.
+          if (
+            typeof navigator !== "undefined" &&
+            navigator.permissions &&
+            typeof navigator.permissions.query === "function"
+          ) {
+            try {
+              const status = await navigator.permissions.query({
+                // @ts-expect-error "accelerometer" is a valid permission name per the
+                // Generic Sensor API spec but not yet in TS lib types
+                name: "accelerometer",
+              });
+              if (status.state === "denied") {
+                resolveOnce("failed");
+                return;
+              }
+              // "granted" or "prompt" — proceed; the browser will show its own
+              // prompt if needed when the sensor data starts arriving.
+            } catch {
+              // Permissions API query failed — fall through and attempt to start.
+            }
+          }
+
+          startListening();
+        }
+
+        removeSubscription();
+
+        if (Platform.OS === "web") {
+          requestPermissionAndListen().catch(() => resolveOnce("failed"));
+        } else {
+          startListening();
+        }
+      });
+    },
+    [removeSubscription]
+  );
+
+  const calibrate = useCallback(
+    () => runCalibration((vec) => { referenceVectorRef.current = vec; }),
+    [runCalibration]
+  );
+
+  const calibrateThigh = useCallback(
+    () => runCalibration((vec) => { thighReferenceVectorRef.current = vec; }),
+    [runCalibration]
+  );
+
+  // Captures the thigh angle at maximum bend by collecting a short valid sample,
+  // then computing the angle relative to the thigh's calibration reference.
+  const captureThigh = useCallback(() => {
+    if (thighReferenceVectorRef.current === null) return;
+    setIsCapturingThigh(true);
+
+    const THIGH_CAPTURE_SAMPLES = 20;
+    const THIGH_CAPTURE_TIMEOUT_MS = 6000;
+    let samplesCollected = 0;
+    let sumX = 0;
+    let sumY = 0;
+    let sumZ = 0;
+    let done = false;
+
+    function finishCapture() {
+      if (done) return;
+      done = true;
+      if (captureThighTimerRef.current) {
+        clearTimeout(captureThighTimerRef.current);
+        captureThighTimerRef.current = null;
+      }
       removeSubscription();
+      setIsCapturingThigh(false);
+    }
 
-      if (Platform.OS === "web") {
-        requestPermissionAndListen().catch(() => resolveOnce("failed"));
-      } else {
-        startListening();
+    captureThighTimerRef.current = setTimeout(() => finishCapture(), THIGH_CAPTURE_TIMEOUT_MS);
+
+    function startListening() {
+      removeSubscription();
+      Accelerometer.setUpdateInterval(UPDATE_INTERVAL_MS);
+
+      subscriptionRef.current = Accelerometer.addListener(({ x, y, z }) => {
+        if (done) return;
+        if (!isValidSample(x, y, z)) return;
+        sumX += x;
+        sumY += y;
+        sumZ += z;
+        samplesCollected++;
+        if (samplesCollected >= THIGH_CAPTURE_SAMPLES) {
+          const ref = thighReferenceVectorRef.current!;
+          const angle = computeFlexionAngle(
+            ref.x, ref.y, ref.z,
+            sumX / samplesCollected,
+            sumY / samplesCollected,
+            sumZ / samplesCollected,
+          );
+          setThighAngle(angle);
+          finishCapture();
+        }
+      });
+    }
+
+    // Reuse the same permission flow as runCalibration so iOS Safari / Chrome
+    // web permission is requested if needed (permission may already be granted
+    // from the earlier calibration steps, but it is safer to go through the
+    // same path consistently).
+    async function requestPermissionAndListen() {
+      const hasSafariPermissionApi =
+        typeof DeviceMotionEvent !== "undefined" &&
+        // @ts-expect-error Safari-only API
+        typeof DeviceMotionEvent.requestPermission === "function";
+
+      if (hasSafariPermissionApi) {
+        try {
+          // @ts-expect-error Safari-only API
+          const result = await (DeviceMotionEvent.requestPermission() as Promise<string>);
+          if (result === "granted") {
+            startListening();
+          } else {
+            finishCapture();
+          }
+        } catch {
+          finishCapture();
+        }
+        return;
       }
-    });
+
+      if (
+        typeof navigator !== "undefined" &&
+        navigator.permissions &&
+        typeof navigator.permissions.query === "function"
+      ) {
+        try {
+          const status = await navigator.permissions.query({
+            // @ts-expect-error Generic Sensor API permission name
+            name: "accelerometer",
+          });
+          if (status.state === "denied") {
+            finishCapture();
+            return;
+          }
+        } catch {
+          // fall through
+        }
+      }
+
+      startListening();
+    }
+
+    if (Platform.OS === "web") {
+      requestPermissionAndListen().catch(() => finishCapture());
+    } else {
+      startListening();
+    }
   }, [removeSubscription]);
 
   const startMeasurement = useCallback(() => {
@@ -281,6 +408,7 @@ export function useImuMeasurement(): ImuMeasurementState {
   const reset = useCallback(() => {
     removeSubscription();
     referenceVectorRef.current = null;
+    thighReferenceVectorRef.current = null;
     stableCountRef.current = 0;
     pitchWindowRef.current = [];
     peakAngleRef.current = null;
@@ -289,15 +417,25 @@ export function useImuMeasurement(): ImuMeasurementState {
     setStableProgress(0);
     setIsLocked(false);
     setShowCaptureNow(false);
+    setIsCapturingThigh(false);
+    setThighAngle(null);
     if (captureNowTimerRef.current) {
       clearTimeout(captureNowTimerRef.current);
       captureNowTimerRef.current = null;
+    }
+    if (captureThighTimerRef.current) {
+      clearTimeout(captureThighTimerRef.current);
+      captureThighTimerRef.current = null;
     }
   }, [removeSubscription]);
 
   return {
     isAvailable,
     calibrate,
+    calibrateThigh,
+    captureThigh,
+    isCapturingThigh,
+    thighAngle,
     startMeasurement,
     stopMeasurement,
     currentAngle,

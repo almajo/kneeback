@@ -21,7 +21,7 @@ export function PositionStep({ onReady }: Props) {
           {[
             { label: "Lie flat on your back", sub: "On a bed, mat, or firm surface." },
             { label: "Straighten your leg as much as possible", sub: "Rest it flat on the surface." },
-            { label: "Place your phone flat on your shin", sub: "Screen facing up, long edge along your shin bone." },
+            { label: "Start with phone on your thigh", sub: "Screen facing up, long edge along your thigh. You'll move it to your shin after calibrating." },
           ].map((item, i) => (
             <View key={i} className="flex-row items-start gap-4">
               <View
@@ -44,7 +44,7 @@ export function PositionStep({ onReady }: Props) {
           style={{ height: 120, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border }}
         >
           <Ionicons name="body-outline" size={48} color={Colors.textMuted} />
-          <Text className="text-xs mt-2" style={{ color: Colors.textMuted }}>Phone on shin, face up</Text>
+          <Text className="text-xs mt-2" style={{ color: Colors.textMuted }}>Phone on thigh first, then shin</Text>
         </View>
       </View>
 

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { db } from "./database-context";
+import type { DrizzleDb } from "./database-context";
 import { exercises, content } from "./schema";
 import type { Exercise, Content } from "../types";
 import exercisesJson from "./seed/exercises.json";
@@ -11,7 +11,7 @@ type SeedContent = Content;
 const seedExercises: SeedExercise[] = exercisesJson as SeedExercise[];
 const seedContent: SeedContent[] = contentJson as SeedContent[];
 
-export async function seedDatabase(): Promise<void> {
+export async function seedDatabase(db: DrizzleDb): Promise<void> {
   const [exerciseCountRow] = await db
     .select({ count: sql<number>`COUNT(*)` })
     .from(exercises);

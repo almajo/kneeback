@@ -39,12 +39,12 @@ export async function getOrCreateDailyLog(date: string): Promise<LocalDailyLog> 
     date,
     is_rest_day: 0,
     notes: null,
-  });
+  }).onConflictDoNothing();
 
   const created = await db
     .select()
     .from(daily_logs)
-    .where(eq(daily_logs.id, id));
+    .where(eq(daily_logs.date, date));
 
   if (created.length === 0) {
     throw new Error(`Failed to create daily log for date ${date}`);

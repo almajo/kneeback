@@ -1,5 +1,6 @@
 import {
   computeFlexionAngle,
+  computeKneeFlexion,
   computeStdDev,
   isValidSample,
 } from "@/lib/imu-math";
@@ -37,6 +38,25 @@ describe("computeFlexionAngle", () => {
     const currY = Math.sin(angle);
     const currZ = -Math.cos(angle);
     expect(computeFlexionAngle(0, 0, -1, 0, currY, currZ)).toBeCloseTo(120, 0);
+  });
+});
+
+describe("computeKneeFlexion", () => {
+  it("returns shin angle unchanged when thigh is flat (0°)", () => {
+    expect(computeKneeFlexion(90, 0)).toBe(90);
+  });
+
+  it("adds thigh angle to shin angle", () => {
+    // Shin rotated 30°, thigh rotated 30° in the opposite absolute direction — knee bent 60°
+    expect(computeKneeFlexion(30, 30)).toBe(60);
+  });
+
+  it("adds both angles regardless of their relative magnitudes", () => {
+    expect(computeKneeFlexion(40, 20)).toBe(60);
+  });
+
+  it("returns 0 for both angles 0", () => {
+    expect(computeKneeFlexion(0, 0)).toBe(0);
   });
 });
 
