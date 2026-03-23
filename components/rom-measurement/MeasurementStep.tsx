@@ -1,10 +1,18 @@
 import { useEffect, useRef } from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, TouchableOpacity, ActivityIndicator, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as Speech from "expo-speech";
 import { Colors } from "@/constants/colors";
 import type { ImuMeasurementState } from "@/lib/hooks/use-imu-measurement";
+
+function vibrate() {
+  if (Platform.OS === "android") {
+    Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Confirm);
+  } else {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }
+}
 
 interface Props {
   imu: ImuMeasurementState;
@@ -28,7 +36,7 @@ export function MeasurementStep({ imu, onCaptured }: Props) {
   useEffect(() => {
     if (imu.isLocked && imu.peakAngle !== null && !shinLockedAnnouncedRef.current) {
       shinLockedAnnouncedRef.current = true;
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      vibrate();
       Speech.speak("Hold it. Move phone to your thigh.", { rate: 1.1 });
     }
   }, [imu.isLocked, imu.peakAngle]);
@@ -39,7 +47,7 @@ export function MeasurementStep({ imu, onCaptured }: Props) {
   useEffect(() => {
     if (imu.thighAngle !== null && imu.peakAngle !== null && !thighCapturedRef.current) {
       thighCapturedRef.current = true;
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      vibrate();
       Speech.speak("Done.", { rate: 1.1 });
       const timer = setTimeout(() => onCaptured(imu.peakAngle!, imu.thighAngle!), 600);
       return () => clearTimeout(timer);

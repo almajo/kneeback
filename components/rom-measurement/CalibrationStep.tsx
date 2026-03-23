@@ -6,6 +6,14 @@ import * as Speech from "expo-speech";
 import { Colors } from "@/constants/colors";
 import type { ImuMeasurementState } from "@/lib/hooks/use-imu-measurement";
 
+function vibrate() {
+  if (Platform.OS === "android") {
+    Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Confirm);
+  } else {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }
+}
+
 interface Props {
   imu: ImuMeasurementState;
   onCalibrated: () => void;
@@ -30,7 +38,7 @@ export function CalibrationStep({ imu, onCalibrated }: Props) {
 
     if (result === "success") {
       setPhase("thigh-success");
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      vibrate();
       Speech.speak("Move phone to shin", { rate: 1.1 });
       transitionTimerRef.current = setTimeout(() => setPhase("shin-idle"), 1200);
     } else {
@@ -50,7 +58,7 @@ export function CalibrationStep({ imu, onCalibrated }: Props) {
 
     if (result === "success") {
       setPhase("shin-success");
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      vibrate();
       Speech.speak("Ready. Bend your knee.", { rate: 1.1 });
       transitionTimerRef.current = setTimeout(onCalibrated, 1200);
     } else {

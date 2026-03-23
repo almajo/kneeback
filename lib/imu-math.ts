@@ -26,17 +26,19 @@ export function computeFlexionAngle(
 }
 
 /**
- * Returns the true knee flexion angle by subtracting the thigh's elevation
- * (measured from its own calibration) from the shin's angle.
+ * Returns the true knee flexion angle by adding the shin and thigh angles.
  *
- * This compensates for any hip/thigh movement during the knee bend so that
- * the result reflects the angle between the thigh and the shin, not just the
- * shin's absolute tilt from its resting position.
+ * Both angles are measured from their respective calibration positions (full
+ * extension, lying flat). When the knee bends, the shin and thigh rotate in
+ * OPPOSITE absolute directions relative to gravity:
+ *   - shin rises (or falls) away from horizontal  → +shinAngle
+ *   - thigh moves the opposite way (brace coupling) → +thighAngle
  *
- * Clamped at 0 — a negative result (thigh moved more than shin) is treated as 0°.
+ * Adding them gives the total relative angle between the two segments.
+ * When the thigh stays flat (thighAngle = 0), the result equals shinAngle alone.
  */
 export function computeKneeFlexion(shinAngle: number, thighAngle: number): number {
-  return Math.max(0, shinAngle - thighAngle);
+  return shinAngle + thighAngle;
 }
 
 /**
