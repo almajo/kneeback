@@ -132,8 +132,9 @@ export function PrivacyPolicyModal({ visible, onClose }: { visible: boolean; onC
 
           <Section title="10. Changes to This Policy" last>
             We may update this Privacy Policy from time to time. When we do, we will revise the
-            "Last updated" date at the top of this document. Continued use of the app after changes
-            are posted constitutes your acceptance of the updated policy.{"\n\n"}
+            "Last updated" date at the top of this document. For material changes affecting how
+            your health data is processed, we will notify you within the app and, where required
+            by law, obtain your fresh consent before continuing to process your data.{"\n\n"}
             For questions or requests regarding your personal data, contact us at{" "}
             <Text style={{ color: Colors.primary }}>{CONTACT_EMAIL}</Text>.
           </Section>

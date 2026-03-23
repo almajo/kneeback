@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — KneeBack</title>
+  <meta name="description" content="KneeBack Privacy Policy — how we handle your recovery data.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --orange: #FF6B35;
+      --teal:   #2EC4B6;
+      --dark:   #111111;
+      --cream:  #FFF8F0;
+      --text:   #2D2D2D;
+      --muted:  #6B6B6B;
+      --border: #E8E0D8;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--cream);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Nav */
+    .nav {
+      background: var(--dark); padding: 16px 32px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo { font-size: 20px; font-weight: 800; color: var(--orange); text-decoration: none; }
+    .nav-back {
+      font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.6);
+      text-decoration: none; display: flex; align-items: center; gap: 6px;
+      transition: color 180ms;
+    }
+    .nav-back:hover { color: #fff; }
+
+    /* Header */
+    .page-header {
+      background: var(--dark); padding: 64px 32px 56px; text-align: center;
+    }
+    .page-header h1 {
+      font-size: clamp(36px, 6vw, 56px); font-weight: 800;
+      color: #fff; letter-spacing: -1.5px; margin-bottom: 12px;
+    }
+    .page-header h1 span { color: var(--orange); }
+    .page-header p { font-size: 16px; color: rgba(255,255,255,0.55); }
+
+    /* Content */
+    .content {
+      max-width: 760px; margin: 0 auto;
+      padding: 64px 32px 80px;
+    }
+
+    .updated {
+      background: rgba(255,107,53,0.1); border: 1px solid rgba(255,107,53,0.2);
+      border-radius: 12px; padding: 14px 20px; margin-bottom: 48px;
+      font-size: 14px; color: var(--orange); font-weight: 600;
+    }
+
+    h2 {
+      font-size: 22px; font-weight: 700; color: var(--text);
+      margin-top: 48px; margin-bottom: 14px;
+      padding-bottom: 10px; border-bottom: 1px solid var(--border);
+    }
+    h2:first-of-type { margin-top: 0; }
+
+    p { font-size: 15px; line-height: 1.75; color: #444; margin-bottom: 16px; }
+    p:last-child { margin-bottom: 0; }
+
+    ul { margin: 12px 0 16px 0; padding-left: 0; list-style: none; }
+    ul li {
+      font-size: 15px; line-height: 1.7; color: #444;
+      padding: 6px 0 6px 20px; position: relative;
+    }
+    ul li::before {
+      content: ''; position: absolute; left: 0; top: 14px;
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--orange);
+    }
+
+    a { color: var(--orange); }
+    a:hover { text-decoration: underline; }
+
+    .highlight-box {
+      background: #fff; border: 1px solid var(--border);
+      border-left: 4px solid var(--teal);
+      border-radius: 12px; padding: 20px 24px; margin: 20px 0;
+      font-size: 15px; line-height: 1.7; color: #444;
+    }
+    .highlight-box strong { color: var(--text); }
+
+    table {
+      width: 100%; border-collapse: collapse;
+      margin: 16px 0 24px; font-size: 14px;
+    }
+    th {
+      text-align: left; padding: 10px 14px;
+      background: var(--dark); color: rgba(255,255,255,0.8);
+      font-weight: 600; font-size: 12px; letter-spacing: 0.5px;
+    }
+    td {
+      padding: 10px 14px; border-bottom: 1px solid var(--border);
+      color: #444; line-height: 1.5; vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+
+    /* Rights grid */
+    .rights-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+    @media (max-width: 560px) { .rights-grid { grid-template-columns: 1fr; } }
+    .right-card {
+      background: #fff; border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px 18px;
+    }
+    .right-card strong { display: block; font-size: 14px; color: var(--text); margin-bottom: 4px; }
+    .right-card span { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+    /* Footer */
+    footer {
+      background: var(--dark); padding: 32px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px;
+      border-top: 1px solid #2D2D2D;
+    }
+    .foot-logo { font-size: 16px; font-weight: 800; color: var(--orange); }
+    .foot-links { display: flex; gap: 20px; }
+    .foot-links a { font-size: 13px; color: rgba(255,255,255,0.5); text-decoration: none; }
+    .foot-links a:hover { color: #fff; }
+
+    @media (max-width: 768px) {
+      .content { padding: 48px 20px 64px; }
+      .page-header { padding: 48px 20px 40px; }
+      footer { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">KneeBack</a>
+  <a href="/" class="nav-back" aria-label="Back to homepage">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <path d="M19 12H5M12 5l-7 7 7 7"/>
+    </svg>
+    Back to home
+  </a>
+</nav>
+
+<div class="page-header">
+  <h1><span>Privacy</span> Policy</h1>
+  <p>Last updated: 21 March 2026</p>
+</div>
+
+<main class="content" role="main">
+  <div class="updated">
+    This policy applies to the KneeBack mobile application and website. Contact:
+    <a href="mailto:kneebackapp@gmail.com">kneebackapp@gmail.com</a>
+  </div>
+
+  <!-- 1 -->
+  <h2>1. Who We Are (Controller)</h2>
+  <p>
+    KneeBack ("we", "our", "us") is operated by:
+  </p>
+  <div class="highlight-box">
+    <strong>[CONTROLLER NAME]</strong> — Please fill in before publishing.<br>
+    [Full postal address, not a PO box]<br>
+    [City, Postcode, Country]<br>
+    Email: <a href="mailto:kneebackapp@gmail.com">kneebackapp@gmail.com</a><br>
+    Phone: [Phone number — required under § 5 DDG for EU/German compliance]
+  </div>
+  <p>
+    For all data-related enquiries, requests, or complaints, contact us at
+    <a href="mailto:kneebackapp@gmail.com">kneebackapp@gmail.com</a>.
+  </p>
+
+  <!-- 2 -->
+  <h2>2. Our Privacy-First Design</h2>
+  <div class="highlight-box">
+    <strong>KneeBack is built local-first.</strong> All your recovery data — exercises, ROM measurements,
+    milestones, streaks, and notification preferences — is stored exclusively on your device.
+    <strong>Nothing is ever sent to our servers unless you explicitly create an account and enable
+    cloud sync.</strong>
+  </div>
+  <p>
+    You remain in full control of your data at all times. Cloud sync is optional, reversible,
+    and can be turned off or deleted at any moment.
+  </p>
+
+  <!-- 3 -->
+  <h2>3. What Data We Collect</h2>
+  <p><strong>Local-only (no cloud sync):</strong> No personal data leaves your device. The following
+  data is stored only on your device and is protected by your device's own security:</p>
+  <ul>
+    <li>Exercise logs, daily checklists, and completion history</li>
+    <li>Range-of-motion (ROM) measurements (flexion and extension angles)</li>
+    <li>Surgery date, knee side, and graft type (entered by you for app functionality)</li>
+    <li>Milestone notes and phase progress</li>
+    <li>Notification reminder preferences</li>
+  </ul>
+
+  <p><strong>Optional cloud sync (account holders only):</strong> If you create an account and enable
+  sync, the following data is uploaded to our cloud infrastructure:</p>
+  <ul>
+    <li>Email address (used for authentication only)</li>
+    <li>Recovery profile: surgery date, knee side, graft type</li>
+    <li>Health and exercise data: exercise logs, ROM measurements, and streak activity</li>
+    <li>Exercise plan and personal customisations</li>
+    <li>Notification preferences</li>
+  </ul>
+
+  <p><strong>Community feature:</strong> Community posts are linked to an anonymous device identifier
+  only. Your email address is never visible in the community, regardless of whether you have
+  an account. The device identifier is a pseudonym — it allows us to attribute your posts to
+  you for moderation and deletion purposes without revealing your identity.</p>
+
+  <!-- 4 -->
+  <h2>4. Why We Process Your Data (Legal Bases)</h2>
+  <table>
+    <thead>
+      <tr><th>Purpose</th><th>Data</th><th>Legal Basis</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Provide cloud backup and cross-device sync</td>
+        <td>Email, recovery profile, exercise data</td>
+        <td>Art. 6(1)(a) GDPR — your explicit consent when creating an account</td>
+      </tr>
+      <tr>
+        <td>Process health data (ROM, surgery info)</td>
+        <td>ROM measurements, surgery date, graft type</td>
+        <td>Art. 9(2)(a) GDPR — your explicit consent; health data requires this separate basis</td>
+      </tr>
+      <tr>
+        <td>Community feature (anonymous posts)</td>
+        <td>Anonymous device identifier, post content</td>
+        <td>Art. 6(1)(f) GDPR — legitimate interest in providing a support community, balanced against your interest in anonymity</td>
+      </tr>
+      <tr>
+        <td>Push notifications</td>
+        <td>Device push token</td>
+        <td>Art. 6(1)(a) GDPR — your consent when enabling reminders</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 5 -->
+  <h2>5. Health Data</h2>
+  <p>
+    ROM measurements, surgery date, and graft type constitute health data under Art. 4(15) GDPR.
+    Processing this data requires your <strong>explicit consent</strong> under Art. 9(2)(a) GDPR,
+    which you provide when you create an account and enable cloud sync. You may withdraw this
+    consent at any time by deleting your account (see Section 9).
+  </p>
+  <p>
+    If you use KneeBack without an account, your health data never leaves your device and is
+    not subject to cloud processing.
+  </p>
+
+  <!-- 6 -->
+  <h2>6. Data Storage, Security, and Third Parties</h2>
+  <p>
+    When cloud sync is enabled, your data is stored using <strong>Supabase</strong>. We apply
+    industry-standard security: TLS encryption in transit and encryption at rest.
+  </p>
+  <p>
+    We share data with the following processors only as strictly necessary:
+  </p>
+  <table>
+    <thead>
+      <tr><th>Processor</th><th>Purpose</th><th>Location</th><th>Safeguard</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Supabase</td>
+        <td>Cloud database and authentication</td>
+        <td>Verify your project region in Supabase Dashboard before publishing</td>
+        <td>Art. 28 DPA; if US: SCCs under Art. 46 GDPR</td>
+      </tr>
+      <tr>
+        <td>Expo / Apple / Google</td>
+        <td>Delivering push notifications</td>
+        <td>US</td>
+        <td>SCCs under Art. 46 GDPR</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    <strong>We do not sell your data.</strong> We do not share your data with advertisers,
+    data brokers, or any party beyond the processors listed above.
+  </p>
+
+  <!-- 7 -->
+  <h2>7. Third-Country Transfers</h2>
+  <p>
+    Some processors listed above (Expo, Google, Apple, Cloudflare) are US-incorporated entities.
+    Transfers to these processors rely on Standard Contractual Clauses (SCCs) adopted by the
+    European Commission under Art. 46(2)(c) GDPR. Where applicable, these processors also
+    participate in the EU–US Data Privacy Framework.
+  </p>
+
+  <!-- 8 -->
+  <h2>8. Data Retention</h2>
+  <ul>
+    <li><strong>Local device data</strong> — retained until you uninstall the app or use Profile › Reset App</li>
+    <li><strong>Cloud account data</strong> — retained for as long as your account is active</li>
+    <li><strong>After account deletion</strong> — all cloud data permanently deleted within 30 days</li>
+    <li><strong>Community posts</strong> — retained until you delete them, or until your account is deleted</li>
+    <li><strong>Anonymised aggregates</strong> — may be retained indefinitely for service improvement</li>
+  </ul>
+
+  <!-- 9 -->
+  <h2>9. Your Rights Under GDPR</h2>
+  <p>As a data subject, you have the following rights. Most can be exercised directly in the app:</p>
+  <div class="rights-grid">
+    <div class="right-card">
+      <strong>Right of Access</strong>
+      <span>Export all your data via Profile › Export My Data.</span>
+    </div>
+    <div class="right-card">
+      <strong>Right to Rectification</strong>
+      <span>Update your recovery profile in the app at any time.</span>
+    </div>
+    <div class="right-card">
+      <strong>Right to Erasure</strong>
+      <span>Delete your account and all cloud data via Profile › Delete Account.</span>
+    </div>
+    <div class="right-card">
+      <strong>Right to Data Portability</strong>
+      <span>Exported data is provided in JSON format.</span>
+    </div>
+    <div class="right-card">
+      <strong>Right to Withdraw Consent</strong>
+      <span>Delete your account at any time. Withdrawal does not affect prior processing.</span>
+    </div>
+    <div class="right-card">
+      <strong>Right to Object</strong>
+      <span>Contact us at kneebackapp@gmail.com to object to any processing.</span>
+    </div>
+    <div class="right-card">
+      <strong>Right to Lodge a Complaint</strong>
+      <span>You may complain to your national supervisory authority (in Germany: BfDI or relevant Landesbehörde).</span>
+    </div>
+    <div class="right-card">
+      <strong>Right to Restrict Processing</strong>
+      <span>Contact us to request restriction of processing while a dispute is resolved.</span>
+    </div>
+  </div>
+
+  <!-- 10 -->
+  <h2>10. Children's Privacy</h2>
+  <p>
+    KneeBack is not intended for children under 16. We do not knowingly collect personal data
+    from children. If you believe a child has provided data through our service, contact us
+    at <a href="mailto:kneebackapp@gmail.com">kneebackapp@gmail.com</a> and we will delete it promptly.
+  </p>
+
+  <!-- 11 -->
+  <h2>11. Changes to This Policy</h2>
+  <p>
+    We may update this Privacy Policy from time to time. The "Last updated" date at the top
+    of this page will always reflect the current version.
+  </p>
+  <p>
+    For <strong>material changes</strong> affecting how your health data is processed, we will
+    notify you within the app and obtain your fresh explicit consent where required by Art. 9
+    GDPR before continuing to process your data under the new terms.
+  </p>
+  <p>
+    For questions or data subject requests, contact:
+    <a href="mailto:kneebackapp@gmail.com">kneebackapp@gmail.com</a>
+  </p>
+</main>
+
+<footer role="contentinfo">
+  <div class="foot-logo">KneeBack</div>
+  <nav class="foot-links" aria-label="Footer links">
+    <a href="/">Home</a>
+    <a href="/impressum">Impressum</a>
+    <a href="/app">Web App</a>
+  </nav>
+  <div style="font-size:12px;color:rgba(255,255,255,0.35)">© 2025 KneeBack</div>
+</footer>
+
+</body>
+</html>

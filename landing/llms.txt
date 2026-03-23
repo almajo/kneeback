@@ -1,0 +1,28 @@
+# KneeBack
+
+> Your ACL recovery companion. The habit-machine for the 9–12 month grind.
+
+KneeBack is a mobile app that guides people through ACL rehabilitation with daily exercises, range-of-motion tracking, phase-based milestones, and peer community support. It is not a medical device and does not provide medical advice.
+
+## Features
+
+- **Daily Exercise Checklist**: Physio-prescribed exercises with built-in timers and rep counters
+- **Phone-Based ROM Measurement**: Measure knee flexion and extension using the phone's accelerometer — no goniometer needed
+- **Progress Calendar**: Visual streak tracking across the full recovery timeline
+- **Phase Milestones**: Gate-based progression through Acute, Early Rehab, Strengthening, and Return to Sport phases
+- **Community**: Anonymous peer support grouped by recovery phase; no leaderboards or comparison
+- **Local-First Privacy**: All health data stored on-device; optional EU-hosted encrypted cloud sync; no data sold
+
+## Privacy & Compliance
+
+- GDPR compliant
+- Local-first data storage by default
+- No third-party data sharing
+- EU-hosted cloud sync (optional)
+- Not a medical device; not a substitute for professional physiotherapy guidance
+
+## Pages
+
+- [Landing page](/index.html): Product overview, features, CTA
+- [Privacy Policy](/privacy.html): Full data practices and user rights
+- [Impressum](/impressum.html): Legal notice (German law)
