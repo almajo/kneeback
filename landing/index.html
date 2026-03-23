@@ -16,10 +16,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 
-  <!-- Cloudflare Turnstile (bot protection — no cookies, GDPR-friendly) -->
-  <!-- Legal basis: Art. 6(1)(f) GDPR — legitimate interest in preventing abusive traffic -->
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-
   <style>
     /* ============================================================
        DESIGN TOKENS — matches KneeBack app (constants/colors.ts)
@@ -431,11 +427,6 @@
     .f-card.reveal:nth-child(6) { transition-delay: 350ms; }
 
     /* ============================================================
-       CLOUDFLARE TURNSTILE (hidden — runs in background on load)
-    ============================================================ */
-    #cf-turnstile { position: absolute; left: -9999px; opacity: 0; pointer-events: none; }
-
-    /* ============================================================
        MOBILE
     ============================================================ */
     @media (max-width: 768px) {
@@ -740,40 +731,14 @@
   <div class="foot-copy">© 2025 KneeBack</div>
 </footer>
 
-<!-- Cloudflare Turnstile widget — hidden, runs challenge in background on page load -->
-<!-- Art. 6(1)(f) GDPR: legitimate interest. No cookies set. Cloudflare DPA required before launch. -->
-<div id="cf-turnstile" aria-hidden="true"></div>
-
 <!-- ============================================================
      JAVASCRIPT
 ============================================================ -->
 <script>
-  // ——— CONFIG ———
-  // TODO before launch: replace with real site key from Cloudflare Dashboard
-  const TURNSTILE_SITE_KEY = '1x00000000000000000000AA'; // demo key — replace!
   const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.kneebackapp.kneeback';
 
-  // ——— Cloudflare Turnstile ———
-  let cfToken = null;
-
-  function onloadTurnstileCallback() {
-    turnstile.render('#cf-turnstile', {
-      sitekey: TURNSTILE_SITE_KEY,
-      callback: (token) => { cfToken = token; },
-      'error-callback': () => { cfToken = '__err__'; }, // Allow nav if Turnstile errors
-      'expired-callback': () => { cfToken = null; },
-    });
-  }
-
   function navigateCTA(dest) {
-    const url = dest === 'play' ? PLAY_STORE_URL : dest;
-    if (cfToken) { window.location.href = url; return; }
-    // Token not yet ready — poll up to 4s then navigate anyway
-    let t = 0;
-    const id = setInterval(() => {
-      t += 100;
-      if (cfToken || t >= 4000) { clearInterval(id); window.location.href = url; }
-    }, 100);
+    window.location.href = dest === 'play' ? PLAY_STORE_URL : dest;
   }
 
   // ——— Navbar scroll behaviour ———
