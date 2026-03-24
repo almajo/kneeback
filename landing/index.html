@@ -285,8 +285,9 @@
     .video-fallback h2 { font-size: 34px; font-weight: 700; color: var(--text-on-light); }
     .video-fallback p { font-size: 17px; color: var(--muted-on-light); max-width: 480px; line-height: 1.6; }
 
-    /* Mobile callout repositioning */
+    /* Mobile: shorter scroll distance + faster video scrub */
     @media (max-width: 768px) {
+      #video-scroll-wrapper { height: 250vh; }
       .callout { right: 16px; left: 16px; max-width: none; bottom: 90px; }
     }
 
@@ -769,6 +770,7 @@
     let activeIdx   = 0;
 
     let rafPending = false;
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
     function syncVideo() {
       const rect       = wrapper.getBoundingClientRect();
@@ -777,9 +779,12 @@
 
       const progress = Math.max(0, Math.min(1, -rect.top / scrollable));
 
-      // Scrub video frame
+      // Scrub video frame — on mobile skip seeks < 100ms apart to reduce jank
       if (video.readyState >= 2 && video.duration) {
-        video.currentTime = progress * video.duration;
+        const targetTime = progress * video.duration;
+        if (!isMobile || Math.abs(targetTime - video.currentTime) > 0.1) {
+          video.currentTime = targetTime;
+        }
       }
 
       // Progress bar
