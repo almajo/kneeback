@@ -57,6 +57,7 @@ export type Database = {
           author_phase: string | null
           user_id: string | null
           upvote_count: number
+          moderation_status: string
         }
         Insert: {
           body: string
@@ -68,6 +69,7 @@ export type Database = {
           author_phase?: string | null
           user_id?: string | null
           upvote_count?: number
+          moderation_status?: string
         }
         Update: {
           body?: string
@@ -79,6 +81,7 @@ export type Database = {
           author_phase?: string | null
           user_id?: string | null
           upvote_count?: number
+          moderation_status?: string
         }
         Relationships: [
           {
@@ -102,6 +105,7 @@ export type Database = {
           author_animal_name: string | null
           author_phase: string | null
           user_id: string | null
+          moderation_status: string
         }
         Insert: {
           body: string
@@ -114,6 +118,7 @@ export type Database = {
           author_animal_name?: string | null
           author_phase?: string | null
           user_id?: string | null
+          moderation_status?: string
         }
         Update: {
           body?: string
@@ -126,6 +131,7 @@ export type Database = {
           author_animal_name?: string | null
           author_phase?: string | null
           user_id?: string | null
+          moderation_status?: string
         }
         Relationships: []
       }
