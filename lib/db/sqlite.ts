@@ -1,6 +1,6 @@
 import * as SQLite from "expo-sqlite";
 
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 3;
 
 // schema_version is an internal migration-tracking table.
 // It intentionally omits a primary key `id` column and is exempt from the
@@ -212,6 +212,34 @@ export function initializeDatabase(db: SQLite.SQLiteDatabase): void {
   if (currentVersion < 2) {
     db.execSync("DELETE FROM user_exercises WHERE is_active = 0");
     db.execSync("ALTER TABLE user_exercises DROP COLUMN is_active");
+  }
+
+  // Migration v2 → v3: remove duplicate exercises from catalog
+  if (currentVersion < 3) {
+    db.execSync(`
+      DELETE FROM user_exercises WHERE exercise_id IN (
+        '2c147db8-b691-4666-a8b1-6618f32eef53',
+        '27bc0cb8-ef52-4812-bdf2-85bace1262d3',
+        'd13cb28e-2102-424b-b79e-8b4118ea54fd',
+        '7f6a82e4-1b35-41b6-b18f-c25eb7e3e898',
+        '1a42d0f7-0783-4071-8b25-e4e7feef5f32',
+        '831cd0ba-e3b0-446c-84d9-dd63f374674d'
+      )
+    `);
+    db.execSync(`
+      DELETE FROM exercises WHERE id IN (
+        '2c147db8-b691-4666-a8b1-6618f32eef53',
+        '27bc0cb8-ef52-4812-bdf2-85bace1262d3',
+        'd13cb28e-2102-424b-b79e-8b4118ea54fd',
+        '7f6a82e4-1b35-41b6-b18f-c25eb7e3e898',
+        '1a42d0f7-0783-4071-8b25-e4e7feef5f32',
+        '831cd0ba-e3b0-446c-84d9-dd63f374674d'
+      )
+    `);
+    db.execSync(`
+      UPDATE exercises SET phase_start = 'prehab'
+      WHERE id = 'c22c9f4c-9f80-4248-a254-894591d73eeb'
+    `);
   }
 
   setSchemaVersion(db, CURRENT_SCHEMA_VERSION);

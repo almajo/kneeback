@@ -1,20 +1,5 @@
 [
   {
-    "id": "2c147db8-b691-4666-a8b1-6618f32eef53",
-    "name": "Quad Sets",
-    "description": "Lie flat on your back with a rolled towel under your knee. Tighten your quad muscle and press the back of your knee into the towel. Hold, then relax. This is your most important pre-surgery exercise.",
-    "phase_start": "prehab",
-    "phase_end": null,
-    "role": "primary",
-    "primary_exercise_id": null,
-    "muscle_groups": ["Quad"],
-    "default_sets": 3,
-    "default_reps": 10,
-    "default_hold_seconds": 10,
-    "category": "activation",
-    "sort_order": 1
-  },
-  {
     "id": "717a0c6b-0c39-41fc-aa88-8033e118511b",
     "name": "Double-Leg Heel Raises",
     "description": "Stand with hands on a stable surface, feet shoulder-width apart, equal weight on both legs. Lift heels over a 2-second count, hold briefly, then lower slowly over 4 seconds.",
@@ -22,7 +7,9 @@
     "phase_end": null,
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Calf"],
+    "muscle_groups": [
+      "Calf"
+    ],
     "default_sets": 3,
     "default_reps": 15,
     "default_hold_seconds": null,
@@ -37,7 +24,9 @@
     "phase_end": "strengthening",
     "role": "alternative",
     "primary_exercise_id": "fb19c0ea-81b4-4c30-aa85-e11df616f8bf",
-    "muscle_groups": ["Knee ROM"],
+    "muscle_groups": [
+      "Knee ROM"
+    ],
     "default_sets": 2,
     "default_reps": 15,
     "default_hold_seconds": null,
@@ -52,7 +41,10 @@
     "phase_end": null,
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Quad", "Hip"],
+    "muscle_groups": [
+      "Quad",
+      "Hip"
+    ],
     "default_sets": 3,
     "default_reps": 10,
     "default_hold_seconds": 2,
@@ -67,24 +59,11 @@
     "phase_end": null,
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Calf"],
+    "muscle_groups": [
+      "Calf"
+    ],
     "default_sets": 3,
     "default_reps": 15,
-    "default_hold_seconds": null,
-    "category": "strengthening",
-    "sort_order": 2
-  },
-  {
-    "id": "7f6a82e4-1b35-41b6-b18f-c25eb7e3e898",
-    "name": "Straight Leg Raises",
-    "description": "Lock your knee straight, then lift the entire leg about 12 inches off the bed. Hold briefly, lower slowly.",
-    "phase_start": "prehab",
-    "phase_end": "acute",
-    "role": "primary",
-    "primary_exercise_id": null,
-    "muscle_groups": ["Quad", "Hip"],
-    "default_sets": 3,
-    "default_reps": 10,
     "default_hold_seconds": null,
     "category": "strengthening",
     "sort_order": 2
@@ -97,7 +76,10 @@
     "phase_end": "strengthening",
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Quad", "Hip"],
+    "muscle_groups": [
+      "Quad",
+      "Hip"
+    ],
     "default_sets": 3,
     "default_reps": 12,
     "default_hold_seconds": null,
@@ -112,7 +94,9 @@
     "phase_end": "acute",
     "role": "alternative",
     "primary_exercise_id": "52ee7c66-bc0b-4cf0-8a3a-fb1179435915",
-    "muscle_groups": ["Hamstring"],
+    "muscle_groups": [
+      "Hamstring"
+    ],
     "default_sets": 3,
     "default_reps": 10,
     "default_hold_seconds": null,
@@ -127,26 +111,13 @@
     "phase_end": "acute",
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Knee ROM"],
+    "muscle_groups": [
+      "Knee ROM"
+    ],
     "default_sets": 3,
     "default_reps": 15,
     "default_hold_seconds": null,
     "category": "rom",
-    "sort_order": 3
-  },
-  {
-    "id": "1a42d0f7-0783-4071-8b25-e4e7feef5f32",
-    "name": "Basic Plyometrics",
-    "description": "Double-leg to single-leg jump progressions with proper mechanics: knees aligned over toes, equal weight distribution, no valgus collapse. Progress forward and side-to-side movements as form improves.",
-    "phase_start": "strengthening",
-    "phase_end": null,
-    "role": "primary",
-    "primary_exercise_id": null,
-    "muscle_groups": ["Quad", "Hamstring", "Core"],
-    "default_sets": 3,
-    "default_reps": 10,
-    "default_hold_seconds": null,
-    "category": "strengthening",
     "sort_order": 3
   },
   {
@@ -157,27 +128,15 @@
     "phase_end": "strengthening",
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Glute", "Hip"],
+    "muscle_groups": [
+      "Glute",
+      "Hip"
+    ],
     "default_sets": 3,
     "default_reps": 12,
     "default_hold_seconds": null,
     "category": "strengthening",
     "sort_order": 3
-  },
-  {
-    "id": "27bc0cb8-ef52-4812-bdf2-85bace1262d3",
-    "name": "Hip Abduction (Side-Lying)",
-    "description": "Lie on your non-surgical side. Lift your surgical leg upward with toes pointed slightly down, then lower slowly. Targets the hip abductors to support knee stability.",
-    "phase_start": "prehab",
-    "phase_end": null,
-    "role": "primary",
-    "primary_exercise_id": null,
-    "muscle_groups": ["Glute", "Hip"],
-    "default_sets": 3,
-    "default_reps": 12,
-    "default_hold_seconds": null,
-    "category": "strengthening",
-    "sort_order": 4
   },
   {
     "id": "928565cb-ceb1-4f51-9748-4f31d6c1bbc3",
@@ -187,7 +146,11 @@
     "phase_end": null,
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Quad", "Hamstring", "Core"],
+    "muscle_groups": [
+      "Quad",
+      "Hamstring",
+      "Core"
+    ],
     "default_sets": 1,
     "default_reps": 1,
     "default_hold_seconds": null,
@@ -202,7 +165,9 @@
     "phase_end": "acute",
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Calf"],
+    "muscle_groups": [
+      "Calf"
+    ],
     "default_sets": 3,
     "default_reps": 20,
     "default_hold_seconds": null,
@@ -217,7 +182,10 @@
     "phase_end": "strengthening",
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Hip", "Glute"],
+    "muscle_groups": [
+      "Hip",
+      "Glute"
+    ],
     "default_sets": 3,
     "default_reps": 12,
     "default_hold_seconds": null,
@@ -232,7 +200,10 @@
     "phase_end": "strengthening",
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Quad", "Glute"],
+    "muscle_groups": [
+      "Quad",
+      "Glute"
+    ],
     "default_sets": 3,
     "default_reps": 10,
     "default_hold_seconds": null,
@@ -247,7 +218,10 @@
     "phase_end": null,
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Knee ROM", "Quad"],
+    "muscle_groups": [
+      "Knee ROM",
+      "Quad"
+    ],
     "default_sets": 3,
     "default_reps": 1,
     "default_hold_seconds": 300,
@@ -262,7 +236,12 @@
     "phase_end": null,
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Quad", "Hamstring", "Hip", "Core"],
+    "muscle_groups": [
+      "Quad",
+      "Hamstring",
+      "Hip",
+      "Core"
+    ],
     "default_sets": 1,
     "default_reps": 1,
     "default_hold_seconds": null,
@@ -277,7 +256,11 @@
     "phase_end": null,
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Quad", "Glute", "Calf"],
+    "muscle_groups": [
+      "Quad",
+      "Glute",
+      "Calf"
+    ],
     "default_sets": 3,
     "default_reps": 1,
     "default_hold_seconds": 30,
@@ -292,26 +275,13 @@
     "phase_end": null,
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Quad"],
+    "muscle_groups": [
+      "Quad"
+    ],
     "default_sets": 3,
     "default_reps": 10,
     "default_hold_seconds": 3,
     "category": "strengthening",
-    "sort_order": 6
-  },
-  {
-    "id": "831cd0ba-e3b0-446c-84d9-dd63f374674d",
-    "name": "Terminal Knee Extension (Band)",
-    "description": "Attach a resistance band behind the knee. Step forward slightly so the band pulls the knee into slight flexion. Straighten your knee against the band resistance. Excellent quad activation.",
-    "phase_start": "prehab",
-    "phase_end": null,
-    "role": "primary",
-    "primary_exercise_id": null,
-    "muscle_groups": ["Quad"],
-    "default_sets": 3,
-    "default_reps": 12,
-    "default_hold_seconds": null,
-    "category": "activation",
     "sort_order": 6
   },
   {
@@ -322,7 +292,11 @@
     "phase_end": null,
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Quad", "Hamstring", "Core"],
+    "muscle_groups": [
+      "Quad",
+      "Hamstring",
+      "Core"
+    ],
     "default_sets": 3,
     "default_reps": 10,
     "default_hold_seconds": null,
@@ -337,7 +311,9 @@
     "phase_end": "acute",
     "role": "optional",
     "primary_exercise_id": null,
-    "muscle_groups": ["Hamstring"],
+    "muscle_groups": [
+      "Hamstring"
+    ],
     "default_sets": 3,
     "default_reps": 10,
     "default_hold_seconds": null,
@@ -352,25 +328,14 @@
     "phase_end": "strengthening",
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Quad", "Hip", "Core"],
+    "muscle_groups": [
+      "Quad",
+      "Hip",
+      "Core"
+    ],
     "default_sets": 3,
     "default_reps": 12,
     "default_hold_seconds": null,
-    "category": "strengthening",
-    "sort_order": 8
-  },
-  {
-    "id": "d13cb28e-2102-424b-b79e-8b4118ea54fd",
-    "name": "Calf Raises",
-    "description": "Stand on both feet, rise up on your toes, hold briefly, then lower slowly.",
-    "phase_start": "early_active",
-    "phase_end": null,
-    "role": "primary",
-    "primary_exercise_id": null,
-    "muscle_groups": ["Calf"],
-    "default_sets": 3,
-    "default_reps": 15,
-    "default_hold_seconds": 2,
     "category": "strengthening",
     "sort_order": 8
   },
@@ -382,7 +347,10 @@
     "phase_end": "strengthening",
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Hamstring", "Glute"],
+    "muscle_groups": [
+      "Hamstring",
+      "Glute"
+    ],
     "default_sets": 3,
     "default_reps": 12,
     "default_hold_seconds": null,
@@ -397,7 +365,10 @@
     "phase_end": null,
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Quad", "Knee ROM"],
+    "muscle_groups": [
+      "Quad",
+      "Knee ROM"
+    ],
     "default_sets": 3,
     "default_reps": 10,
     "default_hold_seconds": 10,
@@ -412,7 +383,9 @@
     "phase_end": "acute",
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Knee ROM"],
+    "muscle_groups": [
+      "Knee ROM"
+    ],
     "default_sets": 3,
     "default_reps": 1,
     "default_hold_seconds": null,
@@ -427,7 +400,11 @@
     "phase_end": null,
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Quad", "Hamstring", "Calf"],
+    "muscle_groups": [
+      "Quad",
+      "Hamstring",
+      "Calf"
+    ],
     "default_sets": 1,
     "default_reps": 1,
     "default_hold_seconds": null,
@@ -442,7 +419,11 @@
     "phase_end": "strengthening",
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Quad", "Glute", "Hip"],
+    "muscle_groups": [
+      "Quad",
+      "Glute",
+      "Hip"
+    ],
     "default_sets": 3,
     "default_reps": 12,
     "default_hold_seconds": null,
@@ -457,7 +438,9 @@
     "phase_end": "early_active",
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Knee ROM"],
+    "muscle_groups": [
+      "Knee ROM"
+    ],
     "default_sets": 2,
     "default_reps": 10,
     "default_hold_seconds": null,
@@ -472,7 +455,11 @@
     "phase_end": "strengthening",
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Quad", "Glute", "Hip"],
+    "muscle_groups": [
+      "Quad",
+      "Glute",
+      "Hip"
+    ],
     "default_sets": 3,
     "default_reps": 12,
     "default_hold_seconds": null,
@@ -487,7 +474,9 @@
     "phase_end": "acute",
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Knee ROM"],
+    "muscle_groups": [
+      "Knee ROM"
+    ],
     "default_sets": 3,
     "default_reps": 1,
     "default_hold_seconds": null,
@@ -502,7 +491,11 @@
     "phase_end": null,
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Quad", "Calf", "Glute"],
+    "muscle_groups": [
+      "Quad",
+      "Calf",
+      "Glute"
+    ],
     "default_sets": 3,
     "default_reps": 10,
     "default_hold_seconds": null,
@@ -517,7 +510,9 @@
     "phase_end": null,
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Quad"],
+    "muscle_groups": [
+      "Quad"
+    ],
     "default_sets": 3,
     "default_reps": 10,
     "default_hold_seconds": 3,
@@ -532,7 +527,9 @@
     "phase_end": "acute",
     "role": "alternative",
     "primary_exercise_id": "fb19c0ea-81b4-4c30-aa85-e11df616f8bf",
-    "muscle_groups": ["Knee ROM"],
+    "muscle_groups": [
+      "Knee ROM"
+    ],
     "default_sets": 3,
     "default_reps": 1,
     "default_hold_seconds": null,
@@ -547,7 +544,9 @@
     "phase_end": null,
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Hamstring"],
+    "muscle_groups": [
+      "Hamstring"
+    ],
     "default_sets": 3,
     "default_reps": 10,
     "default_hold_seconds": 5,
@@ -562,7 +561,9 @@
     "phase_end": null,
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Calf"],
+    "muscle_groups": [
+      "Calf"
+    ],
     "default_sets": 3,
     "default_reps": 3,
     "default_hold_seconds": 30,
@@ -577,7 +578,9 @@
     "phase_end": "acute",
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Hamstring"],
+    "muscle_groups": [
+      "Hamstring"
+    ],
     "default_sets": 2,
     "default_reps": 12,
     "default_hold_seconds": 6,
@@ -588,11 +591,13 @@
     "id": "c22c9f4c-9f80-4248-a254-894591d73eeb",
     "name": "Terminal Knee Extensions (TKE)",
     "description": "Loop a band behind your knee, anchored in front. Start slightly bent, then straighten against the resistance.",
-    "phase_start": "early_active",
+    "phase_start": "prehab",
     "phase_end": null,
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Quad"],
+    "muscle_groups": [
+      "Quad"
+    ],
     "default_sets": 3,
     "default_reps": 10,
     "default_hold_seconds": null,
@@ -607,7 +612,9 @@
     "phase_end": "acute",
     "role": "alternative",
     "primary_exercise_id": "52ee7c66-bc0b-4cf0-8a3a-fb1179435915",
-    "muscle_groups": ["Hamstring"],
+    "muscle_groups": [
+      "Hamstring"
+    ],
     "default_sets": 2,
     "default_reps": 12,
     "default_hold_seconds": 6,
@@ -622,7 +629,9 @@
     "phase_end": "early_active",
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Quad"],
+    "muscle_groups": [
+      "Quad"
+    ],
     "default_sets": 3,
     "default_reps": 12,
     "default_hold_seconds": 5,
@@ -637,7 +646,9 @@
     "phase_end": "acute",
     "role": "alternative",
     "primary_exercise_id": "52ee7c66-bc0b-4cf0-8a3a-fb1179435915",
-    "muscle_groups": ["Hamstring"],
+    "muscle_groups": [
+      "Hamstring"
+    ],
     "default_sets": 2,
     "default_reps": 12,
     "default_hold_seconds": 6,
@@ -652,7 +663,10 @@
     "phase_end": "early_active",
     "role": "alternative",
     "primary_exercise_id": "e6e79b71-b370-44ae-9971-b26f195d35f2",
-    "muscle_groups": ["Glute", "Hip"],
+    "muscle_groups": [
+      "Glute",
+      "Hip"
+    ],
     "default_sets": 3,
     "default_reps": 12,
     "default_hold_seconds": 2,
@@ -667,7 +681,10 @@
     "phase_end": "acute",
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Quad", "Hamstring"],
+    "muscle_groups": [
+      "Quad",
+      "Hamstring"
+    ],
     "default_sets": 3,
     "default_reps": 12,
     "default_hold_seconds": 5,
@@ -682,7 +699,10 @@
     "phase_end": "early_active",
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Hip", "Glute"],
+    "muscle_groups": [
+      "Hip",
+      "Glute"
+    ],
     "default_sets": 3,
     "default_reps": 12,
     "default_hold_seconds": null,
@@ -697,7 +717,10 @@
     "phase_end": "acute",
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Glute", "Hip"],
+    "muscle_groups": [
+      "Glute",
+      "Hip"
+    ],
     "default_sets": 3,
     "default_reps": 12,
     "default_hold_seconds": 2,
@@ -712,7 +735,10 @@
     "phase_end": "early_active",
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Quad", "Hip"],
+    "muscle_groups": [
+      "Quad",
+      "Hip"
+    ],
     "default_sets": 3,
     "default_reps": 12,
     "default_hold_seconds": null,
@@ -727,7 +753,9 @@
     "phase_end": "acute",
     "role": "optional",
     "primary_exercise_id": null,
-    "muscle_groups": ["Hip"],
+    "muscle_groups": [
+      "Hip"
+    ],
     "default_sets": 3,
     "default_reps": 12,
     "default_hold_seconds": 2,
@@ -742,7 +770,9 @@
     "phase_end": "early_active",
     "role": "alternative",
     "primary_exercise_id": "2f1eec50-eece-48da-a1b6-b1610316ba48",
-    "muscle_groups": ["Quad"],
+    "muscle_groups": [
+      "Quad"
+    ],
     "default_sets": 2,
     "default_reps": 12,
     "default_hold_seconds": 6,
@@ -757,7 +787,11 @@
     "phase_end": null,
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Quad", "Glute", "Hamstring"],
+    "muscle_groups": [
+      "Quad",
+      "Glute",
+      "Hamstring"
+    ],
     "default_sets": 3,
     "default_reps": 8,
     "default_hold_seconds": null,
@@ -772,7 +806,9 @@
     "phase_end": null,
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Hamstring"],
+    "muscle_groups": [
+      "Hamstring"
+    ],
     "default_sets": 3,
     "default_reps": 5,
     "default_hold_seconds": null,
@@ -787,7 +823,10 @@
     "phase_end": null,
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Hamstring", "Glute"],
+    "muscle_groups": [
+      "Hamstring",
+      "Glute"
+    ],
     "default_sets": 3,
     "default_reps": 8,
     "default_hold_seconds": null,
@@ -802,7 +841,11 @@
     "phase_end": null,
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Quad", "Glute", "Hamstring"],
+    "muscle_groups": [
+      "Quad",
+      "Glute",
+      "Hamstring"
+    ],
     "default_sets": 3,
     "default_reps": 8,
     "default_hold_seconds": null,
@@ -817,7 +860,10 @@
     "phase_end": null,
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Quad", "Glute"],
+    "muscle_groups": [
+      "Quad",
+      "Glute"
+    ],
     "default_sets": 3,
     "default_reps": 10,
     "default_hold_seconds": null,
@@ -832,7 +878,10 @@
     "phase_end": null,
     "role": "primary",
     "primary_exercise_id": null,
-    "muscle_groups": ["Glute", "Hip"],
+    "muscle_groups": [
+      "Glute",
+      "Hip"
+    ],
     "default_sets": 3,
     "default_reps": 20,
     "default_hold_seconds": null,
