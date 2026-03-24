@@ -55,6 +55,7 @@ async function fetchPage(
     author_phase: p.author_phase ?? "",
     comment_count: commentCountMap.get(p.id) ?? 0,
     has_upvoted: upvotedSet.has(p.id),
+    moderation_status: p.moderation_status ?? "pending",
   }));
 }
 
@@ -125,6 +126,7 @@ export function useCommunity() {
       author_phase: identity.phase,
       comment_count: 0,
       has_upvoted: false,
+      moderation_status: "pending",
     };
 
     setPosts((prev) => [optimistic, ...prev]);
@@ -153,6 +155,7 @@ export function useCommunity() {
         author_phase: identity.phase,
         comment_count: 0,
         has_upvoted: false,
+        moderation_status: (data.moderation_status as CommunityPost["moderation_status"]) ?? "pending",
       };
       setPosts((prev) =>
         prev.map((p) => (p.id === optimistic.id ? real : p))

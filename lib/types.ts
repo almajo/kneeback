@@ -148,6 +148,7 @@ export interface NotificationPreferences {
 
 // Community types
 export type PostType = "question" | "milestone" | "life_hack" | "win";
+export type ModerationStatus = "pending" | "approved" | "flagged";
 
 export interface CommunityPost {
   id: string;
@@ -161,6 +162,7 @@ export interface CommunityPost {
   author_phase: string;        // stored on the post
   comment_count: number;       // joined count
   has_upvoted: boolean;        // computed per current device
+  moderation_status: ModerationStatus;
 }
 
 export interface CommunityComment {
@@ -173,6 +175,7 @@ export interface CommunityComment {
   author_phase: string;        // stored on the comment
   upvote_count: number;
   has_upvoted: boolean;
+  moderation_status: ModerationStatus;
 }
 
 export interface CreatePostInput {

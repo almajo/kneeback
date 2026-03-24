@@ -75,6 +75,7 @@ export function usePost(postId: string) {
         author_phase: rawPost.author_phase ?? "",
         comment_count: commentList.length,
         has_upvoted: !!myReaction,
+        moderation_status: (rawPost.moderation_status as CommunityPost["moderation_status"]) ?? "pending",
       });
 
       setComments(
@@ -88,6 +89,7 @@ export function usePost(postId: string) {
           author_phase: c.author_phase ?? "",
           upvote_count: c.upvote_count ?? 0,
           has_upvoted: upvotedCommentIds.has(c.id),
+          moderation_status: c.moderation_status ?? "pending",
         }))
       );
     }
@@ -115,6 +117,7 @@ export function usePost(postId: string) {
       author_phase: identity.phase,
       upvote_count: 0,
       has_upvoted: false,
+      moderation_status: "pending",
     };
 
     setComments((prev) => [...prev, optimistic]);
@@ -146,6 +149,7 @@ export function usePost(postId: string) {
         author_phase: identity.phase,
         upvote_count: 0,
         has_upvoted: false,
+        moderation_status: (data.moderation_status as CommunityComment["moderation_status"]) ?? "pending",
       };
       setComments((prev) =>
         prev.map((c) => (c.id === optimistic.id ? real : c))
