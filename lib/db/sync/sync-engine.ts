@@ -107,6 +107,22 @@ export async function pullAll(userId: string): Promise<{ error: string | null }>
     }
   }
 
+  // Deduplicate user_exercises after pull: the cloud may contain rows from
+  // different devices that share the same exercise_id. Keep the most recently
+  // updated row per exercise_id; for ties keep the earliest-inserted (lower rowid).
+  db.$client.runSync(`
+    DELETE FROM user_exercises
+    WHERE rowid NOT IN (
+      SELECT rowid FROM user_exercises AS o
+      WHERE NOT EXISTS (
+        SELECT 1 FROM user_exercises AS n
+        WHERE n.exercise_id = o.exercise_id
+          AND (n.updated_at > o.updated_at
+               OR (n.updated_at = o.updated_at AND n.rowid < o.rowid))
+      )
+    )
+  `);
+
   // Pull profile (best-effort — log errors, don't fail the whole sync)
   const { data: remoteProfile, error: profileError } = await supabase
     .from("profiles" as never)
