@@ -1,6 +1,6 @@
 import * as SQLite from "expo-sqlite";
 
-export const CURRENT_SCHEMA_VERSION = 3;
+export const CURRENT_SCHEMA_VERSION = 4;
 
 // schema_version is an internal migration-tracking table.
 // It intentionally omits a primary key `id` column and is exempt from the
@@ -74,7 +74,8 @@ const CREATE_USER_EXERCISES = `
     hold_seconds INTEGER,
     sort_order INTEGER NOT NULL DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
+    updated_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(exercise_id)
   );
 `;
 
@@ -240,6 +241,73 @@ export function initializeDatabase(db: SQLite.SQLiteDatabase): void {
       UPDATE exercises SET phase_start = 'prehab'
       WHERE id = 'c22c9f4c-9f80-4248-a254-894591d73eeb'
     `);
+  }
+
+  // Migration v3 → v4: deduplicate user_exercises and add UNIQUE(exercise_id)
+  if (currentVersion < 4) {
+    // Disable FK enforcement so we can safely drop/recreate the table that
+    // exercise_logs references. Wrap in a transaction so the migration is atomic.
+    db.execSync("PRAGMA foreign_keys = OFF");
+    db.execSync("BEGIN IMMEDIATE");
+    try {
+      // Remap exercise_logs to the canonical (most recently updated) row per
+      // exercise_id before we delete duplicates, preserving FK integrity.
+      db.execSync(`
+        UPDATE exercise_logs
+        SET user_exercise_id = (
+          SELECT winner.id
+          FROM user_exercises AS winner
+          WHERE winner.exercise_id = (
+            SELECT ue.exercise_id FROM user_exercises AS ue WHERE ue.id = exercise_logs.user_exercise_id
+          )
+          ORDER BY winner.updated_at DESC, winner.rowid ASC
+          LIMIT 1
+        )
+        WHERE EXISTS (
+          SELECT 1 FROM user_exercises ue WHERE ue.id = exercise_logs.user_exercise_id
+        )
+      `);
+
+      // Keep only the most recently updated row per exercise_id.
+      // For ties on updated_at, the row with the lower rowid (inserted first) wins.
+      db.execSync(`
+        DELETE FROM user_exercises
+        WHERE rowid NOT IN (
+          SELECT rowid FROM user_exercises AS o
+          WHERE NOT EXISTS (
+            SELECT 1 FROM user_exercises AS n
+            WHERE n.exercise_id = o.exercise_id
+              AND (n.updated_at > o.updated_at
+                   OR (n.updated_at = o.updated_at AND n.rowid < o.rowid))
+          )
+        )
+      `);
+
+      // Recreate table with UNIQUE(exercise_id) — SQLite cannot ADD CONSTRAINT
+      db.execSync(`
+        CREATE TABLE user_exercises_new (
+          id TEXT PRIMARY KEY,
+          exercise_id TEXT NOT NULL REFERENCES exercises(id),
+          sets INTEGER NOT NULL DEFAULT 3,
+          reps INTEGER NOT NULL DEFAULT 10,
+          hold_seconds INTEGER,
+          sort_order INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now')),
+          UNIQUE(exercise_id)
+        )
+      `);
+      db.execSync(`INSERT INTO user_exercises_new SELECT * FROM user_exercises`);
+      db.execSync(`DROP TABLE user_exercises`);
+      db.execSync(`ALTER TABLE user_exercises_new RENAME TO user_exercises`);
+
+      db.execSync("COMMIT");
+    } catch (error) {
+      try { db.execSync("ROLLBACK"); } catch { /* ignore rollback errors */ }
+      throw error;
+    } finally {
+      db.execSync("PRAGMA foreign_keys = ON");
+    }
   }
 
   setSchemaVersion(db, CURRENT_SCHEMA_VERSION);

@@ -75,6 +75,9 @@ export type CreateUserExerciseData = Omit<
 export async function createUserExercise(
   data: CreateUserExerciseData
 ): Promise<LocalUserExercise> {
+  // Upsert on exercise_id — if the exercise is already in the plan, update it
+  // rather than inserting a duplicate. The existing row's id is preserved so
+  // exercise_logs FK references remain valid.
   await db.insert(user_exercises).values({
     id: data.id,
     exercise_id: data.exercise_id,
@@ -82,13 +85,23 @@ export async function createUserExercise(
     reps: data.reps,
     hold_seconds: data.hold_seconds ?? null,
     sort_order: data.sort_order,
+  }).onConflictDoUpdate({
+    target: user_exercises.exercise_id,
+    set: {
+      sets: data.sets,
+      reps: data.reps,
+      hold_seconds: data.hold_seconds ?? null,
+      sort_order: data.sort_order,
+      updated_at: sql`(datetime('now'))`,
+    },
   });
 
+  // Query by exercise_id — the row id may differ from data.id if it already existed
   const rows = await db
     .select()
     .from(user_exercises)
     .leftJoin(exercises, eq(user_exercises.exercise_id, exercises.id))
-    .where(eq(user_exercises.id, data.id));
+    .where(eq(user_exercises.exercise_id, data.exercise_id));
 
   if (rows.length === 0) {
     throw new Error("Failed to create user exercise");

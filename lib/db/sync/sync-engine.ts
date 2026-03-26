@@ -41,9 +41,29 @@ function getAllRows(table: TableName): SyncRow[] {
 function upsertLocalRow(table: TableName, row: SyncRow): void {
   const keys = Object.keys(row).filter((k) => k !== "user_id");
   const placeholders = keys.map(() => "?").join(", ");
-  const updates = keys.map((k) => `${k} = excluded.${k}`).join(", ");
   const values = keys.map((k) => row[k] as string | number | null);
 
+  if (table === "user_exercises") {
+    // user_exercises has UNIQUE(exercise_id). Use exercise_id as the conflict
+    // target so cloud rows from different devices with the same exercise_id are
+    // merged rather than causing a constraint violation. Preserve the existing
+    // row's id so exercise_logs FK references remain valid. Only update when
+    // the incoming row is newer to avoid overwriting local changes.
+    const nonKeyUpdates = keys
+      .filter((k) => k !== "id" && k !== "exercise_id")
+      .map((k) => `${k} = excluded.${k}`)
+      .join(", ");
+    // table is constrained to USER_DATA_TABLES (const string union) — not user input
+    db.$client.runSync(
+      `INSERT INTO ${table} (${keys.join(", ")}) VALUES (${placeholders})
+       ON CONFLICT(exercise_id) DO UPDATE SET ${nonKeyUpdates}
+       WHERE excluded.updated_at > ${table}.updated_at`,
+      values
+    );
+    return;
+  }
+
+  const updates = keys.map((k) => `${k} = excluded.${k}`).join(", ");
   // table is constrained to USER_DATA_TABLES (const string union) — not user input
   db.$client.runSync(
     `INSERT INTO ${table} (${keys.join(", ")}) VALUES (${placeholders})

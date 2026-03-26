@@ -47,18 +47,22 @@ export const content = sqliteTable("content", {
   updated_at: text("updated_at").default(sql`(datetime('now'))`),
 });
 
-export const user_exercises = sqliteTable("user_exercises", {
-  id: text("id").primaryKey(),
-  exercise_id: text("exercise_id")
-    .notNull()
-    .references(() => exercises.id),
-  sets: integer("sets").notNull().default(3),
-  reps: integer("reps").notNull().default(10),
-  hold_seconds: integer("hold_seconds"),
-  sort_order: integer("sort_order").notNull().default(0),
-  created_at: text("created_at").default(sql`(datetime('now'))`),
-  updated_at: text("updated_at").default(sql`(datetime('now'))`),
-});
+export const user_exercises = sqliteTable(
+  "user_exercises",
+  {
+    id: text("id").primaryKey(),
+    exercise_id: text("exercise_id")
+      .notNull()
+      .references(() => exercises.id),
+    sets: integer("sets").notNull().default(3),
+    reps: integer("reps").notNull().default(10),
+    hold_seconds: integer("hold_seconds"),
+    sort_order: integer("sort_order").notNull().default(0),
+    created_at: text("created_at").default(sql`(datetime('now'))`),
+    updated_at: text("updated_at").default(sql`(datetime('now'))`),
+  },
+  (t) => [uniqueIndex("user_exercises_exercise_id_idx").on(t.exercise_id)]
+);
 
 export const daily_logs = sqliteTable("daily_logs", {
   id: text("id").primaryKey(),

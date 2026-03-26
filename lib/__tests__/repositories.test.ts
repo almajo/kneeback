@@ -233,6 +233,98 @@ describe("profile-repo", () => {
 });
 
 // ---------------------------------------------------------------------------
+// user-exercise-repo
+// ---------------------------------------------------------------------------
+
+import {
+  getAllUserExercises,
+  createUserExercise,
+} from "../db/repositories/user-exercise-repo";
+
+const baseUserExerciseRow = {
+  id: "ue1",
+  exercise_id: "ex1",
+  sets: 3,
+  reps: 10,
+  hold_seconds: null as number | null,
+  sort_order: 0,
+  created_at: "2024-01-01T00:00:00Z",
+  updated_at: "2024-01-01T00:00:00Z",
+};
+
+describe("user-exercise-repo", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe("createUserExercise — new insert path", () => {
+    it("inserts a new row and returns it with the provided id", async () => {
+      setupInsertChain();
+      // select after insert returns the newly created row
+      mockSelect.mockImplementation(() =>
+        makeSelectChain([{ user_exercises: { ...baseUserExerciseRow }, exercises: null }])
+      );
+
+      const result = await createUserExercise({
+        id: "ue1",
+        exercise_id: "ex1",
+        sets: 3,
+        reps: 10,
+        hold_seconds: null,
+        sort_order: 0,
+      });
+
+      expect(mockInsert).toHaveBeenCalledTimes(1);
+      expect(result.id).toBe("ue1");
+      expect(result.exercise_id).toBe("ex1");
+    });
+
+    it("throws when the row is not found after upsert", async () => {
+      setupInsertChain();
+      mockSelect.mockImplementation(() =>
+        makeSelectChain([])
+      );
+
+      await expect(
+        createUserExercise({
+          id: "ue1",
+          exercise_id: "ex1",
+          sets: 3,
+          reps: 10,
+          hold_seconds: null,
+          sort_order: 0,
+        })
+      ).rejects.toThrow("Failed to create user exercise");
+    });
+  });
+
+  describe("createUserExercise — conflict update path (exercise_id already exists)", () => {
+    it("returns the existing row id (not the incoming id) when exercise_id conflicts", async () => {
+      setupInsertChain();
+      // The ON CONFLICT(exercise_id) DO UPDATE preserves the existing row's id.
+      // Simulate this by returning a row with a different id than what was passed in.
+      const existingRow = { ...baseUserExerciseRow, id: "existing-ue-id", sets: 4 };
+      mockSelect.mockImplementation(() =>
+        makeSelectChain([{ user_exercises: existingRow, exercises: null }])
+      );
+
+      const result = await createUserExercise({
+        id: "new-ue-id",
+        exercise_id: "ex1",
+        sets: 4,
+        reps: 12,
+        hold_seconds: null,
+        sort_order: 0,
+      });
+
+      // The upsert preserves the existing row's id so exercise_logs FKs stay valid
+      expect(result.id).toBe("existing-ue-id");
+      expect(result.sets).toBe(4);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // daily-log-repo
 // ---------------------------------------------------------------------------
 
