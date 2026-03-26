@@ -1,6 +1,6 @@
 import * as SQLite from "expo-sqlite";
 
-export const CURRENT_SCHEMA_VERSION = 4;
+export const CURRENT_SCHEMA_VERSION = 5;
 
 // schema_version is an internal migration-tracking table.
 // It intentionally omits a primary key `id` column and is exempt from the
@@ -248,7 +248,7 @@ export function initializeDatabase(db: SQLite.SQLiteDatabase): void {
     // Disable FK enforcement so we can safely drop/recreate the table that
     // exercise_logs references. Wrap in a transaction so the migration is atomic.
     db.execSync("PRAGMA foreign_keys = OFF");
-    db.execSync("BEGIN IMMEDIATE");
+    db.execSync("BEGIN");
     try {
       // Remap exercise_logs to the canonical (most recently updated) row per
       // exercise_id before we delete duplicates, preserving FK integrity.
@@ -308,6 +308,20 @@ export function initializeDatabase(db: SQLite.SQLiteDatabase): void {
     } finally {
       db.execSync("PRAGMA foreign_keys = ON");
     }
+  }
+
+  // Migration v4 → v5: delete orphaned exercise_logs whose user_exercise_id no
+  // longer exists in user_exercises. These can arise when the v4 reconciliation
+  // step deletes a user_exercise from Supabase that exercise_logs still reference,
+  // and those logs are then pulled locally (upsertLocalRow skips the FK check).
+  // Pushing such orphaned logs causes a FK violation on Supabase.
+  if (currentVersion < 5) {
+    db.execSync(`
+      DELETE FROM exercise_logs
+      WHERE NOT EXISTS (
+        SELECT 1 FROM user_exercises ue WHERE ue.id = exercise_logs.user_exercise_id
+      )
+    `);
   }
 
   setSchemaVersion(db, CURRENT_SCHEMA_VERSION);
