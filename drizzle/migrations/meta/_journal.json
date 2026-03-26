@@ -15,6 +15,13 @@
       "when": 1774101586670,
       "tag": "0001_powerful_songbird",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1774200000000,
+      "tag": "0002_unique_user_exercises_exercise_id",
+      "breakpoints": true
     }
   ]
 }
