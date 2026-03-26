@@ -2,9 +2,24 @@ import "react-native-url-polyfill/auto";
 import { createClient } from "@supabase/supabase-js";
 import { type Database } from "./database.types";
 import { largeSecureStore } from "./secure-storage";
+import { getDeviceId } from "./device-identity";
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
+
+const fetchWithDeviceId = async (
+  url: RequestInfo | URL,
+  options: RequestInit = {}
+): Promise<Response> => {
+  const deviceId = await getDeviceId();
+  return fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      "x-device-id": deviceId,
+    },
+  });
+};
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseKey, {
   auth: {
@@ -12,5 +27,8 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+  },
+  global: {
+    fetch: fetchWithDeviceId,
   },
 });

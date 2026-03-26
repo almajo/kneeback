@@ -4,6 +4,8 @@ import { generateId } from "./utils/uuid";
 const DEVICE_ID_KEY = "device_id";
 const DEVICE_ANIMAL_NAME_KEY = "device_animal_name";
 
+let _cachedDeviceId: string | null = null;
+
 const ADJECTIVES = [
   "Brave",
   "Swift",
@@ -51,13 +53,17 @@ function generateAnimalName(): string {
 }
 
 export async function getDeviceId(): Promise<string> {
+  if (_cachedDeviceId) return _cachedDeviceId;
+
   const existing = await AsyncStorage.getItem(DEVICE_ID_KEY);
   if (existing) {
+    _cachedDeviceId = existing;
     return existing;
   }
 
   const newId = generateUUID();
   await AsyncStorage.setItem(DEVICE_ID_KEY, newId);
+  _cachedDeviceId = newId;
   return newId;
 }
 
