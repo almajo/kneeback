@@ -1,8 +1,10 @@
--- Allow anonymous users to delete their own community posts and comments.
--- Ownership is enforced server-side: the x-device-id request header must match
--- the device_id column on the row. The Supabase JS client injects this header
--- automatically via a custom fetch wrapper in lib/supabase.ts.
--- If the header is absent or mismatched, RLS blocks the delete silently.
+-- Replace permissive delete policies (USING true) with server-side ownership check.
+-- The x-device-id request header must match the device_id column on the row.
+-- The Supabase JS client injects this header automatically via a custom fetch
+-- wrapper in lib/supabase.ts. Missing or mismatched header blocks the delete.
+
+DROP POLICY IF EXISTS "allow_delete_posts" ON community_posts;
+DROP POLICY IF EXISTS "allow_delete_comments" ON community_comments;
 
 CREATE POLICY "allow_delete_posts" ON community_posts
   FOR DELETE
