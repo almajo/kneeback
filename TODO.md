@@ -13,7 +13,6 @@
 
 ## Going Live
 
-- Add landingpage for app
 - After we have landing page, make the webversion available under a subdomain
 - technical Security Review + Update and revise privacy policy (Klaus)
 - deploy to Play Store
