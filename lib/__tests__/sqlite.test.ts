@@ -38,8 +38,8 @@ function makeMockDb(schemaVersion: number | null = null): MockDb {
 // ---------------------------------------------------------------------------
 
 describe("CURRENT_SCHEMA_VERSION", () => {
-  it("is 4", () => {
-    expect(CURRENT_SCHEMA_VERSION).toBe(4);
+  it("is 5", () => {
+    expect(CURRENT_SCHEMA_VERSION).toBe(5);
   });
 });
 
