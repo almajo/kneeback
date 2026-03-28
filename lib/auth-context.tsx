@@ -1,6 +1,10 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { router } from "expo-router";
 import { supabase } from "./supabase";
 import { type Session } from "@supabase/supabase-js";
+import { detectLocalData } from "@/lib/db/sync/data-detection";
+import { migrateLocalToRemote } from "@/lib/db/migration/migrate-to-remote";
+import { purgeAllUserData } from "@/lib/db/purge-user-data";
 
 interface AuthContextType {
   session: Session | null;
@@ -31,8 +35,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, s) => {
+    } = supabase.auth.onAuthStateChange(async (event, s) => {
       setSession(s);
+
+      if (event === "SIGNED_IN" && s?.user.id) {
+        const userId = s.user.id;
+        try {
+          const hasLocalData = await detectLocalData();
+          if (hasLocalData) {
+            const { error: migrationError } = await migrateLocalToRemote(userId);
+            if (migrationError) {
+              console.error("[AuthProvider] Migration to remote failed:", migrationError);
+              // Don't block login — user can still use remote store
+            } else {
+              await purgeAllUserData();
+            }
+          }
+        } catch (err) {
+          console.error("[AuthProvider] Unexpected error during sign-in migration:", err);
+          // Don't block login — user can still use remote store
+        }
+      }
+
+      if (event === "SIGNED_OUT") {
+        try {
+          await purgeAllUserData();
+        } catch (err) {
+          console.error("[AuthProvider] Failed to purge local data on sign-out:", err);
+        }
+        router.replace("/(intro)");
+      }
     });
 
     return () => subscription.unsubscribe();
