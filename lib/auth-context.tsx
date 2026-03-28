@@ -37,14 +37,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange(async (event, s) => {
       setSession(s);
 
-      if (event === "SIGNED_IN" && s?.user.id) {
+      // Run migration on sign-in AND on session restore (INITIAL_SESSION).
+      // If migration fails partway (e.g. previous run), local data is still present
+      // and the next app start will retry and push what's left.
+      // purgeAllUserData is only called when rows were actually pushed, so
+      // AsyncStorage keys (has_seen_intro etc.) are not cleared on empty-DB restarts.
+      if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && s?.user.id) {
         const userId = s.user.id;
         try {
-          const { error: migrationError } = await migrateLocalToRemote(userId);
+          const { error: migrationError, migrated } = await migrateLocalToRemote(userId);
           if (migrationError) {
             console.error("[AuthProvider] Migration to remote failed:", migrationError);
             // Don't block login — user can still use remote store
-          } else {
+          } else if (migrated) {
             await purgeAllUserData();
           }
         } catch (err) {
