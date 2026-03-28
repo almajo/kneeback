@@ -55,3 +55,4 @@ playwright-report/
 nanobanana-output/
 .playwright-cli
 .playwright
+supabase/.temp
