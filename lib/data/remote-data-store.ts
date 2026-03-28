@@ -306,6 +306,18 @@ export class RemoteDataStore implements DataStore {
     return dbToDailyLog(created);
   }
 
+  async getDailyLogsForStreak(): Promise<{ date: string; is_rest_day: boolean }[]> {
+    const { data, error } = await supabase
+      .from("daily_logs")
+      .select("date, is_rest_day")
+      .eq("user_id", this.userId)
+      .order("date", { ascending: false })
+      .limit(60);
+
+    if (error) throw new Error(`RemoteDataStore.getDailyLogsForStreak failed: ${error.message}`);
+    return (data ?? []).map((r) => ({ date: r.date, is_rest_day: r.is_rest_day }));
+  }
+
   async updateDailyLog(id: string, data: UpdateDailyLogData): Promise<DailyLog> {
     const updates: Database["public"]["Tables"]["daily_logs"]["Update"] = {};
     if (data.is_rest_day !== undefined) updates.is_rest_day = data.is_rest_day;

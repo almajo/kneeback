@@ -9,7 +9,6 @@ import {
 import { Colors } from "../constants/colors";
 import { purgeAllUserData, deleteRemoteUserData } from "../lib/db/purge-user-data";
 import { useAuth } from "../lib/auth-context";
-import { useRouter } from "expo-router";
 
 export interface DeleteAccountModalProps {
   visible: boolean;
@@ -29,7 +28,6 @@ export function DeleteAccountModal({
   mode,
 }: DeleteAccountModalProps) {
   const { session, signOut } = useAuth();
-  const router = useRouter();
   const [step, setStep] = useState<Step>("confirm");
   const [working, setWorking] = useState(false);
 
@@ -83,7 +81,6 @@ export function DeleteAccountModal({
       }
       setStep("confirm");
       onClose();
-      router.replace("/(intro)");
     } catch (err) {
       console.error("[DeleteAccountModal] purgeAllUserData error:", err);
       setWorking(false);
@@ -100,7 +97,6 @@ export function DeleteAccountModal({
       }
       setStep("confirm");
       onClose();
-      router.replace("/(intro)");
     } finally {
       setWorking(false);
     }

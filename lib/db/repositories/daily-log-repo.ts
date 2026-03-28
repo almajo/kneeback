@@ -1,4 +1,4 @@
-import { eq, and, gte, lte, asc, sql } from "drizzle-orm";
+import { eq, and, gte, lte, asc, desc, sql } from "drizzle-orm";
 import { db } from "../database-context";
 import { daily_logs } from "../schema";
 import { generateId } from "../../utils/uuid";
@@ -93,4 +93,13 @@ export async function updateDailyLog(
   }
 
   return rowToLocalDailyLog(rows[0]);
+}
+
+export async function getDailyLogsForStreak(): Promise<{ date: string; is_rest_day: boolean }[]> {
+  const rows = await db
+    .select({ date: daily_logs.date, is_rest_day: daily_logs.is_rest_day })
+    .from(daily_logs)
+    .orderBy(desc(daily_logs.date))
+    .limit(60);
+  return rows.map((r) => ({ date: r.date, is_rest_day: r.is_rest_day === 1 }));
 }

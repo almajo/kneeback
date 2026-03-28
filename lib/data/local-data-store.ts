@@ -195,6 +195,10 @@ export class LocalDataStore implements DataStore {
     return toSharedDailyLog(local);
   }
 
+  async getDailyLogsForStreak(): Promise<{ date: string; is_rest_day: boolean }[]> {
+    return dailyLogRepo.getDailyLogsForStreak();
+  }
+
   // exercise logs
   async getExerciseLogsByDailyLogId(dailyLogId: string): Promise<ExerciseLog[]> {
     const locals = await exerciseLogRepo.getExerciseLogsByDailyLogId(dailyLogId);

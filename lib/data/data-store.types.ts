@@ -147,6 +147,7 @@ export interface DataStore {
   // daily logs
   getOrCreateDailyLog(date: string): Promise<DailyLog>;
   updateDailyLog(id: string, data: UpdateDailyLogData): Promise<DailyLog>;
+  getDailyLogsForStreak(): Promise<{ date: string; is_rest_day: boolean }[]>;
 
   // exercise logs
   getExerciseLogsByDailyLogId(dailyLogId: string): Promise<ExerciseLog[]>;

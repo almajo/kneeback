@@ -42,7 +42,7 @@ export function useToday() {
       setDailyMessage(messages[dayIndex]);
     }
 
-    const currentStreak = await getStreak();
+    const currentStreak = await getStreak(store);
     setStreak(currentStreak);
 
     setLoading(false);

@@ -15,7 +15,7 @@ import { ExerciseCard } from "../../components/ExerciseCard";
 import { AchievementPopup } from "../../components/AchievementPopup";
 import { PhaseOverviewModal } from "../../components/PhaseOverviewModal";
 import { checkAchievements, getStreak } from "../../lib/achievements";
-import { useDataStore } from "../../lib/data/data-store-context";
+import { useDataStore, useCatalogStore } from "../../lib/data/data-store-context";
 import { Colors } from "../../constants/colors";
 import { useMilestones } from "../../lib/hooks/use-milestones";
 import { useKeepAwake } from "../../lib/hooks/use-keep-awake";
@@ -26,6 +26,7 @@ import { generateId } from "../../lib/utils/uuid";
 export default function TodayScreen() {
   useKeepAwake();
   const store = useDataStore();
+  const catalog = useCatalogStore();
   const router = useRouter();
   const {
     loading,
@@ -91,7 +92,7 @@ export default function TodayScreen() {
     isFirstRestDay: boolean;
     completed: boolean;
   }>) {
-    const streak = await getStreak();
+    const streak = await getStreak(store);
 
     const logs = await db
       .select({ id: exerciseLogsTable.id, completed: exerciseLogsTable.completed })
@@ -123,7 +124,7 @@ export default function TodayScreen() {
       latestFlexion: rom?.flexion_degrees ?? null,
       latestExtension: rom?.extension_degrees ?? null,
       hasQuadActivation: rom ? rom.quad_activation === 1 : false,
-    });
+    }, store, catalog);
 
     if (newAchievements.length > 0) {
       setPendingAchievement(newAchievements[0]);
