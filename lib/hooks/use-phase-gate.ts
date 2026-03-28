@@ -1,11 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { GATE_DEFINITIONS } from "../phase-gates";
-import {
-  getAllGateCriteria,
-  confirmGateCriterion,
-  removeGateCriterion,
-  type LocalUserGateCriterion,
-} from "../db/repositories/gate-criteria-repo";
+import { useDataStore } from "../data/data-store-context";
+import type { GateCriterion as StoredGateCriterion } from "../data/data-store.types";
 import type { GateDefinition, GateProgress, GateCriterion } from "../types";
 import type { SurgeryStatus } from "./use-today";
 
@@ -16,7 +12,7 @@ const ACTIONABLE_GATE_KEYS = new Set(["gate_3", "gate_4", "gate_5"]);
 // Helpers
 // ---------------------------------------------------------------------------
 
-function buildConfirmedSet(rows: LocalUserGateCriterion[]): Set<string> {
+function buildConfirmedSet(rows: StoredGateCriterion[]): Set<string> {
   return new Set(rows.map((row) => `${row.gate_key}:${row.criterion_key}`));
 }
 
@@ -90,13 +86,14 @@ export function usePhaseGate(
   surgeryStatus: SurgeryStatus,
   latestFlexion: number | null
 ) {
-  const [confirmedRows, setConfirmedRows] = useState<LocalUserGateCriterion[]>([]);
+  const store = useDataStore();
+  const [confirmedRows, setConfirmedRows] = useState<StoredGateCriterion[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchCriteria = useCallback(async () => {
     setLoading(true);
     try {
-      const rows = await getAllGateCriteria();
+      const rows = await store.getAllGateCriteria();
       setConfirmedRows(rows);
     } catch (err) {
       console.error("[usePhaseGate] Failed to fetch user_gate_criteria:", err);
@@ -104,7 +101,7 @@ export function usePhaseGate(
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [store]);
 
   useEffect(() => {
     fetchCriteria();
@@ -126,9 +123,9 @@ export function usePhaseGate(
       (async () => {
         try {
           if (isCurrentlyConfirmed) {
-            await removeGateCriterion(gateKey, criterionKey);
+            await store.removeGateCriterion(gateKey, criterionKey);
           } else {
-            await confirmGateCriterion(gateKey, criterionKey);
+            await store.confirmGateCriterion(gateKey, criterionKey);
           }
           fetchCriteria();
         } catch (err) {

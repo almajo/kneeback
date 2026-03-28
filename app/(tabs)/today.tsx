@@ -15,19 +15,17 @@ import { ExerciseCard } from "../../components/ExerciseCard";
 import { AchievementPopup } from "../../components/AchievementPopup";
 import { PhaseOverviewModal } from "../../components/PhaseOverviewModal";
 import { checkAchievements, getStreak } from "../../lib/achievements";
-import { updateDailyLog } from "../../lib/db/repositories/daily-log-repo";
-import { upsertExerciseLog } from "../../lib/db/repositories/exercise-log-repo";
-import { updateUserExerciseSortOrder } from "../../lib/db/repositories/user-exercise-repo";
+import { useDataStore } from "../../lib/data/data-store-context";
 import { Colors } from "../../constants/colors";
 import { useMilestones } from "../../lib/hooks/use-milestones";
 import { useKeepAwake } from "../../lib/hooks/use-keep-awake";
 import type { Content } from "../../lib/types";
-import type { LocalUserExercise } from "../../lib/db/repositories/user-exercise-repo";
-import type { LocalExerciseLog } from "../../lib/db/repositories/exercise-log-repo";
+import type { UserExercise, ExerciseLog } from "../../lib/data/data-store.types";
 import { generateId } from "../../lib/utils/uuid";
 
 export default function TodayScreen() {
   useKeepAwake();
+  const store = useDataStore();
   const router = useRouter();
   const {
     loading,
@@ -43,8 +41,8 @@ export default function TodayScreen() {
     refetch,
     updateUserExercise,
   } = useToday();
-  const [userExercises, setUserExercises] = useState<LocalUserExercise[]>([]);
-  const [exerciseLogs, setExerciseLogs] = useState<LocalExerciseLog[]>([]);
+  const [userExercises, setUserExercises] = useState<UserExercise[]>([]);
+  const [exerciseLogs, setExerciseLogs] = useState<ExerciseLog[]>([]);
   const [pendingAchievement, setPendingAchievement] = useState<Content | null>(null);
   const [showPhaseOverview, setShowPhaseOverview] = useState(false);
   const { todayMilestones, refetch: refetchMilestones } = useMilestones();
@@ -135,7 +133,7 @@ export default function TodayScreen() {
   async function toggleRestDay() {
     if (!dailyLog) return;
     const newIsRest = !isRestDay;
-    await updateDailyLog(dailyLog.id, { is_rest_day: newIsRest });
+    await store.updateDailyLog(dailyLog.id, { is_rest_day: newIsRest });
     refetch();
     if (newIsRest) {
       const prevRestDays = await db
@@ -157,17 +155,15 @@ export default function TodayScreen() {
     const isFirstEver =
       exerciseLogs.every((l) => !l.completed) && updates.completed === true;
 
-    const newLog: LocalExerciseLog = {
+    const newLog: ExerciseLog = {
       id: existing?.id ?? `temp-${userExerciseId}`,
       daily_log_id: dailyLog.id,
       user_exercise_id: userExerciseId,
       completed: existing?.completed ?? false,
       actual_sets: existing?.actual_sets ?? 0,
       actual_reps: existing?.actual_reps ?? 0,
-      created_at: existing?.created_at ?? new Date().toISOString(),
-      updated_at: new Date().toISOString(),
       ...updates,
-    } as LocalExerciseLog;
+    } as ExerciseLog;
 
     // Optimistic update
     if (existing) {
@@ -181,7 +177,7 @@ export default function TodayScreen() {
     }
 
     const upsertId = existing?.id ?? generateId();
-    const persisted = await upsertExerciseLog({
+    const persisted = await store.upsertExerciseLog({
       id: upsertId,
       daily_log_id: dailyLog.id,
       user_exercise_id: userExerciseId,
@@ -204,10 +200,10 @@ export default function TodayScreen() {
     }
   }
 
-  function handleReorder(reordered: LocalUserExercise[]) {
+  function handleReorder(reordered: UserExercise[]) {
     setUserExercises(reordered);
     for (let index = 0; index < reordered.length; index++) {
-      updateUserExerciseSortOrder(reordered[index].id, index).catch((err) =>
+      store.updateUserExerciseSortOrder(reordered[index].id, index).catch((err) =>
         console.error("[handleReorder] Failed to persist sort order:", err)
       );
     }
@@ -434,13 +430,13 @@ export default function TodayScreen() {
     item: ue,
     drag,
     isActive,
-  }: RenderItemParams<LocalUserExercise>) => (
+  }: RenderItemParams<UserExercise>) => (
     <View style={{ opacity: isActive ? 0.8 : 1 }}>
       <ExerciseCard
-        userExercise={ue}
-        log={exerciseLogs.find((l) => l.user_exercise_id === ue.id) ?? null}
+        userExercise={ue as any}
+        log={exerciseLogs.find((l) => l.user_exercise_id === ue.id) as any ?? null}
         onUpdate={(updates) => updateExerciseLog(ue.id, updates)}
-        onExerciseUpdate={updateUserExercise}
+        onExerciseUpdate={updateUserExercise as any}
         disabled={isRestDay}
         onDrag={drag}
       />

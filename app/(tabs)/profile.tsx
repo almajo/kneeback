@@ -15,16 +15,8 @@ import { useRouter } from "expo-router";
 import { useAuth } from "../../lib/auth-context";
 import { registerForPushNotifications, scheduleDailyReminder } from "../../lib/notifications";
 import { Colors } from "../../constants/colors";
-import { getProfile, updateProfile } from "../../lib/db/repositories/profile-repo";
-import {
-  getNotificationPreferences,
-  createOrUpdateNotificationPreferences,
-} from "../../lib/db/repositories/notification-repo";
-import { getAllMilestones } from "../../lib/db/repositories/milestone-repo";
-import { getAllRomMeasurements } from "../../lib/db/repositories/rom-repo";
-import { getUnlockedAchievements } from "../../lib/db/repositories/achievement-repo";
-import type { LocalProfile } from "../../lib/db/repositories/profile-repo";
-import type { LocalNotificationPreferences } from "../../lib/db/repositories/notification-repo";
+import { useDataStore } from "../../lib/data/data-store-context";
+import type { Profile, NotificationPreferences } from "../../lib/data/data-store.types";
 import type { GraftType } from "../../lib/types";
 import { PrivacyPolicyModal } from "../../components/PrivacyPolicyModal";
 import { AuthModal } from "../../components/AuthModal";
@@ -47,9 +39,10 @@ function pad(n: number) {
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const store = useDataStore();
   const { session, signOut } = useAuth();
-  const [profile, setProfile] = useState<LocalProfile | null>(null);
-  const [notifPrefs, setNotifPrefs] = useState<LocalNotificationPreferences | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingNotif, setSavingNotif] = useState(false);
   const [editingReminder, setEditingReminder] = useState(false);
@@ -78,9 +71,9 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     async function loadData() {
-      const prof = await getProfile();
+      const prof = await store.getProfile();
       setProfile(prof);
-      const prefs = await getNotificationPreferences();
+      const prefs = await store.getNotificationPreferences();
       setNotifPrefs(prefs);
       if (prefs?.daily_reminder_time) {
         const [h, m] = prefs.daily_reminder_time.split(":").map(Number);
@@ -90,11 +83,9 @@ export default function ProfileScreen() {
         d.setHours(h, m, 0, 0);
         setReminderDate(d);
         // Schedule push notification if we have a push token
-        if (prof?.device_id) {
-          registerForPushNotifications(prof.device_id).then(() =>
-            scheduleDailyReminder(h, m)
-          );
-        }
+        registerForPushNotifications(null).then(() =>
+          scheduleDailyReminder(h, m)
+        );
       }
       setLoading(false);
     }
@@ -104,7 +95,7 @@ export default function ProfileScreen() {
   async function toggleEveningNudge(value: boolean) {
     if (!notifPrefs) return;
     setSavingNotif(true);
-    const updated = await createOrUpdateNotificationPreferences({
+    const updated = await store.createOrUpdateNotificationPreferences({
       evening_nudge_enabled: value,
     });
     setNotifPrefs(updated);
@@ -115,7 +106,7 @@ export default function ProfileScreen() {
     if (!notifPrefs) return;
     setSavingNotif(true);
     const timeStr = `${pad(h)}:${pad(m)}`;
-    const updated = await createOrUpdateNotificationPreferences({
+    const updated = await store.createOrUpdateNotificationPreferences({
       daily_reminder_time: timeStr,
     });
     setNotifPrefs(updated);
@@ -125,9 +116,9 @@ export default function ProfileScreen() {
   }
 
   async function handleExportData() {
-    const milestones = await getAllMilestones();
-    const roms = await getAllRomMeasurements();
-    const achievements = await getUnlockedAchievements();
+    const milestones = await store.getAllMilestones();
+    const roms = await store.getAllRomMeasurements();
+    const achievements = await store.getAchievements();
 
     const exportData = {
       profile,
@@ -146,7 +137,7 @@ export default function ProfileScreen() {
   async function saveGraftType(graftType: GraftType) {
     if (!profile) return;
     setSavingGraftType(true);
-    const updated = await updateProfile({ graft_type: graftType });
+    const updated = await store.updateProfile({ graft_type: graftType });
     setProfile(updated);
     setEditingGraftType(false);
     setSavingGraftType(false);
@@ -156,7 +147,7 @@ export default function ProfileScreen() {
     if (!profile) return;
     setSavingSurgeryDate(true);
     const dateStr = date.toISOString().split("T")[0];
-    const updated = await updateProfile({ surgery_date: dateStr });
+    const updated = await store.updateProfile({ surgery_date: dateStr });
     setProfile(updated);
     setEditingSurgeryDate(false);
     setSavingSurgeryDate(false);
@@ -236,7 +227,7 @@ export default function ProfileScreen() {
     }
 
     const now = new Date().toISOString();
-    const updated = await updateProfile({ supabase_user_id: userId, last_synced_at: now });
+    const updated = await store.updateProfile({ supabase_user_id: userId, last_synced_at: now } as any);
     setProfile(updated);
   }
 
@@ -252,9 +243,9 @@ export default function ProfileScreen() {
         return;
       }
       const now = new Date().toISOString();
-      const existingProfile = await getProfile();
+      const existingProfile = await store.getProfile();
       if (existingProfile) {
-        const updated = await updateProfile({ supabase_user_id: conflictUserId, last_synced_at: now });
+        const updated = await store.updateProfile({ supabase_user_id: conflictUserId, last_synced_at: now } as any);
         setProfile(updated);
       }
     } catch (error) {
@@ -277,7 +268,7 @@ export default function ProfileScreen() {
         return;
       }
       const now = new Date().toISOString();
-      const updated = await updateProfile({ supabase_user_id: conflictUserId, last_synced_at: now });
+      const updated = await store.updateProfile({ supabase_user_id: conflictUserId, last_synced_at: now } as any);
       setProfile(updated);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
@@ -294,13 +285,13 @@ export default function ProfileScreen() {
     setSyncing(true);
     setSyncError(null);
 
-    const lastSyncedAt = profile?.last_synced_at ?? new Date(0).toISOString();
+    const lastSyncedAt = (profile as any)?.last_synced_at ?? new Date(0).toISOString();
     const result = await deltaSync(session.user.id, lastSyncedAt);
 
     if (result.error) {
       setSyncError(result.error);
     } else {
-      setProfile(await getProfile());
+      setProfile(await store.getProfile());
     }
 
     setSyncing(false);
@@ -680,10 +671,10 @@ export default function ProfileScreen() {
                 {session.user.email}
               </Text>
             </View>
-            {profile?.last_synced_at ? (
+            {(profile as any)?.last_synced_at ? (
               <Text className="text-xs mb-3" style={{ color: "#A0A0A0" }}>
                 Last synced:{" "}
-                {new Date(profile.last_synced_at).toLocaleString()}
+                {new Date((profile as any).last_synced_at).toLocaleString()}
               </Text>
             ) : (
               <Text className="text-xs mb-3" style={{ color: "#A0A0A0" }}>

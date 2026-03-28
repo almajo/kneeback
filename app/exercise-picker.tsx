@@ -30,25 +30,20 @@ import {
   getOptionalExercises,
   displayPhaseFor,
 } from "../lib/exercise-utils";
-import { getAllExercises } from "../lib/db/repositories/exercise-repo";
-import {
-  getAllUserExercises,
-  createUserExercise,
-  updateUserExercise,
-  deleteUserExercise,
-  type LocalUserExercise,
-} from "../lib/db/repositories/user-exercise-repo";
-import { getProfile } from "../lib/db/repositories/profile-repo";
+import { useDataStore, useCatalogStore } from "../lib/data/data-store-context";
+import type { UserExercise } from "../lib/data/data-store.types";
 import type { Exercise, ExercisePhase, GateDefinition } from "../lib/types";
 import type { SurgeryStatus } from "../lib/hooks/use-today";
 import { generateId } from "../lib/utils/uuid";
 
 export default function ExercisePicker() {
   const router = useRouter();
+  const store = useDataStore();
+  const catalog = useCatalogStore();
 
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [userExercisesMap, setUserExercisesMap] = useState<
-    Map<string, LocalUserExercise>
+    Map<string, UserExercise>
   >(new Map());
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
@@ -70,15 +65,15 @@ export default function ExercisePicker() {
 
   useEffect(() => {
     async function loadData() {
-      const exs = await getAllExercises();
+      const exs = await catalog.getAllExercises();
       setExercises(exs);
 
-      const ues = await getAllUserExercises();
-      const map = new Map<string, LocalUserExercise>();
+      const ues = await store.getAllUserExercises();
+      const map = new Map<string, UserExercise>();
       for (const ue of ues) map.set(ue.exercise_id, ue);
       setUserExercisesMap(map);
 
-      const profile = await getProfile();
+      const profile = await store.getProfile();
       if (profile?.surgery_date) {
         const diff = Math.floor(
           (Date.now() - new Date(profile.surgery_date).getTime()) / 86400000
@@ -122,14 +117,14 @@ export default function ExercisePicker() {
     const existing = userExercisesMap.get(exercise.id);
 
     if (existing) {
-      await deleteUserExercise(existing.id);
+      await store.deleteUserExercise(existing.id);
       setUserExercisesMap((prev) => {
         const next = new Map(prev);
         next.delete(exercise.id);
         return next;
       });
     } else {
-      const inserted = await createUserExercise({
+      const inserted = await store.createUserExercise({
         id: generateId(),
         exercise_id: exercise.id,
         sets: exercise.default_sets,
@@ -169,7 +164,7 @@ export default function ExercisePicker() {
   ) {
     const existing = userExercisesMap.get(exerciseId);
     if (!existing) return;
-    const updated = await updateUserExercise(existing.id, { [field]: value });
+    const updated = await store.updateUserExercise(existing.id, { [field]: value });
     setUserExercisesMap((prev) => new Map(prev).set(exerciseId, updated));
   }
 
@@ -535,7 +530,7 @@ interface CategorySectionProps {
   exercises: Exercise[];
   locked: boolean;
   allPhaseExercises: Exercise[];
-  userExercisesMap: Map<string, LocalUserExercise>;
+  userExercisesMap: Map<string, UserExercise>;
   saving: Set<string>;
   expandedAlternatives: Set<string>;
   setExpandedAlternatives: React.Dispatch<React.SetStateAction<Set<string>>>;
@@ -620,7 +615,7 @@ function ExerciseCategorySection({
 interface ExerciseRowProps {
   exercise: Exercise;
   locked: boolean;
-  userExercise: LocalUserExercise | undefined;
+  userExercise: UserExercise | undefined;
   isSaving: boolean;
   onToggle: () => void;
   onStepperChange: (

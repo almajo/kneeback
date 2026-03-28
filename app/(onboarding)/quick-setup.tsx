@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { getAllExercises } from '../../lib/db/repositories/exercise-repo';
+import { useCatalogStore } from '../../lib/data/data-store-context';
 import { useOnboarding } from '../../lib/onboarding-context';
 import { MuscleTag } from '../../components/MuscleTag';
 import { Colors } from '../../constants/colors';
@@ -14,6 +14,7 @@ import type { SurgeryStatus } from '../../lib/hooks/use-today';
 
 export default function QuickSetup() {
   const router = useRouter();
+  const catalog = useCatalogStore();
   const { data, toggleExercise } = useOnboarding();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +35,7 @@ export default function QuickSetup() {
   const alreadySelected = data.selectedExercises.length > 0;
 
   useEffect(() => {
-    getAllExercises().then((all) => {
+    catalog.getAllExercises().then((all) => {
       setExercises(all);
       if (!alreadySelected) {
         const quickSet = getQuickSetupExercises(all, stablePhase, stableStatus);

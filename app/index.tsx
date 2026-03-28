@@ -2,12 +2,13 @@ import { useEffect } from "react";
 import { useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getProfile } from "../lib/db/repositories/profile-repo";
+import { useDataStore } from "../lib/data/data-store-context";
 
 SplashScreen.preventAutoHideAsync();
 
 export default function Index() {
   const router = useRouter();
+  const store = useDataStore();
 
   useEffect(() => {
     AsyncStorage.getItem("has_seen_intro")
@@ -15,7 +16,7 @@ export default function Index() {
         if (value !== "true") {
           router.replace("/(intro)");
         } else {
-          const profile = await getProfile();
+          const profile = await store.getProfile();
           if (profile) {
             router.replace("/(tabs)/today");
           } else {
@@ -26,7 +27,7 @@ export default function Index() {
       .finally(() => {
         SplashScreen.hideAsync();
       });
-  }, []);
+  }, [store]);
 
   return null;
 }

@@ -16,25 +16,22 @@ import { useMilestones } from "../../lib/hooks/use-milestones";
 import { PhaseGateCard } from "../../components/PhaseGateCard";
 import { PhaseGateDetail } from "../../components/PhaseGateDetail";
 import { usePhaseGate } from "../../lib/hooks/use-phase-gate";
-import { getProfile } from "../../lib/db/repositories/profile-repo";
-import {
-  getAllRomMeasurements,
-  createRomMeasurement,
-  type LocalRomMeasurement,
-} from "../../lib/db/repositories/rom-repo";
+import { useDataStore } from "../../lib/data/data-store-context";
+import type { RomMeasurement } from "../../lib/data/data-store.types";
 import { ShareWinPrompt } from "../../components/community/ShareWinPrompt";
 import { submitCommunityPost } from "../../lib/community";
 import { getCommunityIdentity } from "../../lib/community-identity";
 import { generateId } from "../../lib/utils/uuid";
 
 export default function ProgressScreen() {
+  const store = useDataStore();
   const [loading, setLoading] = useState(true);
   const [romSheetOpen, setRomSheetOpen] = useState(false);
   const { milestones, addMilestone, deleteMilestone } = useMilestones();
   const [romData, setRomData] = useState<
     { date: string; flexion: number | null; extension: number | null }[]
   >([]);
-  const [measurements, setMeasurements] = useState<LocalRomMeasurement[]>([]);
+  const [measurements, setMeasurements] = useState<RomMeasurement[]>([]);
   const [surgeryDate, setSurgeryDate] = useState<string | null>(null);
   const [gateDetailKey, setGateDetailKey] = useState<string | null>(null);
   const [pendingShareWin, setPendingShareWin] = useState<string | null>(null);
@@ -55,7 +52,7 @@ export default function ProgressScreen() {
   );
 
   const loadMeasurements = useCallback(async () => {
-    const romRows = await getAllRomMeasurements();
+    const romRows = await store.getAllRomMeasurements();
     setMeasurements(romRows.slice().reverse());
     setRomData(
       romRows.map((r) => ({
@@ -64,11 +61,11 @@ export default function ProgressScreen() {
         extension: r.extension_degrees,
       }))
     );
-  }, []);
+  }, [store]);
 
   useEffect(() => {
     async function loadData() {
-      const profile = await getProfile();
+      const profile = await store.getProfile();
       if (profile?.surgery_date) {
         setSurgeryDate(profile.surgery_date);
         const diff = Math.floor(
@@ -89,7 +86,7 @@ export default function ProgressScreen() {
     quad_activation: boolean;
   }): Promise<void> {
     try {
-      await createRomMeasurement({
+      await store.createRomMeasurement({
         id: generateId(),
         ...payload,
       });
@@ -114,8 +111,8 @@ export default function ProgressScreen() {
 
   async function handleShareWin(message: string) {
     if (!pendingShareWin) return;
-    const profile = await getProfile();
-    const identity = await getCommunityIdentity(profile);
+    const profile = await store.getProfile();
+    const identity = await getCommunityIdentity(profile as any);
     const { error } = await submitCommunityPost(identity, {
       post_type: "win",
       title: pendingShareWin,
@@ -162,7 +159,7 @@ export default function ProgressScreen() {
         onClose={() => setRomSheetOpen(false)}
         onSave={handleSaveRom}
         editingEntry={null}
-        lastMeasurement={measurements[0] ?? null}
+        lastMeasurement={measurements[0] as any ?? null}
       />
       <ScrollView
         className="flex-1 bg-background"
@@ -220,8 +217,8 @@ export default function ProgressScreen() {
 
         <View className="mx-4 my-2 border-b border-border" />
         <ProgressCalendar
-          milestones={milestones}
-          measurements={measurements}
+          milestones={milestones as any}
+          measurements={measurements as any}
           onSaveMilestone={handleSaveMilestone}
           onDeleteMilestone={deleteMilestone}
           surgeryDate={surgeryDate}

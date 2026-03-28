@@ -5,8 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "../lib/auth-context";
 import { DatabaseProvider } from "../lib/db/database-context";
-import { DataStoreProvider } from "../lib/data/data-store-context";
-import { getProfile } from "../lib/db/repositories/profile-repo";
+import { DataStoreProvider, useDataStore } from "../lib/data/data-store-context";
 import {
   useFonts,
   Outfit_400Regular,
@@ -19,6 +18,7 @@ function RootLayoutNav() {
   const segments = useSegments();
   const router = useRouter();
   const { session, loading: authLoading } = useAuth();
+  const store = useDataStore();
 
   useEffect(() => {
     if (authLoading) return;
@@ -35,7 +35,7 @@ function RootLayoutNav() {
 
     if (!inTabsGroup) return; // Let index.tsx handle initial routing
 
-    getProfile().then((localProfile) => {
+    store.getProfile().then((localProfile) => {
       if (!localProfile) {
         if (session) {
           router.replace("/(tabs)/today");
@@ -44,7 +44,7 @@ function RootLayoutNav() {
         }
       }
     });
-  }, [segments, session, authLoading]);
+  }, [segments, session, authLoading, store]);
 
   return (
     <>

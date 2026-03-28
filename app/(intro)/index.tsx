@@ -18,7 +18,7 @@ import { AuthModal } from "../../components/AuthModal";
 import { DataConflictModal } from "../../components/DataConflictModal";
 import { pushAll, pullAll } from "../../lib/db/sync/sync-engine";
 import { detectLocalData, detectCloudData } from "../../lib/db/sync/data-detection";
-import { updateProfile } from "../../lib/db/repositories/profile-repo";
+import { useDataStore } from "../../lib/data/data-store-context";
 import { purgeAllUserData } from "../../lib/db/purge-user-data";
 
 const SLIDES = [
@@ -56,6 +56,7 @@ async function completeIntro() {
 
 export default function IntroScreen() {
   const router = useRouter();
+  const store = useDataStore();
   const { width, height } = useWindowDimensions();
   const illustrationSize = Math.min(280, width * 0.6, height * 0.32);
   const flatListRef = useRef<FlatList>(null);
@@ -172,7 +173,7 @@ export default function IntroScreen() {
         if (push.error) {
           console.error("[intro/handleAuthSuccess] push failed:", push.error);
         }
-        await updateProfile({ supabase_user_id: userId, last_synced_at: now });
+        await store.updateProfile({ supabase_user_id: userId, last_synced_at: now } as any);
         await completeIntro();
         router.replace("/(onboarding)/surgery-details");
       } else if (hasCloudData) {
@@ -180,7 +181,7 @@ export default function IntroScreen() {
         if (pull.error) {
           console.error("[intro/handleAuthSuccess] pull failed:", pull.error);
         }
-        await updateProfile({ supabase_user_id: userId, last_synced_at: now });
+        await store.updateProfile({ supabase_user_id: userId, last_synced_at: now } as any);
         await completeIntro();
         router.replace("/(tabs)/today");
       } else {
@@ -203,7 +204,7 @@ export default function IntroScreen() {
         console.error("[intro/handleUseCloudData] pull failed:", pull.error);
       }
       const now = new Date().toISOString();
-      await updateProfile({ supabase_user_id: conflictUserId, last_synced_at: now });
+      await store.updateProfile({ supabase_user_id: conflictUserId, last_synced_at: now } as any);
       await completeIntro();
       router.replace("/(tabs)/today");
     } finally {
@@ -222,7 +223,7 @@ export default function IntroScreen() {
         console.error("[intro/handleKeepLocalData] push failed:", push.error);
       }
       const now = new Date().toISOString();
-      await updateProfile({ supabase_user_id: conflictUserId, last_synced_at: now });
+      await store.updateProfile({ supabase_user_id: conflictUserId, last_synced_at: now } as any);
       await completeIntro();
       router.replace("/(onboarding)/surgery-details");
     } finally {
