@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   Platform,
 } from "react-native";
-import { Colors } from "../constants/Colors";
+import { Colors } from "../constants/colors";
 
 const CONTACT_EMAIL = "kneebackapp@gmail.com";
 
