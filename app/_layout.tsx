@@ -24,7 +24,7 @@ function RootLayoutNav() {
     if (authLoading) return;
 
     const inTabsGroup = segments[0] === "(tabs)";
-    const inSignInScreen = segments[0] === "(auth)" && segments[1] === "sign-in";
+    const inSignInScreen = segments[0] === "(auth)" && (segments as string[])[1] === "sign-in";
 
     // After sign-in from the sign-in screen, route to the app.
     // Intentionally excludes sign-up: new users must go through onboarding.
