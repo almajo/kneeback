@@ -25,6 +25,29 @@ function RootLayoutNav() {
     if (authLoading) return;
 
     const inTabsGroup = segments[0] === "(tabs)";
+    const inSignInScreen = segments[0] === "(auth)" && segments[1] === "sign-in";
+
+    // After sign-in from the sign-in screen, route to the app.
+    // Intentionally excludes sign-up: new users must go through onboarding.
+    if (session && inSignInScreen) {
+      getProfile().then((localProfile) => {
+        if (localProfile) {
+          router.replace("/(tabs)/today");
+        } else if (!migrationInProgress.current) {
+          migrationInProgress.current = true;
+          router.replace("/(migration)");
+          migrateSupabaseToLocal().then(({ error }) => {
+            if (error) {
+              console.error("[layout] Migration completed with error:", error);
+            }
+            migrationInProgress.current = false;
+            router.replace("/(tabs)/today");
+          });
+        }
+      });
+      return;
+    }
+
     if (!inTabsGroup) return; // Let index.tsx handle initial routing
 
     getProfile().then((localProfile) => {
