@@ -26,7 +26,15 @@ export function useToday() {
     setProfile(prof ? { surgery_date: prof.surgery_date } : null);
 
     const exercises = await store.getAllUserExercises();
-    setUserExercises(exercises);
+    // RemoteDataStore returns user exercises without catalog data joined.
+    // Fetch all catalog exercises and attach them so ExerciseCard can read exercise.name etc.
+    const allCatalogExercises = await catalog.getAllExercises();
+    const exerciseMap = new Map(allCatalogExercises.map((e) => [e.id, e]));
+    const exercisesWithCatalog = exercises.map((ue) => ({
+      ...ue,
+      exercise: exerciseMap.get(ue.exercise_id),
+    }));
+    setUserExercises(exercisesWithCatalog);
 
     const log = await store.getOrCreateDailyLog(today);
     setDailyLog(log);
