@@ -199,9 +199,19 @@ export class LocalDataStore implements DataStore {
     return dailyLogRepo.getDailyLogsForStreak();
   }
 
+  async getDailyLogsByDateRange(start: string, end: string): Promise<DailyLog[]> {
+    const locals = await dailyLogRepo.getDailyLogsByDateRange(start, end);
+    return locals.map(toSharedDailyLog);
+  }
+
   // exercise logs
   async getExerciseLogsByDailyLogId(dailyLogId: string): Promise<ExerciseLog[]> {
     const locals = await exerciseLogRepo.getExerciseLogsByDailyLogId(dailyLogId);
+    return locals.map(toSharedExerciseLog);
+  }
+
+  async getExerciseLogsByDailyLogIds(dailyLogIds: string[]): Promise<ExerciseLog[]> {
+    const locals = await exerciseLogRepo.getExerciseLogsByDailyLogIds(dailyLogIds);
     return locals.map(toSharedExerciseLog);
   }
 

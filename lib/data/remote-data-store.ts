@@ -348,6 +348,19 @@ export class RemoteDataStore implements DataStore {
     return (data ?? []).map((r) => ({ date: r.date, is_rest_day: r.is_rest_day }));
   }
 
+  async getDailyLogsByDateRange(start: string, end: string): Promise<DailyLog[]> {
+    const { data, error } = await supabase
+      .from("daily_logs")
+      .select("*")
+      .eq("user_id", this.userId)
+      .gte("date", start)
+      .lte("date", end)
+      .order("date", { ascending: true });
+
+    if (error) throw new Error(`RemoteDataStore.getDailyLogsByDateRange failed: ${error.message}`);
+    return (data ?? []).map(dbToDailyLog);
+  }
+
   async updateDailyLog(id: string, data: UpdateDailyLogData): Promise<DailyLog> {
     const updates: Database["public"]["Tables"]["daily_logs"]["Update"] = {};
     if (data.is_rest_day !== undefined) updates.is_rest_day = data.is_rest_day;
@@ -373,6 +386,17 @@ export class RemoteDataStore implements DataStore {
       .eq("daily_log_id", dailyLogId);
 
     if (error) throw new Error(`RemoteDataStore.getExerciseLogsByDailyLogId failed: ${error.message}`);
+    return (data ?? []).map(dbToExerciseLog);
+  }
+
+  async getExerciseLogsByDailyLogIds(dailyLogIds: string[]): Promise<ExerciseLog[]> {
+    if (dailyLogIds.length === 0) return [];
+    const { data, error } = await supabase
+      .from("exercise_logs")
+      .select("*")
+      .in("daily_log_id", dailyLogIds);
+
+    if (error) throw new Error(`RemoteDataStore.getExerciseLogsByDailyLogIds failed: ${error.message}`);
     return (data ?? []).map(dbToExerciseLog);
   }
 

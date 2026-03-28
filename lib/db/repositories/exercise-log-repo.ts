@@ -37,6 +37,18 @@ export async function getExerciseLogsByDailyLogId(
   return rows.map(rowToLocalExerciseLog);
 }
 
+export async function getExerciseLogsByDailyLogIds(
+  dailyLogIds: string[]
+): Promise<LocalExerciseLog[]> {
+  if (dailyLogIds.length === 0) return [];
+  const placeholders = dailyLogIds.map(() => "?").join(",");
+  const rows = await db.$client.getAllAsync<typeof exercise_logs.$inferSelect>(
+    `SELECT * FROM exercise_logs WHERE daily_log_id IN (${placeholders})`,
+    dailyLogIds
+  );
+  return rows.map(rowToLocalExerciseLog);
+}
+
 export type UpsertExerciseLogData = {
   id: string;
   daily_log_id: string;

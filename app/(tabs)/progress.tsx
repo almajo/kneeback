@@ -217,6 +217,7 @@ export default function ProgressScreen() {
 
         <View className="mx-4 my-2 border-b border-border" />
         <ProgressCalendar
+          store={store}
           milestones={milestones as any}
           measurements={measurements as any}
           onSaveMilestone={handleSaveMilestone}

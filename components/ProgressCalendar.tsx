@@ -7,10 +7,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { db } from "../lib/db/database-context";
 import { Colors } from "../constants/colors";
 import type { LocalMilestone } from "../lib/db/repositories/milestone-repo";
 import type { LocalRomMeasurement } from "../lib/db/repositories/rom-repo";
+import type { DataStore } from "../lib/data/data-store.types";
 import { AddMilestoneSheet } from "./AddMilestoneSheet";
 import { DayDetailSheet } from "./DayDetailSheet";
 
@@ -22,6 +22,7 @@ interface HeatmapDay {
 }
 
 interface Props {
+  store: DataStore;
   milestones: LocalMilestone[];
   measurements: LocalRomMeasurement[];
   onSaveMilestone: (payload: {
@@ -98,13 +99,13 @@ function twoYearsAgoMonth(): string {
 }
 
 export function ProgressCalendar({
+  store,
   milestones,
   measurements,
   onSaveMilestone,
   onDeleteMilestone,
   surgeryDate,
 }: Props) {
-  const sqliteDb = db.$client;
   const maxMonth = currentMonthString();
   const minMonth = surgeryDate ? toMonthString(surgeryDate) : twoYearsAgoMonth();
 
@@ -163,7 +164,7 @@ export function ProgressCalendar({
   ).current;
 
   useEffect(() => {
-    function fetchMonthData() {
+    async function fetchMonthData() {
       setLoadingDays(true);
       const [year, month] = currentMonth.split("-").map(Number);
       const daysInMonth = new Date(year, month, 0).getDate();
@@ -171,36 +172,23 @@ export function ProgressCalendar({
       const startDate = `${currentMonth}-01`;
       const endDate = `${currentMonth}-${String(daysInMonth).padStart(2, "0")}`;
 
-      const monthDates = Array.from({ length: daysInMonth }, (_, i) => {
-        return `${currentMonth}-${String(i + 1).padStart(2, "0")}`;
-      });
-
-      const logs = sqliteDb.getAllSync<{ date: string; is_rest_day: number; id: string }>(
-        "SELECT date, is_rest_day, id FROM daily_logs WHERE date >= ? AND date <= ?",
-        [startDate, endDate]
+      const monthDates = Array.from({ length: daysInMonth }, (_, i) =>
+        `${currentMonth}-${String(i + 1).padStart(2, "0")}`
       );
 
+      const logs = await store.getDailyLogsByDateRange(startDate, endDate);
       const logIds = logs.map((l) => l.id);
-
-      const exLogs =
-        logIds.length > 0
-          ? sqliteDb.getAllSync<{ daily_log_id: string; completed: number }>(
-              `SELECT daily_log_id, completed FROM exercise_logs WHERE daily_log_id IN (${logIds.map(() => "?").join(",")})`,
-              logIds
-            )
-          : [];
+      const exLogs = await store.getExerciseLogsByDailyLogIds(logIds);
 
       const logMap = new Map<string, { isRest: boolean; logId: string }>();
-      logs.forEach((l) =>
-        logMap.set(l.date, { isRest: l.is_rest_day === 1, logId: l.id })
-      );
+      logs.forEach((l) => logMap.set(l.date, { isRest: l.is_rest_day, logId: l.id }));
 
       const completionMap = new Map<string, { total: number; done: number }>();
       exLogs.forEach((el) => {
         const entry = completionMap.get(el.daily_log_id) ?? { total: 0, done: 0 };
         completionMap.set(el.daily_log_id, {
           total: entry.total + 1,
-          done: entry.done + (el.completed === 1 ? 1 : 0),
+          done: entry.done + (el.completed ? 1 : 0),
         });
       });
 
@@ -219,7 +207,7 @@ export function ProgressCalendar({
       setLoadingDays(false);
     }
     fetchMonthData();
-  }, [currentMonth]);
+  }, [currentMonth, store]);
 
   const offset = getMonthStartOffset(currentMonth);
 

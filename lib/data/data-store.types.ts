@@ -148,9 +148,11 @@ export interface DataStore {
   getOrCreateDailyLog(date: string): Promise<DailyLog>;
   updateDailyLog(id: string, data: UpdateDailyLogData): Promise<DailyLog>;
   getDailyLogsForStreak(): Promise<{ date: string; is_rest_day: boolean }[]>;
+  getDailyLogsByDateRange(start: string, end: string): Promise<DailyLog[]>;
 
   // exercise logs
   getExerciseLogsByDailyLogId(dailyLogId: string): Promise<ExerciseLog[]>;
+  getExerciseLogsByDailyLogIds(dailyLogIds: string[]): Promise<ExerciseLog[]>;
   upsertExerciseLog(data: UpsertExerciseLogData): Promise<ExerciseLog>;
 
   // ROM
