@@ -1,4 +1,4 @@
-import { getDeviceId, getDeviceAnimalName } from "./device-identity";
+import { getDeviceId } from "./device-identity";
 import type { LocalProfile } from "./db/repositories/profile-repo";
 
 export interface CommunityIdentity {
@@ -10,10 +10,8 @@ export interface CommunityIdentity {
 export async function getCommunityIdentity(
   profile: LocalProfile | null
 ): Promise<CommunityIdentity> {
-  const [deviceId, animalName] = await Promise.all([
-    getDeviceId(),
-    getDeviceAnimalName(),
-  ]);
+  const deviceId = await getDeviceId();
+  const animalName = profile?.username ?? "Anonymous";
 
   let phase = "";
   if (profile?.surgery_date) {
