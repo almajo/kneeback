@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { db } from "./database-context";
 import { supabase } from "@/lib/supabase";
+import { USER_DATA_TABLES } from "@/lib/db/user-data-tables";
 
 const ASYNC_STORAGE_KEYS = [
   "has_seen_intro",
@@ -43,30 +44,20 @@ export async function purgeAllUserData(): Promise<void> {
   }
 }
 
-// Tables with per-user data — catalog tables are excluded
-const REMOTE_USER_DATA_TABLES = [
-  "user_exercises",
-  "daily_logs",
-  "exercise_logs",
-  "rom_measurements",
-  "milestones",
-  "user_achievements",
-  "user_gate_criteria",
-  "notification_preferences",
-] as const;
-
 /**
  * Best-effort deletion of all remote user data from Supabase.
  * RLS may block some deletes — errors are logged but do not throw.
  */
 export async function deleteRemoteUserData(userId: string): Promise<void> {
-  for (const table of REMOTE_USER_DATA_TABLES) {
+  if (!userId) return;
+
+  for (const table of USER_DATA_TABLES) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await supabase.from(table as any).delete().eq("user_id", userId);
     if (error) {
       console.error(
         `[deleteRemoteUserData] Failed to delete from ${table}:`,
-        error.message
+        error
       );
     }
   }
@@ -79,7 +70,7 @@ export async function deleteRemoteUserData(userId: string): Promise<void> {
   if (profileError) {
     console.error(
       "[deleteRemoteUserData] Failed to delete profile:",
-      profileError.message
+      profileError
     );
   }
 }

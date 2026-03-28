@@ -1,20 +1,7 @@
 import { db } from "@/lib/db/database-context";
 import { supabase } from "@/lib/supabase";
 import { getProfile } from "@/lib/db/repositories/profile-repo";
-
-// Tables to migrate — catalog tables (exercises, content) are excluded
-const USER_DATA_TABLES = [
-  "user_exercises",
-  "daily_logs",
-  "exercise_logs",
-  "rom_measurements",
-  "milestones",
-  "user_achievements",
-  "user_gate_criteria",
-  "notification_preferences",
-] as const;
-
-type TableName = (typeof USER_DATA_TABLES)[number];
+import { USER_DATA_TABLES, UserDataTable } from "@/lib/db/user-data-tables";
 
 type SyncRow = Record<string, unknown> & {
   id: string;
@@ -25,11 +12,11 @@ type SyncRow = Record<string, unknown> & {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabaseTable = any;
 
-function getSupabaseTable(table: TableName) {
+function getSupabaseTable(table: UserDataTable) {
   return supabase.from(table as AnySupabaseTable);
 }
 
-function getAllRows(table: TableName): SyncRow[] {
+function getAllRows(table: UserDataTable): SyncRow[] {
   return db.$client.getAllSync<SyncRow>(`SELECT * FROM ${table}`);
 }
 
@@ -40,10 +27,16 @@ function rowsToRemotePayload(rows: SyncRow[], userId: string): SyncRow[] {
 /**
  * One-time migration: pushes all local user data tables to Supabase for a given userId.
  * Profile is pushed best-effort — errors are logged but do not fail the migration.
+ *
+ * NOTE: This function fails fast on the first table error, which means the remote store
+ * may be left partially migrated. This is safe because all writes use upsert — retrying
+ * from scratch is always safe and will produce the correct final state.
  */
 export async function migrateLocalToRemote(
   userId: string
 ): Promise<{ error: string | null }> {
+  if (!userId) return { error: "userId is required" };
+
   for (const table of USER_DATA_TABLES) {
     const rows = getAllRows(table);
     if (rows.length === 0) continue;
@@ -51,6 +44,7 @@ export async function migrateLocalToRemote(
     const payload = rowsToRemotePayload(rows, userId);
     const { error } = await getSupabaseTable(table).upsert(payload);
     if (error) {
+      console.error(`[migrateLocalToRemote] Failed to push ${table}:`, error);
       return { error: `Failed to push ${table}: ${error.message}` };
     }
   }
@@ -72,7 +66,7 @@ export async function migrateLocalToRemote(
     if (profileError) {
       console.error(
         "[migrateLocalToRemote] Failed to push profile:",
-        profileError.message
+        profileError
       );
     }
   }
