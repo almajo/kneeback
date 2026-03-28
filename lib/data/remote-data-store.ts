@@ -44,7 +44,7 @@ function dbToProfile(row: DbProfile): Profile {
     graft_type: row.graft_type ?? null,
     knee_side: row.knee_side,
     created_at: row.created_at ?? "",
-    updated_at: row.created_at ?? "", // Supabase profiles has no updated_at; use created_at as fallback
+    // The profiles table has no updated_at column; omit the field entirely.
   };
 }
 
@@ -56,8 +56,7 @@ function dbToUserExercise(row: DbUserExercise): UserExercise {
     reps: row.reps,
     hold_seconds: row.hold_seconds ?? null,
     sort_order: row.sort_order,
-    created_at: "",
-    updated_at: "",
+    // The user_exercises table has no created_at/updated_at columns; fields are omitted.
   };
 }
 
@@ -566,15 +565,29 @@ export class RemoteDataStore implements DataStore {
   async createOrUpdateNotificationPreferences(
     data: NotificationPrefsData
   ): Promise<NotificationPreferences> {
+    const { data: existing, error: fetchError } = await supabase
+      .from("notification_preferences")
+      .select("*")
+      .eq("user_id", this.userId)
+      .maybeSingle();
+
+    if (fetchError) {
+      throw new Error(
+        `RemoteDataStore.createOrUpdateNotificationPreferences fetch failed: ${fetchError.message}`
+      );
+    }
+
+    const id = existing?.id ?? generateId();
+
     const { data: row, error } = await supabase
       .from("notification_preferences")
       .upsert({
-        id: generateId(),
+        id,
         user_id: this.userId,
-        daily_reminder_time: data.daily_reminder_time ?? "08:00",
-        evening_nudge_enabled: data.evening_nudge_enabled ?? false,
-        evening_nudge_time: data.evening_nudge_time ?? "20:00",
-        completion_congrats_enabled: data.completion_congrats_enabled ?? true,
+        daily_reminder_time: data.daily_reminder_time ?? existing?.daily_reminder_time ?? "08:00",
+        evening_nudge_enabled: data.evening_nudge_enabled ?? existing?.evening_nudge_enabled ?? false,
+        evening_nudge_time: data.evening_nudge_time ?? existing?.evening_nudge_time ?? "20:00",
+        completion_congrats_enabled: data.completion_congrats_enabled ?? existing?.completion_congrats_enabled ?? true,
       }, { onConflict: "user_id" })
       .select()
       .single();

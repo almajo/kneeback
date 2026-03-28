@@ -15,7 +15,8 @@ export interface Profile {
   graft_type: GraftType | null;
   knee_side: KneeSide;
   created_at: string;
-  updated_at: string;
+  /** The profiles table has no updated_at column; this field is optional. */
+  updated_at?: string;
 }
 
 export type CreateProfileData = Omit<Profile, "created_at" | "updated_at">;
@@ -30,8 +31,9 @@ export interface UserExercise {
   reps: number;
   hold_seconds: number | null;
   sort_order: number;
-  created_at: string;
-  updated_at: string;
+  /** The user_exercises table has no created_at/updated_at columns; these fields are optional. */
+  created_at?: string;
+  updated_at?: string;
   exercise?: Exercise;
 }
 
