@@ -519,8 +519,8 @@
       </svg>
       <span class="btn-label">Use on Web</span>
     </a>
-    <a href="#hero-waitlist" class="btn-nav btn-nav-primary" aria-label="Join KneeBack internal beta">
-      Join Beta
+    <a href="#hero-waitlist" class="btn-nav btn-nav-primary" aria-label="Get KneeBack on Android">
+      Get Android App
     </a>
   </div>
 </nav>
@@ -558,15 +558,16 @@
     </div>
 
     <div class="waitlist-wrap" id="hero-waitlist" style="margin-top:28px;">
-      <form class="waitlist-form" id="form-hero" novalidate aria-label="Join internal beta waitlist">
+      <p style="font-size:13px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--orange);margin-bottom:10px;">Android app — coming to Play Store</p>
+      <form class="waitlist-form" id="form-hero" novalidate aria-label="Sign up for Android beta access">
         <input type="email" class="waitlist-input" id="input-hero" placeholder="your@email.com" required autocomplete="email" aria-label="Email address">
         <button type="submit" class="btn-hero-secondary">
-          Join Internal Test
+          Get Android Access
         </button>
       </form>
       <label class="waitlist-consent" for="consent-hero">
         <input type="checkbox" id="consent-hero" required>
-        <span>I agree to KneeBack storing my email to notify me when internal testing opens. I can withdraw at any time by emailing <a href="mailto:kneebackapp@gmail.com">kneebackapp@gmail.com</a>. <a href="/privacy">Privacy Policy</a></span>
+        <span>I agree to KneeBack storing my email to add me to the Android Play Store internal test. I can withdraw at any time by emailing <a href="mailto:kneebackapp@gmail.com">kneebackapp@gmail.com</a>. <a href="/privacy">Privacy Policy</a></span>
       </label>
       <p class="waitlist-status" id="status-hero" aria-live="polite"></p>
     </div>
@@ -774,7 +775,7 @@
 ============================================================ -->
 <section class="cta-banner" aria-labelledby="cta-h2">
   <h2 class="cta-h2 reveal" id="cta-h2">Ready to start<br>your recovery?</h2>
-  <p class="cta-sub reveal">Android app coming soon. Get notified when internal testing opens.</p>
+  <p class="cta-sub reveal">Already on the web — Android app coming to Play Store soon.</p>
   <div class="cta-btns reveal" style="flex-direction:column;align-items:center;gap:20px;">
     <a href="/app" class="btn-white" aria-label="Open KneeBack on web">
       Open Web App
@@ -783,15 +784,15 @@
       </svg>
     </a>
     <div class="waitlist-wrap">
-      <form class="waitlist-form waitlist-form-banner" id="form-banner" novalidate aria-label="Join internal beta waitlist">
+      <form class="waitlist-form waitlist-form-banner" id="form-banner" novalidate aria-label="Sign up for Android beta access">
         <input type="email" class="waitlist-input" id="input-banner" placeholder="your@email.com" required autocomplete="email" aria-label="Email address">
         <button type="submit" class="btn-white-outline" style="border-width:1px;">
-          Get Early Access
+          Get on Android
         </button>
       </form>
       <label class="waitlist-consent waitlist-consent-banner" for="consent-banner">
         <input type="checkbox" id="consent-banner" required>
-        <span>I agree to KneeBack storing my email to notify me when internal testing opens. I can withdraw at any time by emailing <a href="mailto:kneebackapp@gmail.com">kneebackapp@gmail.com</a>. <a href="/privacy">Privacy Policy</a></span>
+        <span>I agree to KneeBack storing my email to add me to the Android Play Store internal test. I can withdraw at any time by emailing <a href="mailto:kneebackapp@gmail.com">kneebackapp@gmail.com</a>. <a href="/privacy">Privacy Policy</a></span>
       </label>
       <p class="waitlist-status waitlist-status-banner" id="status-banner" aria-live="polite"></p>
     </div>
@@ -929,7 +930,7 @@
         });
         const data = await res.json();
         if (data.success) {
-          status.textContent = "You're on the list! We'll notify you when testing opens.";
+          status.textContent = "Done! We'll add you to the Android internal test and send you an invite.";
           status.classList.add('ok');
           form.reset();
           submitBtn.textContent = 'Joined!';
