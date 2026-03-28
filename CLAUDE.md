@@ -24,6 +24,13 @@
 7. Wait for input, read the PR Review from Github Copilot in comments and go implement fixes
 8. Push final update and run tests if available. Output the PR link for the user to manually merge.
 
+## Cleanup
+
+- **ONLY remove files/directories created in the current session**
+- Never delete pre-existing directories like `/artifacts/` that may contain user's work
+- When cleaning up playwright tests: only remove `.playwright-cli/` (session snapshots I created)
+- Always ask before removing anything if uncertain about what's yours vs what's pre-existing
+
 ## Console
 
 - I use zsh so always put paths in "" when using the console, e.g. for git commands
