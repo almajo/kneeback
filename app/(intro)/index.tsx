@@ -15,7 +15,7 @@ import {
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AuthModal } from "../../components/AuthModal";
-import { useDataStore } from "../../lib/data/data-store-context";
+import { supabase } from "../../lib/supabase";
 
 const SLIDES = [
   {
@@ -52,7 +52,6 @@ async function completeIntro() {
 
 export default function IntroScreen() {
   const router = useRouter();
-  const store = useDataStore();
   const { width, height } = useWindowDimensions();
   const illustrationSize = Math.min(280, width * 0.6, height * 0.32);
   const flatListRef = useRef<FlatList>(null);
@@ -142,14 +141,20 @@ export default function IntroScreen() {
     router.replace("/(onboarding)/surgery-details");
   }, [router]);
 
-  async function handleAuthSuccess(_userId: string) {
+  async function handleAuthSuccess(userId: string) {
     setAuthModalVisible(false);
     setSyncing(true);
 
     try {
       await completeIntro();
-      const profile = await store.getProfile();
-      if (profile) {
+      // Query Supabase directly — DataStoreProvider hasn't switched to RemoteDataStore yet
+      // at this point in the render cycle, so using the store here would read stale LocalDataStore.
+      const { data } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", userId)
+        .maybeSingle();
+      if (data) {
         router.replace("/(tabs)/today");
       } else {
         router.replace("/(onboarding)/surgery-details");
