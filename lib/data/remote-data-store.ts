@@ -22,6 +22,13 @@ import type {
   NotificationPrefsData,
 } from "./data-store.types";
 import type { Database } from "../database.types";
+import type {
+  ExercisePhase,
+  ExerciseRole,
+  ExerciseMuscleGroup,
+  ExerciseCategory,
+  ExerciseStatus,
+} from "../types";
 
 type DbProfile = Database["public"]["Tables"]["profiles"]["Row"];
 type DbUserExercise = Database["public"]["Tables"]["user_exercises"]["Row"];
@@ -196,12 +203,35 @@ export class RemoteDataStore implements DataStore {
   async getAllUserExercises(): Promise<UserExercise[]> {
     const { data, error } = await supabase
       .from("user_exercises")
-      .select("*")
+      .select("*, exercises(*)")
       .eq("user_id", this.userId)
       .order("sort_order", { ascending: true });
 
     if (error) throw new Error(`RemoteDataStore.getAllUserExercises failed: ${error.message}`);
-    return (data ?? []).map(dbToUserExercise);
+    return (data ?? []).map((row) => {
+      const ue = dbToUserExercise(row);
+      if (row.exercises) {
+        const ex = row.exercises as Database["public"]["Tables"]["exercises"]["Row"];
+        ue.exercise = {
+          id: ex.id,
+          name: ex.name,
+          description: ex.description,
+          phase_start: ex.phase_start as ExercisePhase,
+          phase_end: (ex.phase_end as ExercisePhase) ?? null,
+          role: ex.role as ExerciseRole,
+          primary_exercise_id: ex.primary_exercise_id ?? null,
+          muscle_groups: (ex.muscle_groups ?? []) as ExerciseMuscleGroup[],
+          default_sets: ex.default_sets,
+          default_reps: ex.default_reps,
+          default_hold_seconds: ex.default_hold_seconds ?? null,
+          category: ex.category as ExerciseCategory,
+          submitted_by: ex.submitted_by ?? null,
+          status: ex.status as ExerciseStatus,
+          sort_order: ex.sort_order,
+        };
+      }
+      return ue;
+    });
   }
 
   async createUserExercise(data: CreateUserExerciseData): Promise<UserExercise> {

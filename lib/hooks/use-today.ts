@@ -26,15 +26,19 @@ export function useToday() {
     setProfile(prof ? { surgery_date: prof.surgery_date } : null);
 
     const exercises = await store.getAllUserExercises();
-    // RemoteDataStore returns user exercises without catalog data joined.
-    // Fetch all catalog exercises and attach them so ExerciseCard can read exercise.name etc.
-    const allCatalogExercises = await catalog.getAllExercises();
-    const exerciseMap = new Map(allCatalogExercises.map((e) => [e.id, e]));
-    const exercisesWithCatalog = exercises.map((ue) => ({
-      ...ue,
-      exercise: exerciseMap.get(ue.exercise_id),
-    }));
-    setUserExercises(exercisesWithCatalog);
+    // RemoteDataStore now joins exercise data from Supabase directly.
+    // For LocalDataStore, fall back to local catalog lookup for any exercises missing the join.
+    const missingJoin = exercises.some((ue) => !ue.exercise);
+    if (missingJoin) {
+      const allCatalogExercises = await catalog.getAllExercises();
+      const exerciseMap = new Map(allCatalogExercises.map((e) => [e.id, e]));
+      setUserExercises(exercises.map((ue) => ({
+        ...ue,
+        exercise: ue.exercise ?? exerciseMap.get(ue.exercise_id),
+      })));
+    } else {
+      setUserExercises(exercises);
+    }
 
     const log = await store.getOrCreateDailyLog(today);
     setDailyLog(log);
