@@ -2,7 +2,7 @@ import { Modal, View, Text, ScrollView, TouchableOpacity, SafeAreaView, Platform
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../constants/colors";
 
-const LAST_UPDATED = "21 March 2026";
+const LAST_UPDATED = "29 March 2026";
 const CONTACT_EMAIL = "kneebackapp@gmail.com";
 
 export function PrivacyPolicyModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
@@ -45,17 +45,26 @@ export function PrivacyPolicyModal({ visible, onClose }: { visible: boolean; onC
             <Text style={{ color: Colors.primary }}>{CONTACT_EMAIL}</Text>.
           </Section>
 
-          <Section title="2. Local-First Data Model">
-            KneeBack is built with privacy by default. All of your personal recovery data —
-            including your profile, exercise logs, ROM measurements, milestones, and notification
-            preferences — is stored exclusively on your device.{"\n\n"}
-            No data is ever sent to our servers unless you explicitly create an account and enable
-            cloud sync. You remain in full control of your data at all times.
+          <Section title="2. Two Modes — Your Choice">
+            KneeBack runs in two distinct modes:{"\n\n"}
+            <Text style={{ fontSize: 14, color: "#4B4B4B", lineHeight: 22, fontWeight: "600" }}>Local Mode (default)</Text>
+            {"\n"}All your recovery data stays exclusively on your device. No account is required.
+            No personal data ever leaves your device or reaches our servers.{"\n\n"}
+            <Text style={{ fontSize: 14, color: "#4B4B4B", lineHeight: 22, fontWeight: "600" }}>Signed-in Mode</Text>
+            {"\n"}When you create an account and sign in, your recovery data is synced to our
+            cloud so you can access it across devices and restore it after reinstallation.
+            Personal data is only collected and processed when you actively use a signed-in
+            account.{"\n\n"}
+            You can use KneeBack fully-featured in Local Mode indefinitely. Signing in is
+            optional and reversible — you can delete your account at any time.
           </Section>
 
-          <Section title="3. Data We Collect (Cloud Sync Only)">
-            The following data is collected and stored in the cloud only if you choose to create
-            an account and enable sync:{"\n\n"}
+          <Section title="3. Data We Collect">
+            <Text style={{ fontSize: 14, color: "#4B4B4B", lineHeight: 22, fontWeight: "600" }}>Local Mode — no personal data collected</Text>
+            {"\n"}No data leaves your device. All information is stored locally and protected by
+            your device's own security.{"\n\n"}
+            <Text style={{ fontSize: 14, color: "#4B4B4B", lineHeight: 22, fontWeight: "600" }}>Signed-in Mode — cloud data (account holders only)</Text>
+            {"\n"}The following data is uploaded when you sign in:{"\n\n"}
             <BulletList items={[
               "Account information: your email address used for authentication.",
               "Recovery profile: surgery date, knee side (left/right), and graft type.",
@@ -84,12 +93,11 @@ export function PrivacyPolicyModal({ visible, onClose }: { visible: boolean; onC
           </Section>
 
           <Section title="5. Data Storage & Security">
-            When cloud sync is enabled, your data is stored using Supabase, a cloud database
-            provider with servers located within the European Union (EU). We apply
-            industry-standard security measures including encryption in transit (TLS) and at
-            rest.{"\n\n"}
-            When you use KneeBack without an account, no data leaves your device. Your on-device
-            data is protected by your device's own security mechanisms.{"\n\n"}
+            When signed in, your data is stored using Supabase, a cloud database provider with
+            servers located within the European Union (EU). We apply industry-standard security
+            measures including encryption in transit (TLS) and at rest.{"\n\n"}
+            In Local Mode no data ever leaves your device. Switching back to Local Mode by
+            deleting your account stops all cloud data flows immediately.{"\n\n"}
             We do not sell your personal data to third parties.
           </Section>
 
