@@ -13,7 +13,7 @@ import { db } from "../lib/db/database-context";
 import { Colors } from "../constants/colors";
 import type { Milestone, RomMeasurement } from "../lib/data/data-store.types";
 
-type DayStatus = "complete" | "rest" | "partial" | "missed" | "future";
+type DayStatus = "complete" | "rest" | "pt" | "partial" | "missed" | "future";
 
 interface ExerciseItem {
   name: string;
@@ -44,6 +44,7 @@ function statusLabel(status: DayStatus): string {
   const labels: Record<DayStatus, string> = {
     complete: "Complete",
     rest: "Rest Day",
+    pt: "Physical Therapy",
     partial: "Partial",
     missed: "Missed",
     future: "Upcoming",
@@ -57,6 +58,8 @@ function statusColors(status: DayStatus): { bg: string; text: string } {
       return { bg: Colors.success + "22", text: Colors.success };
     case "rest":
       return { bg: Colors.rest + "22", text: Colors.rest };
+    case "pt":
+      return { bg: Colors.secondary + "22", text: Colors.secondary };
     case "partial":
       return { bg: Colors.warning + "22", text: Colors.warning };
     case "missed":

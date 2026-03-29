@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useFocusEffect } from "expo-router";
 import {
   ScrollView,
   View,
@@ -34,6 +35,7 @@ export default function ProgressScreen() {
   const [measurements, setMeasurements] = useState<RomMeasurement[]>([]);
   const [surgeryDate, setSurgeryDate] = useState<string | null>(null);
   const [gateDetailKey, setGateDetailKey] = useState<string | null>(null);
+  const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
   const [pendingShareWin, setPendingShareWin] = useState<string | null>(null);
   const [surgeryStatus, setSurgeryStatus] = useState<
     "no_date" | "pre_surgery" | "post_surgery"
@@ -50,6 +52,10 @@ export default function ProgressScreen() {
     surgeryStatus,
     latestFlexion
   );
+
+  useFocusEffect(useCallback(() => {
+    setCalendarRefreshKey((k) => k + 1);
+  }, []));
 
   const loadMeasurements = useCallback(async () => {
     const romRows = await store.getAllRomMeasurements();
@@ -223,6 +229,7 @@ export default function ProgressScreen() {
           onSaveMilestone={handleSaveMilestone}
           onDeleteMilestone={deleteMilestone}
           surgeryDate={surgeryDate}
+          refreshKey={calendarRefreshKey}
         />
       </ScrollView>
     </>
