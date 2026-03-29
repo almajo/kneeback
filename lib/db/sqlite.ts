@@ -1,6 +1,6 @@
 import * as SQLite from "expo-sqlite";
 
-export const CURRENT_SCHEMA_VERSION = 6;
+export const CURRENT_SCHEMA_VERSION = 5;
 
 // schema_version is an internal migration-tracking table.
 // It intentionally omits a primary key `id` column and is exempt from the
@@ -322,13 +322,6 @@ export function initializeDatabase(db: SQLite.SQLiteDatabase): void {
         SELECT 1 FROM user_exercises ue WHERE ue.id = exercise_logs.user_exercise_id
       )
     `);
-  }
-
-  // Migration v5 -> v6: add is_pt_day column to daily_logs
-  if (currentVersion < 6) {
-    db.execSync(
-      "ALTER TABLE daily_logs ADD COLUMN is_pt_day INTEGER NOT NULL DEFAULT 0"
-    );
   }
 
   setSchemaVersion(db, CURRENT_SCHEMA_VERSION);
