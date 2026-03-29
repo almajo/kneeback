@@ -179,7 +179,10 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
             onChangeText={setEmail}
             autoCapitalize="none"
             keyboardType="email-address"
+            autoComplete="email"
+            textContentType="emailAddress"
             autoCorrect={false}
+            returnKeyType="next"
           />
           <TextInput
             className="border border-border rounded-xl px-4 py-3 mb-1 text-base"
@@ -189,6 +192,10 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            autoComplete="current-password"
+            textContentType="password"
+            returnKeyType="done"
+            onSubmitEditing={handleSubmit}
           />
 
           {error && (
