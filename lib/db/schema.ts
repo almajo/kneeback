@@ -65,6 +65,7 @@ export const daily_logs = sqliteTable("daily_logs", {
   user_id: text("user_id"),
   date: text("date").notNull().unique(),
   is_rest_day: integer("is_rest_day").notNull().default(0),
+  is_pt_day: integer("is_pt_day").notNull().default(0),
   notes: text("notes"),
   created_at: text("created_at").default(sql`(datetime('now'))`),
 });
