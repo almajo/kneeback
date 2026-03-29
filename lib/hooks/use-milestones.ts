@@ -1,23 +1,20 @@
 import { useState, useEffect, useCallback } from "react";
 import { generateId } from "../utils/uuid";
-import {
-  getAllMilestones,
-  createMilestone,
-  deleteMilestone as deleteMilestoneRepo,
-  type LocalMilestone,
-} from "../db/repositories/milestone-repo";
+import { useDataStore } from "../data/data-store-context";
+import type { Milestone } from "../data/data-store.types";
 
 export function useMilestones() {
+  const store = useDataStore();
   const today = new Date().toISOString().split("T")[0];
-  const [milestones, setMilestones] = useState<LocalMilestone[]>([]);
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchMilestones = useCallback(async () => {
     setLoading(true);
-    const data = await getAllMilestones();
+    const data = await store.getAllMilestones();
     setMilestones(data);
     setLoading(false);
-  }, []);
+  }, [store]);
 
   useEffect(() => {
     fetchMilestones();
@@ -31,13 +28,14 @@ export function useMilestones() {
     template_key?: string;
   }) {
     const id = generateId();
-    const created = await createMilestone({
+    const created = await store.createMilestone({
       id,
       title: input.title,
       category: input.category,
       date: input.date,
       notes: input.notes ?? null,
       template_key: input.template_key ?? null,
+      created_at: new Date().toISOString(),
     });
     setMilestones((prev) =>
       [...prev, created].sort((a, b) => a.date.localeCompare(b.date))
@@ -45,7 +43,7 @@ export function useMilestones() {
   }
 
   async function deleteMilestone(id: string) {
-    await deleteMilestoneRepo(id);
+    await store.deleteMilestone(id);
     setMilestones((prev) => prev.filter((m) => m.id !== id));
   }
 

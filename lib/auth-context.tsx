@@ -1,6 +1,9 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { router } from "expo-router";
 import { supabase } from "./supabase";
 import { type Session } from "@supabase/supabase-js";
+import { migrateLocalToRemote } from "@/lib/db/migration/migrate-to-remote";
+import { purgeAllUserData } from "@/lib/db/purge-user-data";
 
 interface AuthContextType {
   session: Session | null;
@@ -31,8 +34,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, s) => {
+    } = supabase.auth.onAuthStateChange(async (event, s) => {
       setSession(s);
+
+      // Run migration on sign-in AND on session restore (INITIAL_SESSION).
+      // If migration fails partway (e.g. previous run), local data is still present
+      // and the next app start will retry and push what's left.
+      // purgeAllUserData is only called when rows were actually pushed, so
+      // AsyncStorage keys (has_seen_intro etc.) are not cleared on empty-DB restarts.
+      if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && s?.user.id) {
+        const userId = s.user.id;
+        try {
+          const { error: migrationError, migrated } = await migrateLocalToRemote(userId);
+          if (migrationError) {
+            console.error("[AuthProvider] Migration to remote failed:", migrationError);
+            // Don't block login — user can still use remote store
+          } else if (migrated) {
+            await purgeAllUserData();
+          }
+        } catch (err) {
+          console.error("[AuthProvider] Unexpected error during sign-in migration:", err);
+          // Don't block login — user can still use remote store
+        }
+      }
+
+      if (event === "SIGNED_OUT") {
+        try {
+          await purgeAllUserData();
+        } catch (err) {
+          console.error("[AuthProvider] Failed to purge local data on sign-out:", err);
+        }
+        router.replace("/(intro)");
+      }
     });
 
     return () => subscription.unsubscribe();

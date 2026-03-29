@@ -1,8 +1,4 @@
-import { desc } from "drizzle-orm";
-import { db } from "./db/database-context";
-import { daily_logs } from "./db/schema";
-import { getUnlockedAchievements, unlockAchievement } from "./db/repositories/achievement-repo";
-import { getAllContent } from "./db/repositories/content-repo";
+import type { DataStore, CatalogStore } from "./data/data-store.types";
 import type { Content } from "./types";
 
 interface UserState {
@@ -18,11 +14,16 @@ interface UserState {
   hasQuadActivation: boolean;
 }
 
-export async function checkAchievements(state: UserState): Promise<Content[]> {
-  const allAchievements = await getAllContent("achievement");
+export async function checkAchievements(
+  state: UserState,
+  store: DataStore,
+  catalog: CatalogStore
+): Promise<Content[]> {
+  const allContent = await catalog.getAllContent();
+  const allAchievements = allContent.filter((c) => c.type === "achievement");
   if (allAchievements.length === 0) return [];
 
-  const unlocked = await getUnlockedAchievements();
+  const unlocked = await store.getAchievements();
   const unlockedIds = new Set(unlocked.map((u) => u.content_id));
 
   const newlyUnlocked: Content[] = [];
@@ -67,7 +68,7 @@ export async function checkAchievements(state: UserState): Promise<Content[]> {
     }
 
     if (matched) {
-      await unlockAchievement(achievement.id);
+      await store.unlockAchievement(achievement.id);
       newlyUnlocked.push(achievement);
     }
   }
@@ -75,12 +76,8 @@ export async function checkAchievements(state: UserState): Promise<Content[]> {
   return newlyUnlocked;
 }
 
-export async function getStreak(): Promise<number> {
-  const logs = await db
-    .select({ date: daily_logs.date, is_rest_day: daily_logs.is_rest_day })
-    .from(daily_logs)
-    .orderBy(desc(daily_logs.date))
-    .limit(60);
+export async function getStreak(store: DataStore): Promise<number> {
+  const logs = await store.getDailyLogsForStreak();
 
   if (logs.length === 0) return 0;
 

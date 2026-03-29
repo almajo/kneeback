@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../supabase";
-import { getProfile } from "../db/repositories/profile-repo";
+import { useDataStore } from "../data/data-store-context";
 import { getCommunityIdentity } from "../community-identity";
 import type { CommunityPost, CreatePostInput } from "../types";
 
@@ -60,6 +60,7 @@ async function fetchPage(
 }
 
 export function useCommunity() {
+  const store = useDataStore();
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,7 +112,7 @@ export function useCommunity() {
 
   async function createPost(input: CreatePostInput) {
     if (!deviceId) return;
-    const profile = await getProfile();
+    const profile = await store.getProfile();
     const identity = await getCommunityIdentity(profile);
 
     const optimistic: CommunityPost = {

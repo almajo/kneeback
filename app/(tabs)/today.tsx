@@ -4,9 +4,6 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DraggableFlatList, { RenderItemParams } from "react-native-draggable-flatlist";
-import { eq, desc } from "drizzle-orm";
-import { db } from "../../lib/db/database-context";
-import { exercise_logs as exerciseLogsTable, rom_measurements as romMeasurements, daily_logs as dailyLogsTable } from "../../lib/db/schema";
 import { useToday } from "../../lib/hooks/use-today";
 import { DayHeader } from "../../components/DayHeader";
 import { DailyMessage } from "../../components/DailyMessage";
@@ -15,19 +12,18 @@ import { ExerciseCard } from "../../components/ExerciseCard";
 import { AchievementPopup } from "../../components/AchievementPopup";
 import { PhaseOverviewModal } from "../../components/PhaseOverviewModal";
 import { checkAchievements, getStreak } from "../../lib/achievements";
-import { updateDailyLog } from "../../lib/db/repositories/daily-log-repo";
-import { upsertExerciseLog } from "../../lib/db/repositories/exercise-log-repo";
-import { updateUserExerciseSortOrder } from "../../lib/db/repositories/user-exercise-repo";
+import { useDataStore, useCatalogStore } from "../../lib/data/data-store-context";
 import { Colors } from "../../constants/colors";
 import { useMilestones } from "../../lib/hooks/use-milestones";
 import { useKeepAwake } from "../../lib/hooks/use-keep-awake";
 import type { Content } from "../../lib/types";
-import type { LocalUserExercise } from "../../lib/db/repositories/user-exercise-repo";
-import type { LocalExerciseLog } from "../../lib/db/repositories/exercise-log-repo";
+import type { UserExercise, ExerciseLog } from "../../lib/data/data-store.types";
 import { generateId } from "../../lib/utils/uuid";
 
 export default function TodayScreen() {
   useKeepAwake();
+  const store = useDataStore();
+  const catalog = useCatalogStore();
   const router = useRouter();
   const {
     loading,
@@ -43,8 +39,8 @@ export default function TodayScreen() {
     refetch,
     updateUserExercise,
   } = useToday();
-  const [userExercises, setUserExercises] = useState<LocalUserExercise[]>([]);
-  const [exerciseLogs, setExerciseLogs] = useState<LocalExerciseLog[]>([]);
+  const [userExercises, setUserExercises] = useState<UserExercise[]>([]);
+  const [exerciseLogs, setExerciseLogs] = useState<ExerciseLog[]>([]);
   const [pendingAchievement, setPendingAchievement] = useState<Content | null>(null);
   const [showPhaseOverview, setShowPhaseOverview] = useState(false);
   const { todayMilestones, refetch: refetchMilestones } = useMilestones();
@@ -93,25 +89,13 @@ export default function TodayScreen() {
     isFirstRestDay: boolean;
     completed: boolean;
   }>) {
-    const streak = await getStreak();
+    const streak = await getStreak(store);
 
-    const logs = await db
-      .select({ id: exerciseLogsTable.id, completed: exerciseLogsTable.completed })
-      .from(exerciseLogsTable)
-      .where(eq(exerciseLogsTable.daily_log_id, dailyLog?.id ?? ""));
+    const logs = await store.getExerciseLogsByDailyLogId(dailyLog?.id ?? "");
     const completedNow = logs.filter((l) => l.completed).length;
     const totalNow = userExercises.length;
 
-    const romRows = await db
-      .select({
-        flexion_degrees: romMeasurements.flexion_degrees,
-        extension_degrees: romMeasurements.extension_degrees,
-        quad_activation: romMeasurements.quad_activation,
-      })
-      .from(romMeasurements)
-      .orderBy(desc(romMeasurements.date))
-      .limit(1);
-    const rom = romRows[0] ?? null;
+    const rom = await store.getLatestRomMeasurement();
 
     const newAchievements = await checkAchievements({
       daysSinceSurgery,
@@ -124,8 +108,8 @@ export default function TodayScreen() {
       isFirstMeasurement: false,
       latestFlexion: rom?.flexion_degrees ?? null,
       latestExtension: rom?.extension_degrees ?? null,
-      hasQuadActivation: rom ? rom.quad_activation === 1 : false,
-    });
+      hasQuadActivation: rom?.quad_activation ?? false,
+    }, store, catalog);
 
     if (newAchievements.length > 0) {
       setPendingAchievement(newAchievements[0]);
@@ -135,13 +119,11 @@ export default function TodayScreen() {
   async function toggleRestDay() {
     if (!dailyLog) return;
     const newIsRest = !isRestDay;
-    await updateDailyLog(dailyLog.id, { is_rest_day: newIsRest });
+    await store.updateDailyLog(dailyLog.id, { is_rest_day: newIsRest });
     refetch();
     if (newIsRest) {
-      const prevRestDays = await db
-        .select({ id: dailyLogsTable.id })
-        .from(dailyLogsTable)
-        .where(eq(dailyLogsTable.is_rest_day, 1));
+      const streakLogs = await store.getDailyLogsForStreak();
+      const prevRestDays = streakLogs.filter((l) => l.is_rest_day);
       runAchievementCheck({ isFirstRestDay: prevRestDays.length <= 1 });
     }
   }
@@ -157,17 +139,15 @@ export default function TodayScreen() {
     const isFirstEver =
       exerciseLogs.every((l) => !l.completed) && updates.completed === true;
 
-    const newLog: LocalExerciseLog = {
+    const newLog: ExerciseLog = {
       id: existing?.id ?? `temp-${userExerciseId}`,
       daily_log_id: dailyLog.id,
       user_exercise_id: userExerciseId,
       completed: existing?.completed ?? false,
       actual_sets: existing?.actual_sets ?? 0,
       actual_reps: existing?.actual_reps ?? 0,
-      created_at: existing?.created_at ?? new Date().toISOString(),
-      updated_at: new Date().toISOString(),
       ...updates,
-    } as LocalExerciseLog;
+    } as ExerciseLog;
 
     // Optimistic update
     if (existing) {
@@ -181,7 +161,7 @@ export default function TodayScreen() {
     }
 
     const upsertId = existing?.id ?? generateId();
-    const persisted = await upsertExerciseLog({
+    const persisted = await store.upsertExerciseLog({
       id: upsertId,
       daily_log_id: dailyLog.id,
       user_exercise_id: userExerciseId,
@@ -204,10 +184,10 @@ export default function TodayScreen() {
     }
   }
 
-  function handleReorder(reordered: LocalUserExercise[]) {
+  function handleReorder(reordered: UserExercise[]) {
     setUserExercises(reordered);
     for (let index = 0; index < reordered.length; index++) {
-      updateUserExerciseSortOrder(reordered[index].id, index).catch((err) =>
+      store.updateUserExerciseSortOrder(reordered[index].id, index).catch((err) =>
         console.error("[handleReorder] Failed to persist sort order:", err)
       );
     }
@@ -434,7 +414,7 @@ export default function TodayScreen() {
     item: ue,
     drag,
     isActive,
-  }: RenderItemParams<LocalUserExercise>) => (
+  }: RenderItemParams<UserExercise>) => (
     <View style={{ opacity: isActive ? 0.8 : 1 }}>
       <ExerciseCard
         userExercise={ue}

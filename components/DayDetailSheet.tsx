@@ -11,8 +11,7 @@ import {
 } from "react-native";
 import { db } from "../lib/db/database-context";
 import { Colors } from "../constants/colors";
-import type { LocalMilestone } from "../lib/db/repositories/milestone-repo";
-import type { LocalRomMeasurement } from "../lib/db/repositories/rom-repo";
+import type { Milestone, RomMeasurement } from "../lib/data/data-store.types";
 
 type DayStatus = "complete" | "rest" | "partial" | "missed" | "future";
 
@@ -24,8 +23,8 @@ interface ExerciseItem {
 interface Props {
   date: string | null;
   status: DayStatus | null;
-  milestones: LocalMilestone[];
-  romMeasurement: LocalRomMeasurement | null;
+  milestones: Milestone[];
+  romMeasurement: RomMeasurement | null;
   onClose: () => void;
   onDeleteMilestone: (id: string) => void;
 }

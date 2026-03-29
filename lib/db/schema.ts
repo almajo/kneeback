@@ -8,11 +8,8 @@ export const profile = sqliteTable("profile", {
   surgery_date: text("surgery_date"),
   graft_type: text("graft_type"),
   knee_side: text("knee_side").notNull().default("right"),
-  device_id: text("device_id"),
-  supabase_user_id: text("supabase_user_id"),
-  last_synced_at: text("last_synced_at"),
+  expo_push_token: text("expo_push_token"),
   created_at: text("created_at").default(sql`(datetime('now'))`),
-  updated_at: text("updated_at").default(sql`(datetime('now'))`),
 });
 
 export const exercises = sqliteTable("exercises", {
@@ -51,6 +48,7 @@ export const user_exercises = sqliteTable(
   "user_exercises",
   {
     id: text("id").primaryKey(),
+    user_id: text("user_id"),
     exercise_id: text("exercise_id")
       .notNull()
       .references(() => exercises.id),
@@ -58,19 +56,17 @@ export const user_exercises = sqliteTable(
     reps: integer("reps").notNull().default(10),
     hold_seconds: integer("hold_seconds"),
     sort_order: integer("sort_order").notNull().default(0),
-    created_at: text("created_at").default(sql`(datetime('now'))`),
-    updated_at: text("updated_at").default(sql`(datetime('now'))`),
   },
   (t) => [uniqueIndex("user_exercises_exercise_id_idx").on(t.exercise_id)]
 );
 
 export const daily_logs = sqliteTable("daily_logs", {
   id: text("id").primaryKey(),
+  user_id: text("user_id"),
   date: text("date").notNull().unique(),
   is_rest_day: integer("is_rest_day").notNull().default(0),
   notes: text("notes"),
   created_at: text("created_at").default(sql`(datetime('now'))`),
-  updated_at: text("updated_at").default(sql`(datetime('now'))`),
 });
 
 export const exercise_logs = sqliteTable(
@@ -86,66 +82,60 @@ export const exercise_logs = sqliteTable(
     completed: integer("completed").notNull().default(0),
     actual_sets: integer("actual_sets").notNull().default(0),
     actual_reps: integer("actual_reps").notNull().default(0),
-    created_at: text("created_at").default(sql`(datetime('now'))`),
-    updated_at: text("updated_at").default(sql`(datetime('now'))`),
   },
   (t) => [uniqueIndex("exercise_logs_daily_log_user_exercise_idx").on(t.daily_log_id, t.user_exercise_id)]
 );
 
 export const rom_measurements = sqliteTable("rom_measurements", {
   id: text("id").primaryKey(),
+  user_id: text("user_id"),
   date: text("date").notNull(),
   flexion_degrees: real("flexion_degrees"),
   extension_degrees: real("extension_degrees"),
   quad_activation: integer("quad_activation").notNull().default(0),
-  created_at: text("created_at").default(sql`(datetime('now'))`),
-  updated_at: text("updated_at").default(sql`(datetime('now'))`),
 });
 
 export const milestones = sqliteTable("milestones", {
   id: text("id").primaryKey(),
+  user_id: text("user_id"),
   title: text("title").notNull(),
   category: text("category").notNull().default("milestone"),
   date: text("date").notNull(),
   notes: text("notes"),
   template_key: text("template_key"),
   created_at: text("created_at").default(sql`(datetime('now'))`),
-  updated_at: text("updated_at").default(sql`(datetime('now'))`),
 });
 
 export const user_achievements = sqliteTable("user_achievements", {
   id: text("id").primaryKey(),
+  user_id: text("user_id"),
   content_id: text("content_id")
     .notNull()
     .references(() => content.id),
   unlocked_at: text("unlocked_at").notNull(),
-  created_at: text("created_at").default(sql`(datetime('now'))`),
-  updated_at: text("updated_at").default(sql`(datetime('now'))`),
 });
 
 export const user_gate_criteria = sqliteTable(
   "user_gate_criteria",
   {
     id: text("id").primaryKey(),
+    user_id: text("user_id"),
     gate_key: text("gate_key").notNull(),
     criterion_key: text("criterion_key").notNull(),
     confirmed_at: text("confirmed_at").notNull(),
-    created_at: text("created_at").default(sql`(datetime('now'))`),
-    updated_at: text("updated_at").default(sql`(datetime('now'))`),
   },
   (t) => [uniqueIndex("user_gate_criteria_gate_criterion_idx").on(t.gate_key, t.criterion_key)]
 );
 
 export const notification_preferences = sqliteTable("notification_preferences", {
   id: text("id").primaryKey(),
+  user_id: text("user_id"),
   daily_reminder_time: text("daily_reminder_time").notNull().default("08:00"),
   evening_nudge_enabled: integer("evening_nudge_enabled").notNull().default(0),
   evening_nudge_time: text("evening_nudge_time").notNull().default("20:00"),
   completion_congrats_enabled: integer("completion_congrats_enabled")
     .notNull()
     .default(1),
-  created_at: text("created_at").default(sql`(datetime('now'))`),
-  updated_at: text("updated_at").default(sql`(datetime('now'))`),
 });
 
 // TypeScript inferred types for each table

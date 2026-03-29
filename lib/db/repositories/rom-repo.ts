@@ -1,59 +1,53 @@
-import { eq, and, gte, lte, asc, sql } from "drizzle-orm";
+import { eq, and, gte, lte, asc, desc } from "drizzle-orm";
 import { db } from "../database-context";
 import { rom_measurements } from "../schema";
+import type { RomMeasurement, CreateRomData } from "../../data/data-store.types";
 
-export interface LocalRomMeasurement {
-  id: string;
-  date: string;
-  flexion_degrees: number | null;
-  extension_degrees: number | null;
-  quad_activation: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-function rowToLocalRomMeasurement(
+function rowToRomMeasurement(
   row: typeof rom_measurements.$inferSelect
-): LocalRomMeasurement {
+): RomMeasurement {
   return {
     id: row.id,
     date: row.date,
     flexion_degrees: row.flexion_degrees ?? null,
     extension_degrees: row.extension_degrees ?? null,
     quad_activation: row.quad_activation === 1,
-    created_at: row.created_at ?? "",
-    updated_at: row.updated_at ?? "",
   };
 }
 
-export async function getAllRomMeasurements(): Promise<LocalRomMeasurement[]> {
+export async function getAllRomMeasurements(): Promise<RomMeasurement[]> {
   const rows = await db
     .select()
     .from(rom_measurements)
     .orderBy(asc(rom_measurements.date));
-  return rows.map(rowToLocalRomMeasurement);
+  return rows.map(rowToRomMeasurement);
 }
 
 export async function getRomMeasurementsByDateRange(
   startDate: string,
   endDate: string
-): Promise<LocalRomMeasurement[]> {
+): Promise<RomMeasurement[]> {
   const rows = await db
     .select()
     .from(rom_measurements)
     .where(and(gte(rom_measurements.date, startDate), lte(rom_measurements.date, endDate)))
     .orderBy(asc(rom_measurements.date));
-  return rows.map(rowToLocalRomMeasurement);
+  return rows.map(rowToRomMeasurement);
 }
 
-export type CreateRomMeasurementData = Omit<
-  LocalRomMeasurement,
-  "created_at" | "updated_at"
->;
+export async function getLatestRomMeasurement(): Promise<RomMeasurement | null> {
+  const rows = await db
+    .select()
+    .from(rom_measurements)
+    .orderBy(desc(rom_measurements.date))
+    .limit(1);
+  if (rows.length === 0) return null;
+  return rowToRomMeasurement(rows[0]);
+}
 
 export async function createRomMeasurement(
-  data: CreateRomMeasurementData
-): Promise<LocalRomMeasurement> {
+  data: CreateRomData
+): Promise<RomMeasurement> {
   await db.insert(rom_measurements).values({
     id: data.id,
     date: data.date,
@@ -71,5 +65,5 @@ export async function createRomMeasurement(
     throw new Error("Failed to create ROM measurement");
   }
 
-  return rowToLocalRomMeasurement(rows[0]);
+  return rowToRomMeasurement(rows[0]);
 }

@@ -51,8 +51,8 @@ import {
   getProfile,
   createProfile,
   updateProfile,
-  type LocalProfile,
 } from "../db/repositories/profile-repo";
+import type { Profile } from "../data/data-store.types";
 
 const baseProfileRow = {
   id: "p1",
@@ -61,11 +61,8 @@ const baseProfileRow = {
   surgery_date: null as string | null,
   graft_type: null as string | null,
   knee_side: "right",
-  device_id: "device-123",
-  supabase_user_id: null as string | null,
-  last_synced_at: null as string | null,
+  expo_push_token: null as string | null,
   created_at: "2024-01-01T00:00:00Z",
-  updated_at: "2024-01-01T00:00:00Z",
 };
 
 type SelectChain = Record<string, jest.Mock> & {
@@ -169,9 +166,6 @@ describe("profile-repo", () => {
           surgery_date: null,
           graft_type: null,
           knee_side: "right",
-          device_id: "device-123",
-          supabase_user_id: null,
-          last_synced_at: null,
         })
       ).rejects.toThrow("Failed to create profile");
     });
@@ -192,9 +186,6 @@ describe("profile-repo", () => {
         surgery_date: null,
         graft_type: null,
         knee_side: "right",
-        device_id: "device-123",
-        supabase_user_id: null,
-        last_synced_at: null,
       });
 
       expect(mockInsert).toHaveBeenCalledTimes(1);
@@ -243,13 +234,12 @@ import {
 
 const baseUserExerciseRow = {
   id: "ue1",
+  user_id: null as string | null,
   exercise_id: "ex1",
   sets: 3,
   reps: 10,
   hold_seconds: null as number | null,
   sort_order: 0,
-  created_at: "2024-01-01T00:00:00Z",
-  updated_at: "2024-01-01T00:00:00Z",
 };
 
 describe("user-exercise-repo", () => {
@@ -336,11 +326,11 @@ import {
 
 const baseDailyLogRow = {
   id: "log1",
+  user_id: null as string | null,
   date: "2024-06-01",
   is_rest_day: 0,
   notes: null as string | null,
   created_at: "2024-06-01T00:00:00Z",
-  updated_at: "2024-06-01T00:00:00Z",
 };
 
 describe("daily-log-repo", () => {
@@ -423,8 +413,6 @@ const baseExerciseLogRow = {
   completed: 1,
   actual_sets: 3,
   actual_reps: 10,
-  created_at: "2024-06-01T00:00:00Z",
-  updated_at: "2024-06-01T00:00:00Z",
 };
 
 describe("exercise-log-repo", () => {
@@ -502,13 +490,13 @@ describe("milestone-repo", () => {
     it("parses category field", async () => {
       const row = {
         id: "m1",
+        user_id: null,
         title: "First Steps",
         category: "milestone",
         date: "2024-06-01",
         notes: null,
         template_key: null,
         created_at: "2024-06-01T00:00:00Z",
-        updated_at: "2024-06-01T00:00:00Z",
       };
       setupSelectChain([row]);
 
@@ -538,11 +526,10 @@ import {
 
 const baseGateCriteriaRow = {
   id: "gc1",
+  user_id: null as string | null,
   gate_key: "gate_1",
   criterion_key: "criterion_a",
   confirmed_at: "2024-06-01T00:00:00Z",
-  created_at: "2024-06-01T00:00:00Z",
-  updated_at: "2024-06-01T00:00:00Z",
 };
 
 describe("gate-criteria-repo", () => {
@@ -593,8 +580,6 @@ const baseNotifRow = {
   evening_nudge_enabled: 0,
   evening_nudge_time: "20:00",
   completion_congrats_enabled: 1,
-  created_at: "2024-01-01T00:00:00Z",
-  updated_at: "2024-01-01T00:00:00Z",
 };
 
 describe("notification-repo", () => {

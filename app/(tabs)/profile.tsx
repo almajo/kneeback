@@ -15,24 +15,13 @@ import { useRouter } from "expo-router";
 import { useAuth } from "../../lib/auth-context";
 import { registerForPushNotifications, scheduleDailyReminder } from "../../lib/notifications";
 import { Colors } from "../../constants/colors";
-import { getProfile, updateProfile } from "../../lib/db/repositories/profile-repo";
-import {
-  getNotificationPreferences,
-  createOrUpdateNotificationPreferences,
-} from "../../lib/db/repositories/notification-repo";
-import { getAllMilestones } from "../../lib/db/repositories/milestone-repo";
-import { getAllRomMeasurements } from "../../lib/db/repositories/rom-repo";
-import { getUnlockedAchievements } from "../../lib/db/repositories/achievement-repo";
-import type { LocalProfile } from "../../lib/db/repositories/profile-repo";
-import type { LocalNotificationPreferences } from "../../lib/db/repositories/notification-repo";
+import { useDataStore } from "../../lib/data/data-store-context";
+import type { Profile, NotificationPreferences } from "../../lib/data/data-store.types";
 import type { GraftType } from "../../lib/types";
 import { PrivacyPolicyModal } from "../../components/PrivacyPolicyModal";
 import { AuthModal } from "../../components/AuthModal";
 import { DeleteAccountModal } from "../../components/DeleteAccountModal";
-import { pushAll, pullAll, deltaSync, deleteRemoteUserData } from "../../lib/db/sync/sync-engine";
 import { purgeAllUserData } from "../../lib/db/purge-user-data";
-import { DataConflictModal } from "../../components/DataConflictModal";
-import { detectLocalData, detectCloudData } from "../../lib/db/sync/data-detection";
 
 const GRAFT_TYPE_OPTIONS: { value: GraftType; label: string }[] = [
   { value: "patellar", label: "Patellar Tendon" },
@@ -47,9 +36,10 @@ function pad(n: number) {
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const store = useDataStore();
   const { session, signOut } = useAuth();
-  const [profile, setProfile] = useState<LocalProfile | null>(null);
-  const [notifPrefs, setNotifPrefs] = useState<LocalNotificationPreferences | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingNotif, setSavingNotif] = useState(false);
   const [editingReminder, setEditingReminder] = useState(false);
@@ -68,19 +58,13 @@ export default function ProfileScreen() {
     d.setHours(8, 0, 0, 0);
     return d;
   });
-  // Cloud Sync state
   const [authModalVisible, setAuthModalVisible] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const [syncError, setSyncError] = useState<string | null>(null);
-  const [conflictModalVisible, setConflictModalVisible] = useState(false);
-  const [conflictUserId, setConflictUserId] = useState<string | null>(null);
-  const [conflictLoading, setConflictLoading] = useState(false);
 
   useEffect(() => {
     async function loadData() {
-      const prof = await getProfile();
+      const prof = await store.getProfile();
       setProfile(prof);
-      const prefs = await getNotificationPreferences();
+      const prefs = await store.getNotificationPreferences();
       setNotifPrefs(prefs);
       if (prefs?.daily_reminder_time) {
         const [h, m] = prefs.daily_reminder_time.split(":").map(Number);
@@ -90,21 +74,19 @@ export default function ProfileScreen() {
         d.setHours(h, m, 0, 0);
         setReminderDate(d);
         // Schedule push notification if we have a push token
-        if (prof?.device_id) {
-          registerForPushNotifications(prof.device_id).then(() =>
-            scheduleDailyReminder(h, m)
-          );
-        }
+        registerForPushNotifications(session?.user.id ?? null).then(() =>
+          scheduleDailyReminder(h, m)
+        );
       }
       setLoading(false);
     }
     loadData();
-  }, []);
+  }, [store, session]);
 
   async function toggleEveningNudge(value: boolean) {
     if (!notifPrefs) return;
     setSavingNotif(true);
-    const updated = await createOrUpdateNotificationPreferences({
+    const updated = await store.createOrUpdateNotificationPreferences({
       evening_nudge_enabled: value,
     });
     setNotifPrefs(updated);
@@ -115,7 +97,7 @@ export default function ProfileScreen() {
     if (!notifPrefs) return;
     setSavingNotif(true);
     const timeStr = `${pad(h)}:${pad(m)}`;
-    const updated = await createOrUpdateNotificationPreferences({
+    const updated = await store.createOrUpdateNotificationPreferences({
       daily_reminder_time: timeStr,
     });
     setNotifPrefs(updated);
@@ -125,9 +107,9 @@ export default function ProfileScreen() {
   }
 
   async function handleExportData() {
-    const milestones = await getAllMilestones();
-    const roms = await getAllRomMeasurements();
-    const achievements = await getUnlockedAchievements();
+    const milestones = await store.getAllMilestones();
+    const roms = await store.getAllRomMeasurements();
+    const achievements = await store.getAchievements();
 
     const exportData = {
       profile,
@@ -146,7 +128,7 @@ export default function ProfileScreen() {
   async function saveGraftType(graftType: GraftType) {
     if (!profile) return;
     setSavingGraftType(true);
-    const updated = await updateProfile({ graft_type: graftType });
+    const updated = await store.updateProfile({ graft_type: graftType });
     setProfile(updated);
     setEditingGraftType(false);
     setSavingGraftType(false);
@@ -156,7 +138,7 @@ export default function ProfileScreen() {
     if (!profile) return;
     setSavingSurgeryDate(true);
     const dateStr = date.toISOString().split("T")[0];
-    const updated = await updateProfile({ surgery_date: dateStr });
+    const updated = await store.updateProfile({ surgery_date: dateStr });
     setProfile(updated);
     setEditingSurgeryDate(false);
     setSavingSurgeryDate(false);
@@ -185,125 +167,6 @@ export default function ProfileScreen() {
       setDeleting(false);
       setDeleteModalVisible(false);
     }
-  }
-
-  async function confirmDeleteAccount() {
-    setDeleting(true);
-    try {
-      if (session?.user.id) {
-        await deleteRemoteUserData(session.user.id);
-      }
-      try {
-        await signOut();
-      } catch (err) {
-        console.error("[confirmDeleteAccount] signOut error:", err);
-      }
-      await purgeAllUserData();
-      router.replace("/(intro)");
-    } catch (err) {
-      console.error("[confirmDeleteAccount] error:", err);
-      setDeleting(false);
-      setDeleteModalVisible(false);
-    }
-  }
-
-  async function handleAuthSuccess(userId: string) {
-    setAuthModalVisible(false);
-
-    const hasLocalData = await detectLocalData();
-    const hasCloudData = await detectCloudData(userId);
-
-    if (hasLocalData && hasCloudData) {
-      // Both sides have data — let the user choose
-      setConflictUserId(userId);
-      setConflictModalVisible(true);
-      return;
-    }
-
-    // No conflict: push local data up, or pull cloud data down
-    if (hasLocalData) {
-      const push = await pushAll(userId);
-      if (push.error) {
-        setSyncError(`Signed in but sync failed: ${push.error}`);
-        return;
-      }
-    } else {
-      const pull = await pullAll(userId);
-      if (pull.error) {
-        setSyncError(`Signed in but sync failed: ${pull.error}`);
-        return;
-      }
-    }
-
-    const now = new Date().toISOString();
-    const updated = await updateProfile({ supabase_user_id: userId, last_synced_at: now });
-    setProfile(updated);
-  }
-
-  async function handleUseCloudData() {
-    if (!conflictUserId) return;
-    setConflictLoading(true);
-    try {
-      // Purge local data first so the pull is a clean replace, not a merge
-      await purgeAllUserData();
-      const pull = await pullAll(conflictUserId);
-      if (pull.error) {
-        setSyncError(`Sync failed: ${pull.error}`);
-        return;
-      }
-      const now = new Date().toISOString();
-      const existingProfile = await getProfile();
-      if (existingProfile) {
-        const updated = await updateProfile({ supabase_user_id: conflictUserId, last_synced_at: now });
-        setProfile(updated);
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      setSyncError(`Sync failed: ${message}`);
-    } finally {
-      setConflictLoading(false);
-      setConflictModalVisible(false);
-      setConflictUserId(null);
-    }
-  }
-
-  async function handleKeepLocalData() {
-    if (!conflictUserId) return;
-    setConflictLoading(true);
-    try {
-      const push = await pushAll(conflictUserId);
-      if (push.error) {
-        setSyncError(`Sync failed: ${push.error}`);
-        return;
-      }
-      const now = new Date().toISOString();
-      const updated = await updateProfile({ supabase_user_id: conflictUserId, last_synced_at: now });
-      setProfile(updated);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      setSyncError(`Sync failed: ${message}`);
-    } finally {
-      setConflictLoading(false);
-      setConflictModalVisible(false);
-      setConflictUserId(null);
-    }
-  }
-
-  async function handleSyncNow() {
-    if (!session?.user.id) return;
-    setSyncing(true);
-    setSyncError(null);
-
-    const lastSyncedAt = profile?.last_synced_at ?? new Date(0).toISOString();
-    const result = await deltaSync(session.user.id, lastSyncedAt);
-
-    if (result.error) {
-      setSyncError(result.error);
-    } else {
-      setProfile(await getProfile());
-    }
-
-    setSyncing(false);
   }
 
   function surgeryDateLabel(dateStr: string): string {
@@ -654,16 +517,15 @@ export default function ProfileScreen() {
         </View>
       )}
 
-      {/* Cloud Sync */}
+      {/* Account */}
       <View className="bg-surface border border-border rounded-2xl p-4 mb-4">
         <Text className="text-base font-semibold mb-1" style={{ color: "#2D2D2D" }}>
-          Cloud Sync
+          Account
         </Text>
-
         {session === null ? (
           <>
             <Text className="text-sm mb-4" style={{ color: "#6B6B6B" }}>
-              Sync your recovery data across devices with a free account.
+              Sign in to back up your recovery data and access it across devices.
             </Text>
             <TouchableOpacity
               className="bg-primary rounded-xl py-3 items-center"
@@ -673,40 +535,12 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </>
         ) : (
-          <>
-            <View className="flex-row items-center mb-3">
-              <Ionicons name="cloud-done-outline" size={16} color={Colors.secondary} />
-              <Text className="ml-2 text-sm font-medium" style={{ color: Colors.secondary }}>
-                {session.user.email}
-              </Text>
-            </View>
-            {profile?.last_synced_at ? (
-              <Text className="text-xs mb-3" style={{ color: "#A0A0A0" }}>
-                Last synced:{" "}
-                {new Date(profile.last_synced_at).toLocaleString()}
-              </Text>
-            ) : (
-              <Text className="text-xs mb-3" style={{ color: "#A0A0A0" }}>
-                Never synced
-              </Text>
-            )}
-            {syncError && (
-              <Text className="text-xs mb-3" style={{ color: Colors.error }}>
-                {syncError}
-              </Text>
-            )}
-            <TouchableOpacity
-              className={`bg-primary rounded-xl py-3 items-center ${syncing ? "opacity-50" : ""}`}
-              onPress={handleSyncNow}
-              disabled={syncing}
-            >
-              {syncing ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text className="text-white font-semibold">Sync Now</Text>
-              )}
-            </TouchableOpacity>
-          </>
+          <View className="flex-row items-center">
+            <Ionicons name="person-circle-outline" size={16} color={Colors.secondary} />
+            <Text className="ml-2 text-sm font-medium" style={{ color: Colors.secondary }}>
+              {session.user.email}
+            </Text>
+          </View>
         )}
       </View>
 
@@ -746,23 +580,15 @@ export default function ProfileScreen() {
       <AuthModal
         visible={authModalVisible}
         onClose={() => setAuthModalVisible(false)}
-        onSuccess={handleAuthSuccess}
+        onSuccess={(_userId: string) => setAuthModalVisible(false)}
       />
 
       <DeleteAccountModal
         visible={deleteModalVisible}
         onClose={() => setDeleteModalVisible(false)}
-        onConfirm={session ? confirmDeleteAccount : confirmResetApp}
+        onConfirm={confirmResetApp}
         deleting={deleting}
         mode={session ? "delete" : "reset"}
-      />
-
-      <DataConflictModal
-        visible={conflictModalVisible}
-        onUseCloud={handleUseCloudData}
-        onKeepLocal={handleKeepLocalData}
-        loading={conflictLoading}
-        onDismiss={() => { if (!conflictLoading) { setConflictModalVisible(false); setConflictUserId(null); } }}
       />
     </ScrollView>
   );

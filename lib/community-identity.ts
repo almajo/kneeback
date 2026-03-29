@@ -1,5 +1,5 @@
 import { getDeviceId } from "./device-identity";
-import type { LocalProfile } from "./db/repositories/profile-repo";
+import type { Profile } from "./data/data-store.types";
 
 export interface CommunityIdentity {
   deviceId: string;
@@ -8,7 +8,7 @@ export interface CommunityIdentity {
 }
 
 export async function getCommunityIdentity(
-  profile: LocalProfile | null
+  profile: Profile | null
 ): Promise<CommunityIdentity> {
   const deviceId = await getDeviceId();
   const animalName = profile?.username ?? "Anonymous";

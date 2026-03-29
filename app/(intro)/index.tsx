@@ -15,11 +15,7 @@ import {
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AuthModal } from "../../components/AuthModal";
-import { DataConflictModal } from "../../components/DataConflictModal";
-import { pushAll, pullAll } from "../../lib/db/sync/sync-engine";
-import { detectLocalData, detectCloudData } from "../../lib/db/sync/data-detection";
-import { updateProfile } from "../../lib/db/repositories/profile-repo";
-import { purgeAllUserData } from "../../lib/db/purge-user-data";
+import { supabase } from "../../lib/supabase";
 
 const SLIDES = [
   {
@@ -63,12 +59,8 @@ export default function IntroScreen() {
   const startIndexRef = useRef(0);
   const isProgrammaticScrollRef = useRef(false);
 
-  // Auth / sync state
   const [authModalVisible, setAuthModalVisible] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [conflictModalVisible, setConflictModalVisible] = useState(false);
-  const [conflictUserId, setConflictUserId] = useState<string | null>(null);
-  const [conflictLoading, setConflictLoading] = useState(false);
 
   const handleScrollBeginDrag = useCallback(() => {
     startIndexRef.current = currentIndex;
@@ -154,81 +146,21 @@ export default function IntroScreen() {
     setSyncing(true);
 
     try {
-      const [hasLocalData, hasCloudData] = await Promise.all([
-        detectLocalData(),
-        detectCloudData(userId),
-      ]);
-
-      if (hasLocalData && hasCloudData) {
-        setConflictUserId(userId);
-        setConflictModalVisible(true);
-        return;
-      }
-
-      const now = new Date().toISOString();
-
-      if (hasLocalData) {
-        const push = await pushAll(userId);
-        if (push.error) {
-          console.error("[intro/handleAuthSuccess] push failed:", push.error);
-        }
-        await updateProfile({ supabase_user_id: userId, last_synced_at: now });
-        await completeIntro();
-        router.replace("/(onboarding)/surgery-details");
-      } else if (hasCloudData) {
-        const pull = await pullAll(userId);
-        if (pull.error) {
-          console.error("[intro/handleAuthSuccess] pull failed:", pull.error);
-        }
-        await updateProfile({ supabase_user_id: userId, last_synced_at: now });
-        await completeIntro();
+      await completeIntro();
+      // Query Supabase directly — DataStoreProvider hasn't switched to RemoteDataStore yet
+      // at this point in the render cycle, so using the store here would read stale LocalDataStore.
+      const { data } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", userId)
+        .maybeSingle();
+      if (data) {
         router.replace("/(tabs)/today");
       } else {
-        // New account, no data on either side — continue to onboarding
-        await completeIntro();
         router.replace("/(onboarding)/surgery-details");
       }
     } finally {
       setSyncing(false);
-    }
-  }
-
-  async function handleUseCloudData() {
-    if (!conflictUserId) return;
-    setConflictLoading(true);
-    try {
-      await purgeAllUserData();
-      const pull = await pullAll(conflictUserId);
-      if (pull.error) {
-        console.error("[intro/handleUseCloudData] pull failed:", pull.error);
-      }
-      const now = new Date().toISOString();
-      await updateProfile({ supabase_user_id: conflictUserId, last_synced_at: now });
-      await completeIntro();
-      router.replace("/(tabs)/today");
-    } finally {
-      setConflictLoading(false);
-      setConflictModalVisible(false);
-      setConflictUserId(null);
-    }
-  }
-
-  async function handleKeepLocalData() {
-    if (!conflictUserId) return;
-    setConflictLoading(true);
-    try {
-      const push = await pushAll(conflictUserId);
-      if (push.error) {
-        console.error("[intro/handleKeepLocalData] push failed:", push.error);
-      }
-      const now = new Date().toISOString();
-      await updateProfile({ supabase_user_id: conflictUserId, last_synced_at: now });
-      await completeIntro();
-      router.replace("/(onboarding)/surgery-details");
-    } finally {
-      setConflictLoading(false);
-      setConflictModalVisible(false);
-      setConflictUserId(null);
     }
   }
 
@@ -311,17 +243,6 @@ export default function IntroScreen() {
         visible={authModalVisible}
         onClose={() => setAuthModalVisible(false)}
         onSuccess={handleAuthSuccess}
-      />
-      <DataConflictModal
-        visible={conflictModalVisible}
-        onUseCloud={handleUseCloudData}
-        onKeepLocal={handleKeepLocalData}
-        loading={conflictLoading}
-        onDismiss={() => {
-          setConflictModalVisible(false);
-          setConflictUserId(null);
-          setSyncing(false);
-        }}
       />
     </View>
   );

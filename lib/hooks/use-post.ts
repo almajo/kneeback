@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../supabase";
-import { getProfile } from "../db/repositories/profile-repo";
+import { useDataStore } from "../data/data-store-context";
 import { getCommunityIdentity } from "../community-identity";
 import type { CommunityPost, CommunityComment } from "../types";
 
 export function usePost(postId: string) {
+  const store = useDataStore();
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [post, setPost] = useState<CommunityPost | null>(null);
   const [comments, setComments] = useState<CommunityComment[]>([]);
@@ -104,7 +105,7 @@ export function usePost(postId: string) {
   async function addComment(body: string) {
     if (!deviceId || !postId || !body.trim()) return;
 
-    const profile = await getProfile();
+    const profile = await store.getProfile();
     const identity = await getCommunityIdentity(profile);
 
     const optimistic: CommunityComment = {

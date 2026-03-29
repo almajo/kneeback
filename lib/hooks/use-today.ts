@@ -1,22 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
-import { getProfile } from "../db/repositories/profile-repo";
-import { getAllUserExercises } from "../db/repositories/user-exercise-repo";
-import { getOrCreateDailyLog } from "../db/repositories/daily-log-repo";
-import { getExerciseLogsByDailyLogId } from "../db/repositories/exercise-log-repo";
+import { useDataStore, useCatalogStore } from "../data/data-store-context";
 import { getStreak } from "../achievements";
-import { getAllContent } from "../db/repositories/content-repo";
-import type { LocalUserExercise } from "../db/repositories/user-exercise-repo";
-import type { LocalDailyLog } from "../db/repositories/daily-log-repo";
-import type { LocalExerciseLog } from "../db/repositories/exercise-log-repo";
+import type { UserExercise, DailyLog, ExerciseLog } from "../data/data-store.types";
 import type { Content } from "../types";
 
 export type SurgeryStatus = "no_date" | "pre_surgery" | "post_surgery";
 
 export function useToday() {
+  const store = useDataStore();
+  const catalog = useCatalogStore();
   const [profile, setProfile] = useState<{ surgery_date: string | null } | null>(null);
-  const [userExercises, setUserExercises] = useState<LocalUserExercise[]>([]);
-  const [dailyLog, setDailyLog] = useState<LocalDailyLog | null>(null);
-  const [exerciseLogs, setExerciseLogs] = useState<LocalExerciseLog[]>([]);
+  const [userExercises, setUserExercises] = useState<UserExercise[]>([]);
+  const [dailyLog, setDailyLog] = useState<DailyLog | null>(null);
+  const [exerciseLogs, setExerciseLogs] = useState<ExerciseLog[]>([]);
   const [dailyMessage, setDailyMessage] = useState<Content | null>(null);
   const [streak, setStreak] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -26,30 +22,43 @@ export function useToday() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
 
-    const prof = await getProfile();
+    const prof = await store.getProfile();
     setProfile(prof ? { surgery_date: prof.surgery_date } : null);
 
-    const exercises = await getAllUserExercises();
-    setUserExercises(exercises);
+    const exercises = await store.getAllUserExercises();
+    // RemoteDataStore now joins exercise data from Supabase directly.
+    // For LocalDataStore, fall back to local catalog lookup for any exercises missing the join.
+    const missingJoin = exercises.some((ue) => !ue.exercise);
+    if (missingJoin) {
+      const allCatalogExercises = await catalog.getAllExercises();
+      const exerciseMap = new Map(allCatalogExercises.map((e) => [e.id, e]));
+      setUserExercises(exercises.map((ue) => ({
+        ...ue,
+        exercise: ue.exercise ?? exerciseMap.get(ue.exercise_id),
+      })));
+    } else {
+      setUserExercises(exercises);
+    }
 
-    const log = await getOrCreateDailyLog(today);
+    const log = await store.getOrCreateDailyLog(today);
     setDailyLog(log);
 
-    const logs = await getExerciseLogsByDailyLogId(log.id);
+    const logs = await store.getExerciseLogsByDailyLogId(log.id);
     setExerciseLogs(logs);
 
-    const messages = await getAllContent("daily_message");
+    const allContent = await catalog.getAllContent();
+    const messages = allContent.filter((c) => c.type === "daily_message");
     if (messages.length > 0) {
       const dayIndex =
         Math.floor(new Date(today).getTime() / 86400000) % messages.length;
       setDailyMessage(messages[dayIndex]);
     }
 
-    const currentStreak = await getStreak();
+    const currentStreak = await getStreak(store);
     setStreak(currentStreak);
 
     setLoading(false);
-  }, [today]);
+  }, [store, catalog, today]);
 
   useEffect(() => {
     fetchAll();
@@ -76,7 +85,7 @@ export function useToday() {
 
   const weekNumber = Math.floor(daysSinceSurgery / 7) + 1;
 
-  function updateUserExercise(updated: LocalUserExercise) {
+  function updateUserExercise(updated: UserExercise) {
     setUserExercises((prev) =>
       prev.map((ue) => (ue.id === updated.id ? updated : ue))
     );

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, Text, TextInput, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { getAllExercises } from '../../lib/db/repositories/exercise-repo';
+import { useCatalogStore } from '../../lib/data/data-store-context';
 import { useOnboarding } from '../../lib/onboarding-context';
 import { ExerciseStepper } from '../../components/ExerciseStepper';
 import { MuscleTag } from '../../components/MuscleTag';
@@ -20,6 +20,7 @@ import type { SurgeryStatus } from '../../lib/hooks/use-today';
 
 export default function PickExercises() {
   const router = useRouter();
+  const catalog = useCatalogStore();
   const { data, toggleExercise, isSelected, updateExerciseValues } = useOnboarding();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +39,7 @@ export default function PickExercises() {
   const currentPhase = getPhaseFromDays(daysSinceSurgery, surgeryStatus);
 
   useEffect(() => {
-    getAllExercises().then((all) => {
+    catalog.getAllExercises().then((all) => {
       setExercises(all);
       setLoading(false);
     });

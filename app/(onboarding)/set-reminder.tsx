@@ -2,10 +2,7 @@ import { useState } from "react";
 import { View, Text, TouchableOpacity, Switch, Alert, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { useOnboarding } from "../../lib/onboarding-context";
-import { createProfile } from "../../lib/db/repositories/profile-repo";
-import { createUserExercise } from "../../lib/db/repositories/user-exercise-repo";
-import { createOrUpdateNotificationPreferences } from "../../lib/db/repositories/notification-repo";
-import { getDeviceId } from "../../lib/device-identity";
+import { useDataStore } from "../../lib/data/data-store-context";
 import { generateId } from "../../lib/utils/uuid";
 import { registerForPushNotifications, scheduleDailyReminder } from "../../lib/notifications";
 import { Colors } from "../../constants/colors";
@@ -18,6 +15,7 @@ function pad(n: number) {
 
 export default function SetReminder() {
   const router = useRouter();
+  const store = useDataStore();
   const { data } = useOnboarding();
   const [hour, setHour] = useState(data.reminderHour);
   const [minute, setMinute] = useState(data.reminderMinute);
@@ -28,25 +26,20 @@ export default function SetReminder() {
     setSaving(true);
 
     try {
-      const deviceId = await getDeviceId();
-
-      // Create local profile (single row)
-      await createProfile({
+      // Create profile
+      await store.createProfile({
         id: generateId(),
         name: data.name,
         username: data.username,
         surgery_date: data.surgeryDate,
         graft_type: data.graftType,
         knee_side: data.kneeSide!,
-        device_id: deviceId,
-        supabase_user_id: null,
-        last_synced_at: null,
       });
 
       // Create user exercises
       for (let i = 0; i < data.selectedExercises.length; i++) {
         const ex = data.selectedExercises[i];
-        await createUserExercise({
+        await store.createUserExercise({
           id: generateId(),
           exercise_id: ex.exerciseId,
           sets: ex.sets,
@@ -57,7 +50,7 @@ export default function SetReminder() {
       }
 
       // Create notification preferences
-      await createOrUpdateNotificationPreferences({
+      await store.createOrUpdateNotificationPreferences({
         daily_reminder_time: `${pad(hour)}:${pad(minute)}`,
         evening_nudge_enabled: eveningNudge,
         evening_nudge_time: "20:00",
