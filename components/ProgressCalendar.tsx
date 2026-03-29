@@ -8,9 +8,7 @@ import {
   View,
 } from "react-native";
 import { Colors } from "../constants/colors";
-import type { LocalMilestone } from "../lib/db/repositories/milestone-repo";
-import type { LocalRomMeasurement } from "../lib/db/repositories/rom-repo";
-import type { DataStore } from "../lib/data/data-store.types";
+import type { DataStore, Milestone, RomMeasurement } from "../lib/data/data-store.types";
 import { AddMilestoneSheet } from "./AddMilestoneSheet";
 import { DayDetailSheet } from "./DayDetailSheet";
 
@@ -23,8 +21,8 @@ interface HeatmapDay {
 
 interface Props {
   store: DataStore;
-  milestones: LocalMilestone[];
-  measurements: LocalRomMeasurement[];
+  milestones: Milestone[];
+  measurements: RomMeasurement[];
   onSaveMilestone: (payload: {
     title: string;
     category: "milestone" | "win";

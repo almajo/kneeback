@@ -2,45 +2,36 @@ import { eq, desc } from "drizzle-orm";
 import { db } from "../database-context";
 import { user_achievements } from "../schema";
 import { generateId } from "../../utils/uuid";
+import type { UserAchievement } from "../../data/data-store.types";
 
-export interface LocalUserAchievement {
-  id: string;
-  content_id: string;
-  unlocked_at: string;
-  created_at: string;
-  updated_at: string;
-}
-
-function rowToLocalUserAchievement(
+function rowToUserAchievement(
   row: typeof user_achievements.$inferSelect
-): LocalUserAchievement {
+): UserAchievement {
   return {
     id: row.id,
     content_id: row.content_id,
     unlocked_at: row.unlocked_at,
-    created_at: row.created_at ?? "",
-    updated_at: row.updated_at ?? "",
   };
 }
 
-export async function getUnlockedAchievements(): Promise<LocalUserAchievement[]> {
+export async function getUnlockedAchievements(): Promise<UserAchievement[]> {
   const rows = await db
     .select()
     .from(user_achievements)
     .orderBy(desc(user_achievements.unlocked_at));
-  return rows.map(rowToLocalUserAchievement);
+  return rows.map(rowToUserAchievement);
 }
 
 export async function unlockAchievement(
   contentId: string
-): Promise<LocalUserAchievement> {
+): Promise<UserAchievement> {
   const existing = await db
     .select()
     .from(user_achievements)
     .where(eq(user_achievements.content_id, contentId));
 
   if (existing.length > 0) {
-    return rowToLocalUserAchievement(existing[0]);
+    return rowToUserAchievement(existing[0]);
   }
 
   const id = generateId();
@@ -61,5 +52,5 @@ export async function unlockAchievement(
     throw new Error("Failed to unlock achievement");
   }
 
-  return rowToLocalUserAchievement(created[0]);
+  return rowToUserAchievement(created[0]);
 }

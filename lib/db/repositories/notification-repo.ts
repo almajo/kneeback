@@ -1,15 +1,6 @@
 import { db } from "../database-context";
 import { generateId } from "../../utils/uuid";
-
-export interface LocalNotificationPreferences {
-  id: string;
-  daily_reminder_time: string;
-  evening_nudge_enabled: boolean;
-  evening_nudge_time: string;
-  completion_congrats_enabled: boolean;
-  created_at: string;
-  updated_at: string;
-}
+import type { NotificationPreferences, NotificationPrefsData } from "../../data/data-store.types";
 
 interface NotificationPreferencesRow {
   id: string;
@@ -17,39 +8,31 @@ interface NotificationPreferencesRow {
   evening_nudge_enabled: number;
   evening_nudge_time: string;
   completion_congrats_enabled: number;
-  created_at: string | null;
-  updated_at: string | null;
 }
 
-function rowToLocalNotificationPreferences(
+function rowToNotificationPreferences(
   row: NotificationPreferencesRow
-): LocalNotificationPreferences {
+): NotificationPreferences {
   return {
     id: row.id,
     daily_reminder_time: row.daily_reminder_time,
     evening_nudge_enabled: row.evening_nudge_enabled === 1,
     evening_nudge_time: row.evening_nudge_time,
     completion_congrats_enabled: row.completion_congrats_enabled === 1,
-    created_at: row.created_at ?? "",
-    updated_at: row.updated_at ?? "",
   };
 }
 
-export async function getNotificationPreferences(): Promise<LocalNotificationPreferences | null> {
+export async function getNotificationPreferences(): Promise<NotificationPreferences | null> {
   const row = await db.$client.getFirstAsync<NotificationPreferencesRow>(
     "SELECT * FROM notification_preferences LIMIT 1"
   );
   if (!row) return null;
-  return rowToLocalNotificationPreferences(row);
+  return rowToNotificationPreferences(row);
 }
 
-export type NotificationPreferencesData = Partial<
-  Omit<LocalNotificationPreferences, "id" | "created_at" | "updated_at">
->;
-
 export async function createOrUpdateNotificationPreferences(
-  data: NotificationPreferencesData
-): Promise<LocalNotificationPreferences> {
+  data: NotificationPrefsData
+): Promise<NotificationPreferences> {
   const expo = db.$client;
   const existing = await expo.getFirstAsync<{ id: string }>(
     "SELECT id FROM notification_preferences LIMIT 1"
@@ -77,7 +60,6 @@ export async function createOrUpdateNotificationPreferences(
     }
 
     if (setClauses.length > 0) {
-      setClauses.push("updated_at = datetime('now')");
       values.push(existing.id);
       await expo.runAsync(
         `UPDATE notification_preferences SET ${setClauses.join(", ")} WHERE id = ?`,
@@ -90,7 +72,7 @@ export async function createOrUpdateNotificationPreferences(
       [existing.id]
     );
     if (!updated) throw new Error("Failed to update notification preferences");
-    return rowToLocalNotificationPreferences(updated);
+    return rowToNotificationPreferences(updated);
   }
 
   const id = generateId();
@@ -111,5 +93,5 @@ export async function createOrUpdateNotificationPreferences(
     [id]
   );
   if (!created) throw new Error("Failed to create notification preferences");
-  return rowToLocalNotificationPreferences(created);
+  return rowToNotificationPreferences(created);
 }

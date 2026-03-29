@@ -113,7 +113,7 @@ export function useCommunity() {
   async function createPost(input: CreatePostInput) {
     if (!deviceId) return;
     const profile = await store.getProfile();
-    const identity = await getCommunityIdentity(profile as any);
+    const identity = await getCommunityIdentity(profile);
 
     const optimistic: CommunityPost = {
       id: `optimistic-${Date.now()}`,

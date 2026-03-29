@@ -74,14 +74,14 @@ export default function ProfileScreen() {
         d.setHours(h, m, 0, 0);
         setReminderDate(d);
         // Schedule push notification if we have a push token
-        registerForPushNotifications(null).then(() =>
+        registerForPushNotifications(session?.user.id ?? null).then(() =>
           scheduleDailyReminder(h, m)
         );
       }
       setLoading(false);
     }
     loadData();
-  }, []);
+  }, [store, session]);
 
   async function toggleEveningNudge(value: boolean) {
     if (!notifPrefs) return;

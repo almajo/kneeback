@@ -235,9 +235,40 @@ export class RemoteDataStore implements DataStore {
   }
 
   async createUserExercise(data: CreateUserExerciseData): Promise<UserExercise> {
+    // Check if this user already has this exercise — preserve existing row's PK
+    // to avoid breaking exercise_logs FK references.
+    const { data: existing, error: selectError } = await supabase
+      .from("user_exercises")
+      .select("*")
+      .eq("user_id", this.userId)
+      .eq("exercise_id", data.exercise_id)
+      .maybeSingle();
+
+    if (selectError) {
+      throw new Error(`RemoteDataStore.createUserExercise failed: ${selectError.message}`);
+    }
+
+    if (existing) {
+      const { data: row, error } = await supabase
+        .from("user_exercises")
+        .update({
+          sets: data.sets,
+          reps: data.reps,
+          hold_seconds: data.hold_seconds ?? null,
+          sort_order: data.sort_order,
+        })
+        .eq("id", existing.id)
+        .eq("user_id", this.userId)
+        .select()
+        .single();
+
+      if (error) throw new Error(`RemoteDataStore.createUserExercise failed: ${error.message}`);
+      return dbToUserExercise(row);
+    }
+
     const { data: row, error } = await supabase
       .from("user_exercises")
-      .upsert({
+      .insert({
         id: data.id,
         user_id: this.userId,
         exercise_id: data.exercise_id,
@@ -245,7 +276,7 @@ export class RemoteDataStore implements DataStore {
         reps: data.reps,
         hold_seconds: data.hold_seconds ?? null,
         sort_order: data.sort_order,
-      }, { onConflict: "exercise_id" })
+      })
       .select()
       .single();
 
@@ -441,6 +472,20 @@ export class RemoteDataStore implements DataStore {
 
     if (error) throw new Error(`RemoteDataStore.getRomMeasurementsByDateRange failed: ${error.message}`);
     return (data ?? []).map(dbToRomMeasurement);
+  }
+
+  async getLatestRomMeasurement(): Promise<RomMeasurement | null> {
+    const { data, error } = await supabase
+      .from("rom_measurements")
+      .select("*")
+      .eq("user_id", this.userId)
+      .order("date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw new Error(`RemoteDataStore.getLatestRomMeasurement failed: ${error.message}`);
+    if (!data) return null;
+    return dbToRomMeasurement(data);
   }
 
   async createRomMeasurement(data: CreateRomData): Promise<RomMeasurement> {

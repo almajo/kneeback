@@ -2,52 +2,42 @@ import { eq, and, asc } from "drizzle-orm";
 import { db } from "../database-context";
 import { user_gate_criteria } from "../schema";
 import { generateId } from "../../utils/uuid";
+import type { GateCriterion } from "../../data/data-store.types";
 
-export interface LocalUserGateCriterion {
-  id: string;
-  gate_key: string;
-  criterion_key: string;
-  confirmed_at: string;
-  created_at: string;
-  updated_at: string;
-}
-
-function rowToLocalUserGateCriterion(
+function rowToGateCriterion(
   row: typeof user_gate_criteria.$inferSelect
-): LocalUserGateCriterion {
+): GateCriterion {
   return {
     id: row.id,
     gate_key: row.gate_key,
     criterion_key: row.criterion_key,
     confirmed_at: row.confirmed_at,
-    created_at: row.created_at ?? "",
-    updated_at: row.updated_at ?? "",
   };
 }
 
-export async function getAllGateCriteria(): Promise<LocalUserGateCriterion[]> {
+export async function getAllGateCriteria(): Promise<GateCriterion[]> {
   const rows = await db
     .select()
     .from(user_gate_criteria)
     .orderBy(asc(user_gate_criteria.confirmed_at));
-  return rows.map(rowToLocalUserGateCriterion);
+  return rows.map(rowToGateCriterion);
 }
 
 export async function getGateCriteriaByGate(
   gateKey: string
-): Promise<LocalUserGateCriterion[]> {
+): Promise<GateCriterion[]> {
   const rows = await db
     .select()
     .from(user_gate_criteria)
     .where(eq(user_gate_criteria.gate_key, gateKey))
     .orderBy(asc(user_gate_criteria.confirmed_at));
-  return rows.map(rowToLocalUserGateCriterion);
+  return rows.map(rowToGateCriterion);
 }
 
 export async function confirmGateCriterion(
   gateKey: string,
   criterionKey: string
-): Promise<LocalUserGateCriterion> {
+): Promise<GateCriterion> {
   const existing = await db
     .select()
     .from(user_gate_criteria)
@@ -59,7 +49,7 @@ export async function confirmGateCriterion(
     );
 
   if (existing.length > 0) {
-    return rowToLocalUserGateCriterion(existing[0]);
+    return rowToGateCriterion(existing[0]);
   }
 
   const id = generateId();
@@ -81,7 +71,7 @@ export async function confirmGateCriterion(
     throw new Error(`Failed to confirm gate criterion: ${gateKey}/${criterionKey}`);
   }
 
-  return rowToLocalUserGateCriterion(created[0]);
+  return rowToGateCriterion(created[0]);
 }
 
 export async function removeGateCriterion(

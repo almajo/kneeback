@@ -15,12 +15,10 @@ export interface Profile {
   graft_type: GraftType | null;
   knee_side: KneeSide;
   created_at: string;
-  /** The profiles table has no updated_at column; this field is optional. */
-  updated_at?: string;
 }
 
-export type CreateProfileData = Omit<Profile, "created_at" | "updated_at">;
-export type UpdateProfileData = Partial<Omit<Profile, "id" | "created_at" | "updated_at">>;
+export type CreateProfileData = Omit<Profile, "created_at">;
+export type UpdateProfileData = Partial<Omit<Profile, "id" | "created_at">>;
 
 // ─── User Exercise ───────────────────────────────────────────────────────────
 
@@ -31,13 +29,10 @@ export interface UserExercise {
   reps: number;
   hold_seconds: number | null;
   sort_order: number;
-  /** The user_exercises table has no created_at/updated_at columns; these fields are optional. */
-  created_at?: string;
-  updated_at?: string;
   exercise?: Exercise;
 }
 
-export type CreateUserExerciseData = Omit<UserExercise, "created_at" | "updated_at" | "exercise">;
+export type CreateUserExerciseData = Omit<UserExercise, "exercise">;
 export type UpdateUserExerciseData = Partial<Omit<CreateUserExerciseData, "id" | "exercise_id">>;
 
 // ─── Daily Log ───────────────────────────────────────────────────────────────
@@ -158,6 +153,7 @@ export interface DataStore {
   // ROM
   getAllRomMeasurements(): Promise<RomMeasurement[]>;
   getRomMeasurementsByDateRange(start: string, end: string): Promise<RomMeasurement[]>;
+  getLatestRomMeasurement(): Promise<RomMeasurement | null>;
   createRomMeasurement(data: CreateRomData): Promise<RomMeasurement>;
 
   // milestones

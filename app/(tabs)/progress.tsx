@@ -112,7 +112,7 @@ export default function ProgressScreen() {
   async function handleShareWin(message: string) {
     if (!pendingShareWin) return;
     const profile = await store.getProfile();
-    const identity = await getCommunityIdentity(profile as any);
+    const identity = await getCommunityIdentity(profile);
     const { error } = await submitCommunityPost(identity, {
       post_type: "win",
       title: pendingShareWin,

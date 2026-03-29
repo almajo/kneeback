@@ -106,7 +106,7 @@ export function usePost(postId: string) {
     if (!deviceId || !postId || !body.trim()) return;
 
     const profile = await store.getProfile();
-    const identity = await getCommunityIdentity(profile as any);
+    const identity = await getCommunityIdentity(profile);
 
     const optimistic: CommunityComment = {
       id: `optimistic-${Date.now()}`,

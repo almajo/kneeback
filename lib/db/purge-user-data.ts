@@ -46,14 +46,38 @@ export async function purgeAllUserData(): Promise<void> {
 
 /**
  * Best-effort deletion of all remote user data from Supabase.
- * RLS may block some deletes — errors are logged but do not throw.
+ * exercise_logs are deleted via their parent daily_log_ids since
+ * the exercise_logs table has no user_id column.
  */
 export async function deleteRemoteUserData(userId: string): Promise<void> {
   if (!userId) return;
 
-  for (const table of USER_DATA_TABLES) {
+  // Delete exercise_logs via parent daily_logs (no user_id column on exercise_logs)
+  const { data: dailyLogs, error: dailyLogsError } = await supabase
+    .from("daily_logs")
+    .select("id")
+    .eq("user_id", userId);
+
+  if (dailyLogsError) {
+    console.error("[deleteRemoteUserData] Failed to fetch daily_logs:", dailyLogsError);
+  } else {
+    const dailyLogIds = (dailyLogs ?? []).map((row) => row.id);
+    if (dailyLogIds.length > 0) {
+      const { error } = await supabase
+        .from("exercise_logs")
+        .delete()
+        .in("daily_log_id", dailyLogIds);
+      if (error) {
+        console.error("[deleteRemoteUserData] Failed to delete exercise_logs:", error);
+      }
+    }
+  }
+
+  // Delete remaining tables that have user_id
+  const tablesWithUserId = USER_DATA_TABLES.filter((t) => t !== "exercise_logs");
+  for (const table of tablesWithUserId) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await supabase.from(table as any).delete().eq("user_id", userId);
+    const { error } = await (supabase.from as any)(table).delete().eq("user_id", userId);
     if (error) {
       console.error(
         `[deleteRemoteUserData] Failed to delete from ${table}:`,
@@ -62,9 +86,8 @@ export async function deleteRemoteUserData(userId: string): Promise<void> {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: profileError } = await supabase
-    .from("profiles" as never)
+    .from("profiles")
     .delete()
     .eq("id", userId);
   if (profileError) {

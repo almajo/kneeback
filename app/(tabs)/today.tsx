@@ -4,9 +4,6 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DraggableFlatList, { RenderItemParams } from "react-native-draggable-flatlist";
-import { eq, desc } from "drizzle-orm";
-import { db } from "../../lib/db/database-context";
-import { exercise_logs as exerciseLogsTable, rom_measurements as romMeasurements, daily_logs as dailyLogsTable } from "../../lib/db/schema";
 import { useToday } from "../../lib/hooks/use-today";
 import { DayHeader } from "../../components/DayHeader";
 import { DailyMessage } from "../../components/DailyMessage";
@@ -94,23 +91,11 @@ export default function TodayScreen() {
   }>) {
     const streak = await getStreak(store);
 
-    const logs = await db
-      .select({ id: exerciseLogsTable.id, completed: exerciseLogsTable.completed })
-      .from(exerciseLogsTable)
-      .where(eq(exerciseLogsTable.daily_log_id, dailyLog?.id ?? ""));
+    const logs = await store.getExerciseLogsByDailyLogId(dailyLog?.id ?? "");
     const completedNow = logs.filter((l) => l.completed).length;
     const totalNow = userExercises.length;
 
-    const romRows = await db
-      .select({
-        flexion_degrees: romMeasurements.flexion_degrees,
-        extension_degrees: romMeasurements.extension_degrees,
-        quad_activation: romMeasurements.quad_activation,
-      })
-      .from(romMeasurements)
-      .orderBy(desc(romMeasurements.date))
-      .limit(1);
-    const rom = romRows[0] ?? null;
+    const rom = await store.getLatestRomMeasurement();
 
     const newAchievements = await checkAchievements({
       daysSinceSurgery,
@@ -123,7 +108,7 @@ export default function TodayScreen() {
       isFirstMeasurement: false,
       latestFlexion: rom?.flexion_degrees ?? null,
       latestExtension: rom?.extension_degrees ?? null,
-      hasQuadActivation: rom ? rom.quad_activation === 1 : false,
+      hasQuadActivation: rom?.quad_activation ?? false,
     }, store, catalog);
 
     if (newAchievements.length > 0) {
@@ -137,10 +122,8 @@ export default function TodayScreen() {
     await store.updateDailyLog(dailyLog.id, { is_rest_day: newIsRest });
     refetch();
     if (newIsRest) {
-      const prevRestDays = await db
-        .select({ id: dailyLogsTable.id })
-        .from(dailyLogsTable)
-        .where(eq(dailyLogsTable.is_rest_day, 1));
+      const streakLogs = await store.getDailyLogsForStreak();
+      const prevRestDays = streakLogs.filter((l) => l.is_rest_day);
       runAchievementCheck({ isFirstRestDay: prevRestDays.length <= 1 });
     }
   }
@@ -434,10 +417,10 @@ export default function TodayScreen() {
   }: RenderItemParams<UserExercise>) => (
     <View style={{ opacity: isActive ? 0.8 : 1 }}>
       <ExerciseCard
-        userExercise={ue as any}
-        log={exerciseLogs.find((l) => l.user_exercise_id === ue.id) as any ?? null}
+        userExercise={ue}
+        log={exerciseLogs.find((l) => l.user_exercise_id === ue.id) ?? null}
         onUpdate={(updates) => updateExerciseLog(ue.id, updates)}
-        onExerciseUpdate={updateUserExercise as any}
+        onExerciseUpdate={updateUserExercise}
         disabled={isRestDay}
         onDrag={drag}
       />

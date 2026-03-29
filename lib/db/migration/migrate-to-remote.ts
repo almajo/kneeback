@@ -20,13 +20,18 @@ function getAllRows(table: UserDataTable): SyncRow[] {
 }
 
 function rowsToRemotePayload(rows: SyncRow[], userId: string, table: UserDataTable): SyncRow[] {
-  if (TABLES_WITHOUT_USER_ID.has(table)) return rows.map((row) => ({ ...row }));
-  return rows.map((row) => ({ ...row, user_id: userId }));
+  return rows.map((row) => {
+    const payload = { ...row };
+    // Inject user_id for tables that need it
+    if (!TABLES_WITHOUT_USER_ID.has(table)) {
+      payload.user_id = userId;
+    }
+    return payload;
+  });
 }
 
 /**
  * One-time migration: pushes all local user data tables to Supabase for a given userId.
- * Profile is pushed best-effort — errors are logged but do not fail the migration.
  * Returns { migrated: true } only when at least one row was pushed, so callers can
  * decide whether to purge local data.
  */
@@ -50,7 +55,7 @@ export async function migrateLocalToRemote(
     }
   }
 
-  // Push profile (best-effort — log errors, don't fail the whole migration)
+  // Push profile
   const localProfile = await getProfile();
   if (localProfile) {
     migrated = true;
@@ -63,13 +68,10 @@ export async function migrateLocalToRemote(
         surgery_date: localProfile.surgery_date,
         graft_type: localProfile.graft_type,
         knee_side: localProfile.knee_side,
-        updated_at: localProfile.updated_at,
       });
     if (profileError) {
-      console.error(
-        "[migrateLocalToRemote] Failed to push profile:",
-        profileError
-      );
+      console.error("[migrateLocalToRemote] Failed to push profile:", profileError);
+      return { error: `Failed to push profile: ${profileError.message}`, migrated };
     }
   }
 

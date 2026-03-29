@@ -4,14 +4,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../constants/colors";
 import { RestTimer } from "./RestTimer";
 import { SetTracker } from "./SetTracker";
-import type { LocalUserExercise } from "../lib/db/repositories/user-exercise-repo";
-import type { LocalExerciseLog } from "../lib/db/repositories/exercise-log-repo";
+import type { UserExercise, ExerciseLog } from "../lib/data/data-store.types";
 
 interface Props {
-  userExercise: LocalUserExercise;
-  log: LocalExerciseLog | null;
-  onUpdate: (log: Partial<LocalExerciseLog>) => void;
-  onExerciseUpdate?: (updated: LocalUserExercise) => void;
+  userExercise: UserExercise;
+  log: ExerciseLog | null;
+  onUpdate: (log: Partial<ExerciseLog>) => void;
+  onExerciseUpdate?: (updated: UserExercise) => void;
   disabled: boolean;
   onDrag?: () => void;
 }

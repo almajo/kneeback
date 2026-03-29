@@ -35,145 +35,33 @@ import type {
 } from "./data-store.types";
 import type { Exercise, Content } from "../types";
 
-// Strip local-only fields from LocalProfile to return the shared Profile type
-function toSharedProfile(local: profileRepo.LocalProfile): Profile {
-  return {
-    id: local.id,
-    name: local.name,
-    username: local.username,
-    surgery_date: local.surgery_date,
-    graft_type: local.graft_type,
-    knee_side: local.knee_side,
-    created_at: local.created_at,
-    updated_at: local.updated_at,
-  };
-}
-
-function toSharedUserExercise(local: userExerciseRepo.LocalUserExercise): UserExercise {
-  return {
-    id: local.id,
-    exercise_id: local.exercise_id,
-    sets: local.sets,
-    reps: local.reps,
-    hold_seconds: local.hold_seconds,
-    sort_order: local.sort_order,
-    created_at: local.created_at,
-    updated_at: local.updated_at,
-    exercise: local.exercise,
-  };
-}
-
-function toSharedDailyLog(local: dailyLogRepo.LocalDailyLog): DailyLog {
-  return {
-    id: local.id,
-    date: local.date,
-    is_rest_day: local.is_rest_day,
-    notes: local.notes,
-    created_at: local.created_at,
-  };
-}
-
-function toSharedExerciseLog(local: exerciseLogRepo.LocalExerciseLog): ExerciseLog {
-  return {
-    id: local.id,
-    daily_log_id: local.daily_log_id,
-    user_exercise_id: local.user_exercise_id,
-    completed: local.completed,
-    actual_sets: local.actual_sets,
-    actual_reps: local.actual_reps,
-  };
-}
-
-function toSharedRomMeasurement(local: romRepo.LocalRomMeasurement): RomMeasurement {
-  return {
-    id: local.id,
-    date: local.date,
-    flexion_degrees: local.flexion_degrees,
-    extension_degrees: local.extension_degrees,
-    quad_activation: local.quad_activation,
-  };
-}
-
-function toSharedMilestone(local: milestoneRepo.LocalMilestone): Milestone {
-  return {
-    id: local.id,
-    title: local.title,
-    category: local.category,
-    date: local.date,
-    notes: local.notes,
-    template_key: local.template_key,
-    created_at: local.created_at,
-  };
-}
-
-function toSharedAchievement(local: achievementRepo.LocalUserAchievement): UserAchievement {
-  return {
-    id: local.id,
-    content_id: local.content_id,
-    unlocked_at: local.unlocked_at,
-  };
-}
-
-function toSharedGateCriterion(local: gateCriteriaRepo.LocalUserGateCriterion): GateCriterion {
-  return {
-    id: local.id,
-    gate_key: local.gate_key,
-    criterion_key: local.criterion_key,
-    confirmed_at: local.confirmed_at,
-  };
-}
-
-function toSharedNotificationPrefs(
-  local: notificationRepo.LocalNotificationPreferences
-): NotificationPreferences {
-  return {
-    id: local.id,
-    daily_reminder_time: local.daily_reminder_time,
-    evening_nudge_enabled: local.evening_nudge_enabled,
-    evening_nudge_time: local.evening_nudge_time,
-    completion_congrats_enabled: local.completion_congrats_enabled,
-  };
-}
-
 // ─── LocalDataStore ──────────────────────────────────────────────────────────
 
 export class LocalDataStore implements DataStore {
   // profile
   async getProfile(): Promise<Profile | null> {
-    const local = await profileRepo.getProfile();
-    if (!local) return null;
-    return toSharedProfile(local);
+    return profileRepo.getProfile();
   }
 
   async createProfile(data: CreateProfileData): Promise<Profile> {
-    const local = await profileRepo.createProfile({
-      ...data,
-      device_id: "",
-      supabase_user_id: null,
-      last_synced_at: null,
-    });
-    return toSharedProfile(local);
+    return profileRepo.createProfile(data);
   }
 
   async updateProfile(data: UpdateProfileData): Promise<Profile> {
-    const local = await profileRepo.updateProfile(data);
-    return toSharedProfile(local);
+    return profileRepo.updateProfile(data);
   }
 
   // user exercises
   async getAllUserExercises(): Promise<UserExercise[]> {
-    const locals = await userExerciseRepo.getAllUserExercises();
-    return locals.map(toSharedUserExercise);
+    return userExerciseRepo.getAllUserExercises();
   }
 
   async createUserExercise(data: CreateUserExerciseData): Promise<UserExercise> {
-    const local = await userExerciseRepo.createUserExercise(data);
-    return toSharedUserExercise(local);
+    return userExerciseRepo.createUserExercise(data);
   }
 
   async updateUserExercise(id: string, data: UpdateUserExerciseData): Promise<UserExercise> {
-    const local = await userExerciseRepo.updateUserExercise(id, data);
-    return toSharedUserExercise(local);
+    return userExerciseRepo.updateUserExercise(id, data);
   }
 
   async deleteUserExercise(id: string): Promise<void> {
@@ -186,13 +74,11 @@ export class LocalDataStore implements DataStore {
 
   // daily logs
   async getOrCreateDailyLog(date: string): Promise<DailyLog> {
-    const local = await dailyLogRepo.getOrCreateDailyLog(date);
-    return toSharedDailyLog(local);
+    return dailyLogRepo.getOrCreateDailyLog(date);
   }
 
   async updateDailyLog(id: string, data: UpdateDailyLogData): Promise<DailyLog> {
-    const local = await dailyLogRepo.updateDailyLog(id, data);
-    return toSharedDailyLog(local);
+    return dailyLogRepo.updateDailyLog(id, data);
   }
 
   async getDailyLogsForStreak(): Promise<{ date: string; is_rest_day: boolean }[]> {
@@ -200,56 +86,50 @@ export class LocalDataStore implements DataStore {
   }
 
   async getDailyLogsByDateRange(start: string, end: string): Promise<DailyLog[]> {
-    const locals = await dailyLogRepo.getDailyLogsByDateRange(start, end);
-    return locals.map(toSharedDailyLog);
+    return dailyLogRepo.getDailyLogsByDateRange(start, end);
   }
 
   // exercise logs
   async getExerciseLogsByDailyLogId(dailyLogId: string): Promise<ExerciseLog[]> {
-    const locals = await exerciseLogRepo.getExerciseLogsByDailyLogId(dailyLogId);
-    return locals.map(toSharedExerciseLog);
+    return exerciseLogRepo.getExerciseLogsByDailyLogId(dailyLogId);
   }
 
   async getExerciseLogsByDailyLogIds(dailyLogIds: string[]): Promise<ExerciseLog[]> {
-    const locals = await exerciseLogRepo.getExerciseLogsByDailyLogIds(dailyLogIds);
-    return locals.map(toSharedExerciseLog);
+    return exerciseLogRepo.getExerciseLogsByDailyLogIds(dailyLogIds);
   }
 
   async upsertExerciseLog(data: UpsertExerciseLogData): Promise<ExerciseLog> {
-    const local = await exerciseLogRepo.upsertExerciseLog(data);
-    return toSharedExerciseLog(local);
+    return exerciseLogRepo.upsertExerciseLog(data);
   }
 
   // ROM
   async getAllRomMeasurements(): Promise<RomMeasurement[]> {
-    const locals = await romRepo.getAllRomMeasurements();
-    return locals.map(toSharedRomMeasurement);
+    return romRepo.getAllRomMeasurements();
   }
 
   async getRomMeasurementsByDateRange(start: string, end: string): Promise<RomMeasurement[]> {
-    const locals = await romRepo.getRomMeasurementsByDateRange(start, end);
-    return locals.map(toSharedRomMeasurement);
+    return romRepo.getRomMeasurementsByDateRange(start, end);
+  }
+
+  async getLatestRomMeasurement(): Promise<RomMeasurement | null> {
+    return romRepo.getLatestRomMeasurement();
   }
 
   async createRomMeasurement(data: CreateRomData): Promise<RomMeasurement> {
-    const local = await romRepo.createRomMeasurement(data);
-    return toSharedRomMeasurement(local);
+    return romRepo.createRomMeasurement(data);
   }
 
   // milestones
   async getAllMilestones(): Promise<Milestone[]> {
-    const locals = await milestoneRepo.getAllMilestones();
-    return locals.map(toSharedMilestone);
+    return milestoneRepo.getAllMilestones();
   }
 
   async getMilestonesByDate(date: string): Promise<Milestone[]> {
-    const locals = await milestoneRepo.getMilestonesByDate(date);
-    return locals.map(toSharedMilestone);
+    return milestoneRepo.getMilestonesByDate(date);
   }
 
   async createMilestone(data: CreateMilestoneData): Promise<Milestone> {
-    const local = await milestoneRepo.createMilestone(data);
-    return toSharedMilestone(local);
+    return milestoneRepo.createMilestone(data);
   }
 
   async deleteMilestone(id: string): Promise<void> {
@@ -258,29 +138,24 @@ export class LocalDataStore implements DataStore {
 
   // achievements
   async getAchievements(): Promise<UserAchievement[]> {
-    const locals = await achievementRepo.getUnlockedAchievements();
-    return locals.map(toSharedAchievement);
+    return achievementRepo.getUnlockedAchievements();
   }
 
   async unlockAchievement(contentId: string): Promise<UserAchievement> {
-    const local = await achievementRepo.unlockAchievement(contentId);
-    return toSharedAchievement(local);
+    return achievementRepo.unlockAchievement(contentId);
   }
 
   // gate criteria
   async getAllGateCriteria(): Promise<GateCriterion[]> {
-    const locals = await gateCriteriaRepo.getAllGateCriteria();
-    return locals.map(toSharedGateCriterion);
+    return gateCriteriaRepo.getAllGateCriteria();
   }
 
   async getGateCriteriaByGate(gateKey: string): Promise<GateCriterion[]> {
-    const locals = await gateCriteriaRepo.getGateCriteriaByGate(gateKey);
-    return locals.map(toSharedGateCriterion);
+    return gateCriteriaRepo.getGateCriteriaByGate(gateKey);
   }
 
   async confirmGateCriterion(gateKey: string, criterionKey: string): Promise<GateCriterion> {
-    const local = await gateCriteriaRepo.confirmGateCriterion(gateKey, criterionKey);
-    return toSharedGateCriterion(local);
+    return gateCriteriaRepo.confirmGateCriterion(gateKey, criterionKey);
   }
 
   async removeGateCriterion(gateKey: string, criterionKey: string): Promise<void> {
@@ -289,16 +164,13 @@ export class LocalDataStore implements DataStore {
 
   // notification preferences
   async getNotificationPreferences(): Promise<NotificationPreferences | null> {
-    const local = await notificationRepo.getNotificationPreferences();
-    if (!local) return null;
-    return toSharedNotificationPrefs(local);
+    return notificationRepo.getNotificationPreferences();
   }
 
   async createOrUpdateNotificationPreferences(
     data: NotificationPrefsData
   ): Promise<NotificationPreferences> {
-    const local = await notificationRepo.createOrUpdateNotificationPreferences(data);
-    return toSharedNotificationPrefs(local);
+    return notificationRepo.createOrUpdateNotificationPreferences(data);
   }
 }
 
