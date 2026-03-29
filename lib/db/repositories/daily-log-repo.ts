@@ -9,6 +9,7 @@ function rowToDailyLog(row: typeof daily_logs.$inferSelect): DailyLog {
     id: row.id,
     date: row.date,
     is_rest_day: row.is_rest_day === 1,
+    is_pt_day: row.is_pt_day === 1,
     notes: row.notes ?? null,
     created_at: row.created_at ?? "",
   };
@@ -29,6 +30,7 @@ export async function getOrCreateDailyLog(date: string): Promise<DailyLog> {
     id,
     date,
     is_rest_day: 0,
+    is_pt_day: 0,
     notes: null,
   }).onConflictDoNothing();
 
@@ -63,6 +65,7 @@ export async function updateDailyLog(
   const updates: Partial<typeof daily_logs.$inferInsert> = {};
 
   if (data.is_rest_day !== undefined) updates.is_rest_day = data.is_rest_day ? 1 : 0;
+  if (data.is_pt_day !== undefined) updates.is_pt_day = data.is_pt_day ? 1 : 0;
   if (data.notes !== undefined) updates.notes = data.notes ?? null;
 
   if (Object.keys(updates).length > 0) {
