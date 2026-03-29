@@ -329,6 +329,7 @@ const baseDailyLogRow = {
   user_id: null as string | null,
   date: "2024-06-01",
   is_rest_day: 0,
+  is_pt_day: 0,
   notes: null as string | null,
   created_at: "2024-06-01T00:00:00Z",
 };
@@ -393,6 +394,24 @@ describe("daily-log-repo", () => {
       await expect(
         updateDailyLog("log1", { is_rest_day: true })
       ).rejects.toThrow("Daily log not found: log1");
+    });
+
+    it("maps is_pt_day correctly when set to true", async () => {
+      setupSelectChain([{ ...baseDailyLogRow, is_pt_day: 1 }]);
+      setupUpdateChain();
+
+      const log = await updateDailyLog("log1", { is_pt_day: true });
+
+      expect(log.is_pt_day).toBe(true);
+    });
+
+    it("maps is_pt_day correctly when set to false", async () => {
+      setupSelectChain([{ ...baseDailyLogRow, is_pt_day: 0 }]);
+      setupUpdateChain();
+
+      const log = await updateDailyLog("log1", { is_pt_day: false });
+
+      expect(log.is_pt_day).toBe(false);
     });
   });
 });
