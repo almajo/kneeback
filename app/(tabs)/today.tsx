@@ -7,7 +7,7 @@ import DraggableFlatList, { RenderItemParams } from "react-native-draggable-flat
 import { useToday } from "../../lib/hooks/use-today";
 import { DayHeader } from "../../components/DayHeader";
 import { DailyMessage } from "../../components/DailyMessage";
-import { SmartRestToggle } from "../../components/SmartRestToggle";
+import { DayModeToggle } from "../../components/SmartRestToggle";
 import { ExerciseCard } from "../../components/ExerciseCard";
 import { AchievementPopup } from "../../components/AchievementPopup";
 import { PhaseOverviewModal } from "../../components/PhaseOverviewModal";
@@ -83,6 +83,8 @@ export default function TodayScreen() {
   }
 
   const isRestDay = dailyLog?.is_rest_day ?? false;
+  const isPtDay = dailyLog?.is_pt_day ?? false;
+  const dayMode = isRestDay ? "rest" : isPtDay ? "pt" : "normal";
 
   async function runAchievementCheck(overrides?: Partial<{
     isFirstExercise: boolean;
@@ -116,12 +118,14 @@ export default function TodayScreen() {
     }
   }
 
-  async function toggleRestDay() {
+  async function handleDayModeChange(mode: "normal" | "rest" | "pt") {
     if (!dailyLog) return;
-    const newIsRest = !isRestDay;
-    await store.updateDailyLog(dailyLog.id, { is_rest_day: newIsRest });
+    await store.updateDailyLog(dailyLog.id, {
+      is_rest_day: mode === "rest",
+      is_pt_day: mode === "pt",
+    });
     refetch();
-    if (newIsRest) {
+    if (mode === "rest") {
       const streakLogs = await store.getDailyLogsForStreak();
       const prevRestDays = streakLogs.filter((l) => l.is_rest_day);
       runAchievementCheck({ isFirstRestDay: prevRestDays.length <= 1 });
@@ -299,7 +303,7 @@ export default function TodayScreen() {
         </View>
       )}
 
-      <SmartRestToggle isRestDay={isRestDay} onToggle={toggleRestDay} />
+      <DayModeToggle dayMode={dayMode} onModeChange={handleDayModeChange} />
 
       {isRestDay ? (
         <View
