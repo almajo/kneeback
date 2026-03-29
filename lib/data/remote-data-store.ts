@@ -72,6 +72,7 @@ function dbToDailyLog(row: DbDailyLog): DailyLog {
     id: row.id,
     date: row.date,
     is_rest_day: row.is_rest_day,
+    is_pt_day: row.is_pt_day,
     notes: row.notes ?? null,
     created_at: row.created_at ?? "",
   };
@@ -344,6 +345,7 @@ export class RemoteDataStore implements DataStore {
         user_id: this.userId,
         date,
         is_rest_day: false,
+        is_pt_day: false,
         notes: null,
       })
       .select()
@@ -395,6 +397,7 @@ export class RemoteDataStore implements DataStore {
   async updateDailyLog(id: string, data: UpdateDailyLogData): Promise<DailyLog> {
     const updates: Database["public"]["Tables"]["daily_logs"]["Update"] = {};
     if (data.is_rest_day !== undefined) updates.is_rest_day = data.is_rest_day;
+    if (data.is_pt_day !== undefined) updates.is_pt_day = data.is_pt_day;
     if (data.notes !== undefined) updates.notes = data.notes;
 
     const { data: row, error } = await supabase

@@ -12,7 +12,7 @@ import type { DataStore, Milestone, RomMeasurement } from "../lib/data/data-stor
 import { AddMilestoneSheet } from "./AddMilestoneSheet";
 import { DayDetailSheet } from "./DayDetailSheet";
 
-type DayStatus = "complete" | "rest" | "partial" | "missed" | "future";
+type DayStatus = "complete" | "rest" | "pt" | "partial" | "missed" | "future";
 
 interface HeatmapDay {
   date: string;
@@ -32,6 +32,7 @@ interface Props {
   }) => Promise<void>;
   onDeleteMilestone: (id: string) => void;
   surgeryDate: string | null;
+  refreshKey?: number;
 }
 
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
@@ -58,6 +59,7 @@ function statusColor(status: DayStatus): string {
   switch (status) {
     case "complete": return Colors.success;
     case "rest":     return Colors.rest;
+    case "pt":       return Colors.secondary;
     case "partial":  return Colors.warning;
     case "missed":   return "#E5E5E5";
     case "future":   return Colors.borderLight;
@@ -68,6 +70,7 @@ function statusTextColor(status: DayStatus): string {
   switch (status) {
     case "complete":
     case "rest":
+    case "pt":
       return "#FFFFFF";
     case "partial":
       return Colors.text;
@@ -103,6 +106,7 @@ export function ProgressCalendar({
   onSaveMilestone,
   onDeleteMilestone,
   surgeryDate,
+  refreshKey = 0,
 }: Props) {
   const maxMonth = currentMonthString();
   const minMonth = surgeryDate ? toMonthString(surgeryDate) : twoYearsAgoMonth();
@@ -178,8 +182,8 @@ export function ProgressCalendar({
       const logIds = logs.map((l) => l.id);
       const exLogs = await store.getExerciseLogsByDailyLogIds(logIds);
 
-      const logMap = new Map<string, { isRest: boolean; logId: string }>();
-      logs.forEach((l) => logMap.set(l.date, { isRest: l.is_rest_day, logId: l.id }));
+      const logMap = new Map<string, { isRest: boolean; isPt: boolean; logId: string }>();
+      logs.forEach((l) => logMap.set(l.date, { isRest: l.is_rest_day, isPt: l.is_pt_day, logId: l.id }));
 
       const completionMap = new Map<string, { total: number; done: number }>();
       exLogs.forEach((el) => {
@@ -195,6 +199,7 @@ export function ProgressCalendar({
         const log = logMap.get(date);
         if (!log) return { date, status: "missed" };
         if (log.isRest) return { date, status: "rest" };
+        if (log.isPt) return { date, status: "pt" };
         const comp = completionMap.get(log.logId);
         if (!comp || comp.total === 0) return { date, status: "missed" };
         if (comp.done === comp.total) return { date, status: "complete" };
@@ -205,7 +210,7 @@ export function ProgressCalendar({
       setLoadingDays(false);
     }
     fetchMonthData();
-  }, [currentMonth, store]);
+  }, [currentMonth, store, refreshKey]);
 
   const offset = getMonthStartOffset(currentMonth);
 
@@ -227,12 +232,13 @@ export function ProgressCalendar({
   const nextDisabled = currentMonth >= maxMonth;
 
   const legendItems: { color: string; label: string }[] = [
-    { color: Colors.success, label: "Complete" },
-    { color: Colors.warning, label: "Partial" },
-    { color: Colors.rest,    label: "Rest" },
-    { color: "#E5E5E5",      label: "Missed" },
-    { color: Colors.primary, label: "Milestone" },
-    { color: Colors.success, label: "Win" },
+    { color: Colors.success,    label: "Complete" },
+    { color: Colors.warning,    label: "Partial" },
+    { color: Colors.rest,       label: "Rest" },
+    { color: Colors.secondary,  label: "PT" },
+    { color: "#E5E5E5",         label: "Missed" },
+    { color: Colors.primary,    label: "Milestone" },
+    { color: Colors.success,    label: "Win" },
   ];
 
   return (

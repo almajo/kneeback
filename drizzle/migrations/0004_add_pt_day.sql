@@ -1,0 +1,1 @@
+ALTER TABLE `daily_logs` ADD COLUMN `is_pt_day` integer NOT NULL DEFAULT 0;

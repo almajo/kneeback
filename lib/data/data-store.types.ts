@@ -41,11 +41,12 @@ export interface DailyLog {
   id: string;
   date: string;
   is_rest_day: boolean;
+  is_pt_day: boolean;
   notes: string | null;
   created_at: string;
 }
 
-export type UpdateDailyLogData = Partial<Pick<DailyLog, "is_rest_day" | "notes">>;
+export type UpdateDailyLogData = Partial<Pick<DailyLog, "is_rest_day" | "is_pt_day" | "notes">>;
 
 // ─── Exercise Log ────────────────────────────────────────────────────────────
 

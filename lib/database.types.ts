@@ -202,6 +202,7 @@ export type Database = {
           created_at: string | null
           date: string
           id: string
+          is_pt_day: boolean
           is_rest_day: boolean
           notes: string | null
           user_id: string
@@ -210,6 +211,7 @@ export type Database = {
           created_at?: string | null
           date: string
           id?: string
+          is_pt_day?: boolean
           is_rest_day?: boolean
           notes?: string | null
           user_id: string
@@ -218,6 +220,7 @@ export type Database = {
           created_at?: string | null
           date?: string
           id?: string
+          is_pt_day?: boolean
           is_rest_day?: boolean
           notes?: string | null
           user_id?: string
