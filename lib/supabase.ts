@@ -12,10 +12,14 @@ const fetchWithDeviceId = async (
   options: RequestInit = {}
 ): Promise<Response> => {
   const deviceId = await getDeviceId();
+  const existingHeaders =
+    options.headers instanceof Headers
+      ? Object.fromEntries(options.headers.entries())
+      : (options.headers ?? {});
   return fetch(url, {
     ...options,
     headers: {
-      ...options.headers,
+      ...existingHeaders,
       "x-device-id": deviceId,
     },
   });
