@@ -11,6 +11,14 @@ type AnySupabaseTable = any;
 // exercise_logs has no user_id column in Supabase — do not inject it
 const TABLES_WITHOUT_USER_ID = new Set<UserDataTable>(["exercise_logs"]);
 
+// Tables that have a unique constraint beyond the primary key.
+// Supabase upsert must target these to avoid 409 conflicts when the same
+// logical row already exists remotely with a different id.
+const TABLE_CONFLICT_COLUMNS: Partial<Record<UserDataTable, string>> = {
+  daily_logs: "user_id,date",
+  user_exercises: "user_id,exercise_id",
+};
+
 function getSupabaseTable(table: UserDataTable) {
   return supabase.from(table as AnySupabaseTable);
 }
@@ -48,7 +56,9 @@ export async function migrateLocalToRemote(
 
     migrated = true;
     const payload = rowsToRemotePayload(rows, userId, table);
-    const { error } = await getSupabaseTable(table).upsert(payload);
+    const conflictColumns = TABLE_CONFLICT_COLUMNS[table];
+    const upsertOptions = conflictColumns ? { onConflict: conflictColumns } : undefined;
+    const { error } = await getSupabaseTable(table).upsert(payload, upsertOptions);
     if (error) {
       console.error(`[migrateLocalToRemote] Failed to push ${table}:`, error);
       return { error: `Failed to push ${table}: ${error.message}`, migrated };

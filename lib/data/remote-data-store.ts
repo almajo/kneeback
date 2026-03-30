@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import { generateId } from "@/lib/utils/uuid";
 import type {
   DataStore,
+  CatalogStore,
   Profile,
   CreateProfileData,
   UpdateProfileData,
@@ -23,11 +24,14 @@ import type {
 } from "./data-store.types";
 import type { Database } from "../database.types";
 import type {
+  Exercise,
+  Content,
   ExercisePhase,
   ExerciseRole,
   ExerciseMuscleGroup,
   ExerciseCategory,
   ExerciseStatus,
+  ContentType,
 } from "../types";
 
 type DbProfile = Database["public"]["Tables"]["profiles"]["Row"];
@@ -712,5 +716,77 @@ export class RemoteDataStore implements DataStore {
       );
     }
     return dbToNotificationPrefs(row);
+  }
+}
+
+// ─── RemoteCatalogStore ───────────────────────────────────────────────────────
+
+type DbExercise = Database["public"]["Tables"]["exercises"]["Row"];
+type DbContent = Database["public"]["Tables"]["content"]["Row"];
+
+function dbToExercise(row: DbExercise): Exercise {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    phase_start: row.phase_start as ExercisePhase,
+    phase_end: (row.phase_end as ExercisePhase) ?? null,
+    role: row.role as ExerciseRole,
+    primary_exercise_id: row.primary_exercise_id ?? null,
+    muscle_groups: (row.muscle_groups ?? []) as ExerciseMuscleGroup[],
+    default_sets: row.default_sets,
+    default_reps: row.default_reps,
+    default_hold_seconds: row.default_hold_seconds ?? null,
+    category: row.category as ExerciseCategory,
+    submitted_by: row.submitted_by ?? null,
+    status: row.status as ExerciseStatus,
+    sort_order: row.sort_order,
+  };
+}
+
+function dbToContent(row: DbContent): Content {
+  return {
+    id: row.id,
+    type: row.type as ContentType,
+    title: row.title,
+    body: row.body,
+    trigger_condition: row.trigger_condition as Record<string, unknown> | null,
+    phase: (row.phase as ExercisePhase) ?? null,
+    sort_order: row.sort_order,
+  };
+}
+
+export class RemoteCatalogStore implements CatalogStore {
+  async getAllExercises(): Promise<Exercise[]> {
+    const { data, error } = await supabase
+      .from("exercises")
+      .select("*")
+      .eq("status", "approved")
+      .order("sort_order", { ascending: true });
+
+    if (error) throw new Error(`RemoteCatalogStore.getAllExercises failed: ${error.message}`);
+    return (data ?? []).map(dbToExercise);
+  }
+
+  async getExercisesByPhase(phase: string): Promise<Exercise[]> {
+    const { data, error } = await supabase
+      .from("exercises")
+      .select("*")
+      .eq("status", "approved")
+      .eq("phase_start", phase)
+      .order("sort_order", { ascending: true });
+
+    if (error) throw new Error(`RemoteCatalogStore.getExercisesByPhase failed: ${error.message}`);
+    return (data ?? []).map(dbToExercise);
+  }
+
+  async getAllContent(): Promise<Content[]> {
+    const { data, error } = await supabase
+      .from("content")
+      .select("*")
+      .order("sort_order", { ascending: true });
+
+    if (error) throw new Error(`RemoteCatalogStore.getAllContent failed: ${error.message}`);
+    return (data ?? []).map(dbToContent);
   }
 }
