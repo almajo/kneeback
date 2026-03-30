@@ -22,42 +22,46 @@ export function useToday() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
 
-    const prof = await store.getProfile();
-    setProfile(prof ? { surgery_date: prof.surgery_date } : null);
+    try {
+      const prof = await store.getProfile();
+      setProfile(prof ? { surgery_date: prof.surgery_date } : null);
 
-    const exercises = await store.getAllUserExercises();
-    // RemoteDataStore now joins exercise data from Supabase directly.
-    // For LocalDataStore, fall back to local catalog lookup for any exercises missing the join.
-    const missingJoin = exercises.some((ue) => !ue.exercise);
-    if (missingJoin) {
-      const allCatalogExercises = await catalog.getAllExercises();
-      const exerciseMap = new Map(allCatalogExercises.map((e) => [e.id, e]));
-      setUserExercises(exercises.map((ue) => ({
-        ...ue,
-        exercise: ue.exercise ?? exerciseMap.get(ue.exercise_id),
-      })));
-    } else {
-      setUserExercises(exercises);
+      const exercises = await store.getAllUserExercises();
+      // RemoteDataStore now joins exercise data from Supabase directly.
+      // For LocalDataStore, fall back to local catalog lookup for any exercises missing the join.
+      const missingJoin = exercises.some((ue) => !ue.exercise);
+      if (missingJoin) {
+        const allCatalogExercises = await catalog.getAllExercises();
+        const exerciseMap = new Map(allCatalogExercises.map((e) => [e.id, e]));
+        setUserExercises(exercises.map((ue) => ({
+          ...ue,
+          exercise: ue.exercise ?? exerciseMap.get(ue.exercise_id),
+        })));
+      } else {
+        setUserExercises(exercises);
+      }
+
+      const log = await store.getOrCreateDailyLog(today);
+      setDailyLog(log);
+
+      const logs = await store.getExerciseLogsByDailyLogId(log.id);
+      setExerciseLogs(logs);
+
+      const allContent = await catalog.getAllContent();
+      const messages = allContent.filter((c) => c.type === "daily_message");
+      if (messages.length > 0) {
+        const dayIndex =
+          Math.floor(new Date(today).getTime() / 86400000) % messages.length;
+        setDailyMessage(messages[dayIndex]);
+      }
+
+      const currentStreak = await getStreak(store);
+      setStreak(currentStreak);
+    } catch (err) {
+      console.error("[useToday] fetchAll failed:", err);
+    } finally {
+      setLoading(false);
     }
-
-    const log = await store.getOrCreateDailyLog(today);
-    setDailyLog(log);
-
-    const logs = await store.getExerciseLogsByDailyLogId(log.id);
-    setExerciseLogs(logs);
-
-    const allContent = await catalog.getAllContent();
-    const messages = allContent.filter((c) => c.type === "daily_message");
-    if (messages.length > 0) {
-      const dayIndex =
-        Math.floor(new Date(today).getTime() / 86400000) % messages.length;
-      setDailyMessage(messages[dayIndex]);
-    }
-
-    const currentStreak = await getStreak(store);
-    setStreak(currentStreak);
-
-    setLoading(false);
   }, [store, catalog, today]);
 
   useEffect(() => {
