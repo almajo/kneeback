@@ -17,7 +17,7 @@ const PROXY_PORT = 8082;
 
 const COOP_HEADERS = {
   "cross-origin-opener-policy": "same-origin",
-  "cross-origin-embedder-policy": "credentialless",
+  "cross-origin-embedder-policy": "require-corp",
 };
 
 const server = http.createServer((req, res) => {
