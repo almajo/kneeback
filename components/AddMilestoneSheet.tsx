@@ -87,7 +87,7 @@ export function AddMilestoneSheet({ visible, onClose, onSave }: Props) {
       onRequestClose={handleClose}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior="padding"
         style={{ flex: 1 }}
       >
         <Pressable
@@ -95,7 +95,6 @@ export function AddMilestoneSheet({ visible, onClose, onSave }: Props) {
           onPress={handleClose}
         />
         <View
-          style={{ position: "absolute", bottom: 0, left: 0, right: 0 }}
           className="bg-background rounded-t-3xl px-6 pt-4 pb-10"
         >
           {/* Handle */}
