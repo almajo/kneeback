@@ -39,7 +39,13 @@ export async function registerForPushNotifications(userId: string | null): Promi
   try {
     const token = (await Notifications.getExpoPushTokenAsync()).data;
     if (userId) {
-      await supabase.from("profiles").update({ expo_push_token: token }).eq("id", userId);
+      await supabase
+        .from("profiles")
+        .update({
+          expo_push_token: token,
+          notification_consent_given_at: new Date().toISOString(),
+        })
+        .eq("id", userId);
     }
     return token;
   } catch {

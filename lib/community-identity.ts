@@ -21,7 +21,11 @@ export async function getCommunityIdentity(
       Math.floor((Date.now() - surgeryMs) / 86400000)
     );
     const week = Math.floor(daysSince / 7) + 1;
-    phase = `Week ${week}`;
+    if (week <= 2) phase = "Acute Recovery";
+    else if (week <= 8) phase = "Early Rehab";
+    else if (week <= 16) phase = "Strengthening";
+    else if (week <= 26) phase = "Advanced Rehab";
+    else phase = "Return to Sport";
   }
 
   return { deviceId, animalName, phase };

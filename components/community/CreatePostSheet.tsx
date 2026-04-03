@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { Colors } from "../../constants/colors";
 import type { PostType, CreatePostInput } from "../../lib/types";
+import { moderateContent } from "../../lib/content-moderation";
 
 const POST_TYPES: { type: PostType; label: string; emoji: string }[] = [
   { type: "question", label: "Question", emoji: "❓" },
@@ -30,12 +31,14 @@ export function CreatePostSheet({ visible, onClose, onSubmit }: Props) {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [saving, setSaving] = useState(false);
+  const [moderationError, setModerationError] = useState<string | null>(null);
 
   function reset() {
     setPostType(null);
     setTitle("");
     setBody("");
     setSaving(false);
+    setModerationError(null);
   }
 
   function handleClose() {
@@ -45,6 +48,12 @@ export function CreatePostSheet({ visible, onClose, onSubmit }: Props) {
 
   async function handleSubmit() {
     if (!postType || !title.trim() || !body.trim()) return;
+    const check = moderateContent(`${title} ${body}`);
+    if (check.blocked) {
+      setModerationError(check.reason ?? "Post contains disallowed content.");
+      return;
+    }
+    setModerationError(null);
     setSaving(true);
     await onSubmit({ post_type: postType, title: title.trim(), body: body.trim() });
     reset();
@@ -194,6 +203,12 @@ export function CreatePostSheet({ visible, onClose, onSubmit }: Props) {
               onChangeText={setBody}
               multiline
             />
+
+            {moderationError ? (
+              <Text style={{ color: "#EF4444", fontSize: 13, marginBottom: 12 }}>
+                {moderationError}
+              </Text>
+            ) : null}
 
             {/* Submit */}
             <TouchableOpacity

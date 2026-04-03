@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Pressable } from "react-native";
 import { Link } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import * as WebBrowser from "expo-web-browser";
@@ -28,14 +28,16 @@ export default function SignUp() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [healthConsent, setHealthConsent] = useState(false);
+  const [errors, setErrors] = useState<{ email?: string; password?: string; consent?: string }>({});
   const [privacyVisible, setPrivacyVisible] = useState(false);
 
   async function handleSignUp() {
     const emailError = validateEmail(email);
     const passwordError = validatePassword(password);
-    if (emailError || passwordError) {
-      setErrors({ email: emailError ?? undefined, password: passwordError ?? undefined });
+    const consentError = healthConsent ? null : "You must consent to health data processing to create an account.";
+    if (emailError || passwordError || consentError) {
+      setErrors({ email: emailError ?? undefined, password: passwordError ?? undefined, consent: consentError ?? undefined });
       return;
     }
     setErrors({});
@@ -47,6 +49,10 @@ export default function SignUp() {
   }
 
   async function handleGoogleSignIn() {
+    if (!healthConsent) {
+      setErrors({ consent: "You must consent to health data processing to create an account." });
+      return;
+    }
     setErrors({});
     setLoading(true);
     try {
@@ -103,25 +109,37 @@ export default function SignUp() {
         />
         {errors.password ? <Text className="text-red-500 text-sm mb-5 ml-1">{errors.password}</Text> : null}
 
+        {/* Art. 9(2)(a) explicit health data consent */}
+        <Pressable
+          onPress={() => { setHealthConsent((v) => !v); if (errors.consent) setErrors((e) => ({ ...e, consent: undefined })); }}
+          style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: errors.consent ? 4 : 16, gap: 10 }}
+        >
+          <View style={{
+            width: 20, height: 20, borderRadius: 4, borderWidth: 2, marginTop: 1,
+            borderColor: errors.consent ? "#EF4444" : (healthConsent ? "#FF6B35" : "#C0C0C0"),
+            backgroundColor: healthConsent ? "#FF6B35" : "transparent",
+            alignItems: "center", justifyContent: "center", flexShrink: 0,
+          }}>
+            {healthConsent && <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700", lineHeight: 14 }}>✓</Text>}
+          </View>
+          <Text style={{ fontSize: 12, color: "#6B6B6B", flex: 1, lineHeight: 18 }}>
+            I explicitly consent to KneeBack processing my health data (ROM measurements, surgery date, graft type) as described in the{" "}
+            <Text style={{ fontWeight: "600", textDecorationLine: "underline" }} onPress={() => setPrivacyVisible(true)}>
+              Privacy Policy
+            </Text>
+            {" "}(Art. 9(2)(a) GDPR).
+          </Text>
+        </Pressable>
+        {errors.consent ? <Text className="text-red-500 text-xs mb-3 ml-1">{errors.consent}</Text> : null}
+
         <TouchableOpacity
-          className={`bg-primary rounded-2xl py-4 items-center mb-3 ${loading ? "opacity-50" : ""}`}
+          className={`rounded-2xl py-4 items-center mb-3 ${loading || !healthConsent ? "opacity-50" : ""}`}
+          style={{ backgroundColor: "#FF6B35" }}
           onPress={handleSignUp}
-          disabled={loading}
+          disabled={loading || !healthConsent}
         >
           <Text className="text-white font-bold text-lg">Create Account</Text>
         </TouchableOpacity>
-
-        <Text className="text-xs text-center mb-4" style={{ color: "#A0A0A0" }}>
-          By creating an account, you agree to our{" "}
-          <Text
-            className="font-semibold"
-            style={{ color: "#6B6B6B", textDecorationLine: "underline" }}
-            onPress={() => setPrivacyVisible(true)}
-          >
-            Privacy Policy
-          </Text>
-          .
-        </Text>
 
         <View className="flex-row items-center my-4">
           <View className="flex-1 h-px bg-border" />
@@ -138,15 +156,7 @@ export default function SignUp() {
         </TouchableOpacity>
 
         <Text className="text-xs text-center mb-6" style={{ color: "#A0A0A0" }}>
-          By continuing, you agree to our{" "}
-          <Text
-            className="font-semibold"
-            style={{ color: "#6B6B6B", textDecorationLine: "underline" }}
-            onPress={() => setPrivacyVisible(true)}
-          >
-            Privacy Policy
-          </Text>
-          .
+          Your health data consent above also applies to Google sign-in.
         </Text>
 
         <View className="flex-row justify-center">

@@ -96,4 +96,16 @@ export async function deleteRemoteUserData(userId: string): Promise<void> {
       profileError
     );
   }
+
+  // Delete the auth.users record so the email address is fully erased (Art. 17 GDPR).
+  // Requires the delete-user edge function which uses the service role key.
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.access_token) {
+    const { error: authDeleteError } = await supabase.functions.invoke("delete-user", {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (authDeleteError) {
+      console.error("[deleteRemoteUserData] Failed to delete auth user:", authDeleteError);
+    }
+  }
 }

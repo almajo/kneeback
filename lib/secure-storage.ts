@@ -14,7 +14,7 @@ function countKey(key: string): string {
 export class LargeSecureStore {
   async setItem(key: string, value: string): Promise<void> {
     if (Platform.OS === "web") {
-      localStorage.setItem(key, value);
+      sessionStorage.setItem(key, value);
       return;
     }
 
@@ -31,7 +31,7 @@ export class LargeSecureStore {
 
   async getItem(key: string): Promise<string | null> {
     if (Platform.OS === "web") {
-      return localStorage.getItem(key);
+      return sessionStorage.getItem(key);
     }
 
     const countStr = await SecureStore.getItemAsync(countKey(key));
@@ -53,7 +53,7 @@ export class LargeSecureStore {
 
   async removeItem(key: string): Promise<void> {
     if (Platform.OS === "web") {
-      localStorage.removeItem(key);
+      sessionStorage.removeItem(key);
       return;
     }
 
