@@ -8,12 +8,14 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
 } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import { makeRedirectUri } from "expo-auth-session";
 import { useAuth } from "../lib/auth-context";
 import { supabase } from "../lib/supabase";
 import { Colors } from "../constants/colors";
+import { PrivacyPolicyModal } from "./PrivacyPolicyModal";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -30,6 +32,8 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [healthConsent, setHealthConsent] = useState(false);
+  const [privacyVisible, setPrivacyVisible] = useState(false);
 
   useEffect(() => {
     if (!visible) {
@@ -38,6 +42,7 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
       setError(null);
       setMode("signIn");
       setLoading(false);
+      setHealthConsent(false);
     }
   }, [visible]);
 
@@ -47,12 +52,17 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
     setError(null);
     setMode("signIn");
     setLoading(false);
+    setHealthConsent(false);
     onClose();
   }
 
   async function handleSubmit() {
     if (!email.trim() || !password.trim()) {
       setError("Email and password are required.");
+      return;
+    }
+    if (mode === "signUp" && !healthConsent) {
+      setError("You must consent to health data processing to create an account.");
       return;
     }
 
@@ -83,6 +93,10 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
   }
 
   async function handleGoogleSignIn() {
+    if (mode === "signUp" && !healthConsent) {
+      setError("You must consent to health data processing to create an account.");
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
@@ -198,6 +212,33 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
             onSubmitEditing={handleSubmit}
           />
 
+          {/* Art. 9(2)(a) explicit health data consent — shown only for sign-up */}
+          {mode === "signUp" && (
+            <Pressable
+              onPress={() => { setHealthConsent((v) => !v); setError(null); }}
+              style={{ flexDirection: "row", alignItems: "flex-start", marginTop: 12, marginBottom: 4, gap: 10 }}
+            >
+              <View style={{
+                width: 20, height: 20, borderRadius: 4, borderWidth: 2, marginTop: 1,
+                borderColor: healthConsent ? "#FF6B35" : "#C0C0C0",
+                backgroundColor: healthConsent ? "#FF6B35" : "transparent",
+                alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}>
+                {healthConsent && <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700", lineHeight: 14 }}>✓</Text>}
+              </View>
+              <Text style={{ fontSize: 12, color: "#6B6B6B", flex: 1, lineHeight: 18 }}>
+                I explicitly consent to KneeBack processing my health data (ROM measurements, surgery date, graft type) as described in the{" "}
+                <Text
+                  style={{ fontWeight: "600", textDecorationLine: "underline" }}
+                  onPress={() => setPrivacyVisible(true)}
+                >
+                  Privacy Policy
+                </Text>
+                {" "}(Art. 9(2)(a) GDPR).
+              </Text>
+            </Pressable>
+          )}
+
           {error && (
             <Text className="text-sm mb-3 mt-1" style={{ color: Colors.error }}>
               {error}
@@ -205,9 +246,9 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
           )}
 
           <TouchableOpacity
-            className={`bg-primary rounded-xl py-3 items-center mt-3 mb-3 ${loading ? "opacity-50" : ""}`}
+            className={`bg-primary rounded-xl py-3 items-center mt-3 mb-3 ${loading || (mode === "signUp" && !healthConsent) ? "opacity-50" : ""}`}
             onPress={handleSubmit}
-            disabled={loading}
+            disabled={loading || (mode === "signUp" && !healthConsent)}
           >
             {loading ? (
               <ActivityIndicator color="white" />
@@ -239,6 +280,7 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
             onPress={() => {
               setMode((m) => (m === "signIn" ? "signUp" : "signIn"));
               setError(null);
+              setHealthConsent(false);
             }}
             disabled={loading}
           >
@@ -260,6 +302,7 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+      <PrivacyPolicyModal visible={privacyVisible} onClose={() => setPrivacyVisible(false)} />
     </Modal>
   );
 }
