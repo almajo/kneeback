@@ -186,7 +186,7 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
 
           <TextInput
             className="border border-border rounded-xl px-4 py-3 mb-3 text-base"
-            style={{ color: "#2D2D2D", backgroundColor: "#FFF8F0" }}
+            style={{ color: "#2D2D2D", backgroundColor: "#FFF8F0", outlineStyle: "none" }}
             placeholder="Email"
             placeholderTextColor="#A0A0A0"
             value={email}
@@ -200,7 +200,7 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
           />
           <TextInput
             className="border border-border rounded-xl px-4 py-3 mb-1 text-base"
-            style={{ color: "#2D2D2D", backgroundColor: "#FFF8F0" }}
+            style={{ color: "#2D2D2D", backgroundColor: "#FFF8F0", outlineStyle: "none" }}
             placeholder="Password"
             placeholderTextColor="#A0A0A0"
             value={password}
