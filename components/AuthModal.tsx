@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -27,6 +27,8 @@ export interface AuthModalProps {
 
 export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
   const { signIn, signUp } = useAuth();
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
   const [mode, setMode] = useState<"signIn" | "signUp">("signIn");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -37,6 +39,8 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
 
   useEffect(() => {
     if (!visible) {
+      emailRef.current?.blur();
+      passwordRef.current?.blur();
       setEmail("");
       setPassword("");
       setError(null);
@@ -185,6 +189,7 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
           </Text>
 
           <TextInput
+            ref={emailRef}
             className="border border-border rounded-xl px-4 py-3 mb-3 text-base"
             style={{ color: "#2D2D2D", backgroundColor: "#FFF8F0", outlineStyle: "none" }}
             placeholder="Email"
@@ -199,6 +204,7 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
             returnKeyType="next"
           />
           <TextInput
+            ref={passwordRef}
             className="border border-border rounded-xl px-4 py-3 mb-1 text-base"
             style={{ color: "#2D2D2D", backgroundColor: "#FFF8F0", outlineStyle: "none" }}
             placeholder="Password"
