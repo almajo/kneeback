@@ -38,6 +38,7 @@ export default function PostDetailScreen() {
     toggleCommentUpvote,
   } = usePost(id);
   const [commentText, setCommentText] = useState("");
+  const [commentError, setCommentError] = useState<string | null>(null);
   const inputRef = useRef<TextInput>(null);
 
   // Post edit state
@@ -51,7 +52,12 @@ export default function PostDetailScreen() {
     const text = commentText.trim();
     if (!text || submitting) return;
     setCommentText("");
-    await addComment(text);
+    setCommentError(null);
+    const result = await addComment(text);
+    if (result.error) {
+      setCommentText(text);
+      setCommentError(result.error);
+    }
   }
 
   async function handlePostEditSave() {
@@ -310,6 +316,13 @@ export default function PostDetailScreen() {
         }
       />
 
+      {/* Moderation error for comments */}
+      {commentError ? (
+        <Text style={{ color: "#EF4444", fontSize: 13, paddingHorizontal: 16, paddingTop: 6, backgroundColor: Colors.surface }}>
+          {commentError}
+        </Text>
+      ) : null}
+
       {/* Pinned comment bar */}
       <View
         style={{
@@ -339,7 +352,7 @@ export default function PostDetailScreen() {
           placeholder="Add a reply…"
           placeholderTextColor={Colors.textMuted}
           value={commentText}
-          onChangeText={setCommentText}
+          onChangeText={(t) => { setCommentText(t); setCommentError(null); }}
           multiline
           maxLength={1000}
           returnKeyType="send"

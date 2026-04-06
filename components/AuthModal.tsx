@@ -214,18 +214,18 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
 
           {/* Art. 9(2)(a) explicit health data consent — shown only for sign-up */}
           {mode === "signUp" && (
-            <Pressable
-              onPress={() => { setHealthConsent((v) => !v); setError(null); }}
-              style={{ flexDirection: "row", alignItems: "flex-start", marginTop: 12, marginBottom: 4, gap: 10 }}
-            >
-              <View style={{
-                width: 20, height: 20, borderRadius: 4, borderWidth: 2, marginTop: 1,
-                borderColor: healthConsent ? "#FF6B35" : "#C0C0C0",
-                backgroundColor: healthConsent ? "#FF6B35" : "transparent",
-                alignItems: "center", justifyContent: "center", flexShrink: 0,
-              }}>
+            <View style={{ flexDirection: "row", alignItems: "flex-start", marginTop: 12, marginBottom: 4, gap: 10 }}>
+              <Pressable
+                onPress={() => { setHealthConsent((v) => !v); setError(null); }}
+                style={{
+                  width: 20, height: 20, borderRadius: 4, borderWidth: 2, marginTop: 1,
+                  borderColor: healthConsent ? "#FF6B35" : "#C0C0C0",
+                  backgroundColor: healthConsent ? "#FF6B35" : "transparent",
+                  alignItems: "center", justifyContent: "center", flexShrink: 0,
+                }}
+              >
                 {healthConsent && <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700", lineHeight: 14 }}>✓</Text>}
-              </View>
+              </Pressable>
               <Text style={{ fontSize: 12, color: "#6B6B6B", flex: 1, lineHeight: 18 }}>
                 I explicitly consent to KneeBack processing my health data (ROM measurements, surgery date, graft type) as described in the{" "}
                 <Text
@@ -236,7 +236,7 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
                 </Text>
                 {" "}(Art. 9(2)(a) GDPR).
               </Text>
-            </Pressable>
+            </View>
           )}
 
           {error && (

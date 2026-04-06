@@ -168,7 +168,7 @@ export function CreatePostSheet({ visible, onClose, onSubmit }: Props) {
               placeholder="Give your post a title…"
               placeholderTextColor={Colors.textMuted}
               value={title}
-              onChangeText={setTitle}
+              onChangeText={(t) => { setTitle(t); setModerationError(null); }}
             />
 
             {/* Body */}
@@ -200,7 +200,7 @@ export function CreatePostSheet({ visible, onClose, onSubmit }: Props) {
               placeholder="Share more details…"
               placeholderTextColor={Colors.textMuted}
               value={body}
-              onChangeText={setBody}
+              onChangeText={(t) => { setBody(t); setModerationError(null); }}
               multiline
             />
 

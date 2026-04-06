@@ -110,18 +110,18 @@ export default function SignUp() {
         {errors.password ? <Text className="text-red-500 text-sm mb-5 ml-1">{errors.password}</Text> : null}
 
         {/* Art. 9(2)(a) explicit health data consent */}
-        <Pressable
-          onPress={() => { setHealthConsent((v) => !v); if (errors.consent) setErrors((e) => ({ ...e, consent: undefined })); }}
-          style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: errors.consent ? 4 : 16, gap: 10 }}
-        >
-          <View style={{
-            width: 20, height: 20, borderRadius: 4, borderWidth: 2, marginTop: 1,
-            borderColor: errors.consent ? "#EF4444" : (healthConsent ? "#FF6B35" : "#C0C0C0"),
-            backgroundColor: healthConsent ? "#FF6B35" : "transparent",
-            alignItems: "center", justifyContent: "center", flexShrink: 0,
-          }}>
+        <View style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: errors.consent ? 4 : 16, gap: 10 }}>
+          <Pressable
+            onPress={() => { setHealthConsent((v) => !v); if (errors.consent) setErrors((e) => ({ ...e, consent: undefined })); }}
+            style={{
+              width: 20, height: 20, borderRadius: 4, borderWidth: 2, marginTop: 1,
+              borderColor: errors.consent ? "#EF4444" : (healthConsent ? "#FF6B35" : "#C0C0C0"),
+              backgroundColor: healthConsent ? "#FF6B35" : "transparent",
+              alignItems: "center", justifyContent: "center", flexShrink: 0,
+            }}
+          >
             {healthConsent && <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700", lineHeight: 14 }}>✓</Text>}
-          </View>
+          </Pressable>
           <Text style={{ fontSize: 12, color: "#6B6B6B", flex: 1, lineHeight: 18 }}>
             I explicitly consent to KneeBack processing my health data (ROM measurements, surgery date, graft type) as described in the{" "}
             <Text style={{ fontWeight: "600", textDecorationLine: "underline" }} onPress={() => setPrivacyVisible(true)}>
@@ -129,7 +129,7 @@ export default function SignUp() {
             </Text>
             {" "}(Art. 9(2)(a) GDPR).
           </Text>
-        </Pressable>
+        </View>
         {errors.consent ? <Text className="text-red-500 text-xs mb-3 ml-1">{errors.consent}</Text> : null}
 
         <TouchableOpacity

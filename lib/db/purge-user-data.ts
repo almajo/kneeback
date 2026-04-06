@@ -106,6 +106,7 @@ export async function deleteRemoteUserData(userId: string): Promise<void> {
     });
     if (authDeleteError) {
       console.error("[deleteRemoteUserData] Failed to delete auth user:", authDeleteError);
+      throw authDeleteError;
     }
   }
 }

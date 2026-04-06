@@ -9,7 +9,7 @@ const BLOCKED_PATTERNS: RegExp[] = [
   /\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b/,
   /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/,
   // URLs (discourage off-site links in community)
-  /https?:\/\/(?!kneeback\.app)/i,
+  /https?:\/\/(?!(?:www\.)?kneeback\.app(?::\d+)?(?:[/?#\s]|$))/i,
 ];
 
 export function moderateContent(text: string): { blocked: boolean; reason?: string } {
