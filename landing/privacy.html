@@ -5,9 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Privacy Policy — KneeBack</title>
   <meta name="description" content="KneeBack Privacy Policy — how we handle your recovery data.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Fonts: Outfit — self-hosted (no Google Fonts, GDPR compliant) -->
+  <link rel="stylesheet" href="fonts/outfit.css">
   <style>
     :root {
       --orange: #FF6B35;
@@ -153,7 +152,7 @@
 
 <div class="page-header">
   <h1><span>Privacy</span> Policy</h1>
-  <p>Last updated: 29 March 2026</p>
+  <p>Last updated: 3 April 2026</p>
 </div>
 
 <main class="content" role="main">
@@ -168,11 +167,10 @@
     KneeBack ("we", "our", "us") is operated by:
   </p>
   <div class="highlight-box">
-    <strong>[CONTROLLER NAME]</strong> — Please fill in before publishing.<br>
-    [Full postal address, not a PO box]<br>
-    [City, Postcode, Country]<br>
-    Email: <a href="mailto:kneebackapp@gmail.com">kneebackapp@gmail.com</a><br>
-    Phone: [Phone number — required under § 5 DDG for EU/German compliance]
+    <strong>Alexander Grimm</strong><br>
+    An der Heuwaag 1<br>
+    91438 Bad Windsheim, Deutschland<br>
+    Email: <a href="mailto:kneebackapp@gmail.com">kneebackapp@gmail.com</a>
   </div>
   <p>
     For all data-related enquiries, requests, or complaints, contact us at
@@ -213,8 +211,9 @@
     <li>Email address (used for authentication only)</li>
     <li>Recovery profile: surgery date, knee side, graft type</li>
     <li>Health and exercise data: exercise logs, ROM measurements, and streak activity</li>
+    <li>Daily notes (free text, optional — may contain health context you choose to record)</li>
     <li>Exercise plan and personal customisations</li>
-    <li>Notification preferences</li>
+    <li>Notification preferences and device push token</li>
   </ul>
 
   <p><strong>Community feature:</strong> Community posts are linked to an anonymous device identifier
@@ -283,8 +282,8 @@
       <tr>
         <td>Supabase</td>
         <td>Cloud database and authentication</td>
-        <td>Verify your project region in Supabase Dashboard before publishing</td>
-        <td>Art. 28 DPA; if US: SCCs under Art. 46 GDPR</td>
+        <td>EU (Ireland, eu-west-1)</td>
+        <td>Art. 28 DPA; EU-hosted, no third-country transfer</td>
       </tr>
       <tr>
         <td>Expo / Apple / Google</td>
@@ -302,7 +301,8 @@
   <!-- 7 -->
   <h2>7. Third-Country Transfers</h2>
   <p>
-    Some processors listed above (Expo, Google, Apple, Cloudflare) are US-incorporated entities.
+    Our cloud infrastructure (Supabase) is EU-hosted and does not involve a third-country transfer.
+    Push notification delivery relies on Expo, Apple, and Google — US-incorporated entities.
     Transfers to these processors rely on Standard Contractual Clauses (SCCs) adopted by the
     European Commission under Art. 46(2)(c) GDPR. Where applicable, these processors also
     participate in the EU–US Data Privacy Framework.

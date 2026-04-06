@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../supabase";
 import { useDataStore } from "../data/data-store-context";
 import { getCommunityIdentity } from "../community-identity";
+import { moderateContent } from "../content-moderation";
 import type { CommunityPost, CommunityComment } from "../types";
 
 export function usePost(postId: string) {
@@ -102,8 +103,10 @@ export function usePost(postId: string) {
     fetchPost();
   }, [fetchPost]);
 
-  async function addComment(body: string) {
-    if (!deviceId || !postId || !body.trim()) return;
+  async function addComment(body: string): Promise<{ error?: string }> {
+    if (!deviceId || !postId || !body.trim()) return {};
+    const check = moderateContent(body);
+    if (check.blocked) return { error: check.reason ?? "Comment contains disallowed content." };
 
     const profile = await store.getProfile();
     const identity = await getCommunityIdentity(profile);
@@ -157,6 +160,7 @@ export function usePost(postId: string) {
       );
     }
     setSubmitting(false);
+    return {};
   }
 
   async function toggleUpvote() {

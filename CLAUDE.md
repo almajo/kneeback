@@ -12,6 +12,7 @@
 - Code must adhere to liniting and formatting best practices
 - Save screenshots under `/artifacts`. Especially those made with playwright
 - Use the playwright-cli skill to access and test the server
+- Local dev setup: start the Expo server on localhost:8081 first, then run `npm run web:dev` in a separate process — this starts the proxy on **localhost:8082**, which is the URL to use for browser testing with Playwright
 
 ### Bug/Feature Development
 

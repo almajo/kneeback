@@ -413,6 +413,7 @@ export type Database = {
           id: string
           knee_side: Database["public"]["Enums"]["knee_side"]
           name: string | null
+          notification_consent_given_at: string | null
           surgery_date: string | null
           username: string
         }
@@ -423,6 +424,7 @@ export type Database = {
           id: string
           knee_side: Database["public"]["Enums"]["knee_side"]
           name?: string | null
+          notification_consent_given_at?: string | null
           surgery_date?: string | null
           username: string
         }
@@ -433,6 +435,7 @@ export type Database = {
           id?: string
           knee_side?: Database["public"]["Enums"]["knee_side"]
           name?: string | null
+          notification_consent_given_at?: string | null
           surgery_date?: string | null
           username?: string
         }
