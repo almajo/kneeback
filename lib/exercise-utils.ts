@@ -43,6 +43,8 @@ export function filterExercisesBySurgeryStatus(
 
 /**
  * Group exercises by their display phase (after surgery status remapping).
+ * Post-op prehab exercises span from acute through their phase_end (or all phases if open-ended),
+ * so they appear in every later phase bucket automatically.
  * Returns a Map keyed by phase, values in input order. Use getPrimaryExercises/getOptionalExercises for sorted results.
  */
 export function groupExercisesByDisplayPhase(
@@ -51,9 +53,19 @@ export function groupExercisesByDisplayPhase(
 ): Map<ExercisePhase, Exercise[]> {
   const map = new Map<ExercisePhase, Exercise[]>();
   for (const ex of exercises) {
-    const phase = displayPhaseFor(ex, surgeryStatus);
-    if (!map.has(phase)) map.set(phase, []);
-    map.get(phase)!.push(ex);
+    if (surgeryStatus === 'post_surgery' && ex.phase_start === 'prehab') {
+      const startIdx = phaseIndex('acute');
+      const endIdx = ex.phase_end ? phaseIndex(ex.phase_end) : PHASE_ORDER.length - 1;
+      for (let i = startIdx; i <= endIdx; i++) {
+        const phase = PHASE_ORDER[i];
+        if (!map.has(phase)) map.set(phase, []);
+        map.get(phase)!.push(ex);
+      }
+    } else {
+      const phase = displayPhaseFor(ex, surgeryStatus);
+      if (!map.has(phase)) map.set(phase, []);
+      map.get(phase)!.push(ex);
+    }
   }
   return map;
 }
