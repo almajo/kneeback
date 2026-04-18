@@ -36,6 +36,96 @@
     "sort_order": 4
   },
   {
+    "id": "msg_trust_the_process",
+    "type": "daily_message",
+    "title": "Trust the Process",
+    "body": "Healing isn't always visible day to day, but your body is working hard behind the scenes.",
+    "trigger_condition": null,
+    "phase": "acute",
+    "sort_order": 5
+  },
+  {
+    "id": "msg_rest_is_work",
+    "type": "daily_message",
+    "title": "Rest Is Work Too",
+    "body": "Taking it easy today isn't giving up — rest is when your body actually does the healing.",
+    "trigger_condition": null,
+    "phase": "acute",
+    "sort_order": 6
+  },
+  {
+    "id": "msg_small_wins",
+    "type": "daily_message",
+    "title": "Small Wins Count",
+    "body": "Every degree of bend, every pain-free step — these are real victories. Celebrate them.",
+    "trigger_condition": null,
+    "phase": "early_active",
+    "sort_order": 7
+  },
+  {
+    "id": "msg_patience",
+    "type": "daily_message",
+    "title": "Patience Is a Skill",
+    "body": "Recovery moves at its own pace. Fighting it only slows things down — working with it speeds them up.",
+    "trigger_condition": null,
+    "phase": "early_active",
+    "sort_order": 8
+  },
+  {
+    "id": "msg_knee_memory",
+    "type": "daily_message",
+    "title": "Your Knee Has a Memory",
+    "body": "Every exercise you do today is teaching your knee how to move confidently again. The repetitions add up.",
+    "trigger_condition": null,
+    "phase": "strengthening",
+    "sort_order": 9
+  },
+  {
+    "id": "msg_comparison_trap",
+    "type": "daily_message",
+    "title": "Your Recovery, Your Pace",
+    "body": "Everyone's timeline looks different. Comparing yourself to others will only steal your progress.",
+    "trigger_condition": null,
+    "phase": "strengthening",
+    "sort_order": 10
+  },
+  {
+    "id": "msg_setbacks",
+    "type": "daily_message",
+    "title": "Setbacks Are Normal",
+    "body": "A harder day doesn't erase your progress. Recovery is rarely a straight line.",
+    "trigger_condition": null,
+    "phase": "early_active",
+    "sort_order": 11
+  },
+  {
+    "id": "msg_return_to_sport",
+    "type": "daily_message",
+    "title": "The Goal Is in Sight",
+    "body": "Every session brings you one step closer to doing the things you love again. Keep showing up.",
+    "trigger_condition": null,
+    "phase": "return_to_sport",
+    "sort_order": 12
+  },
+  {
+    "id": "msg_listen_to_body",
+    "type": "daily_message",
+    "title": "Listen to Your Body",
+    "body": "Pain is information, not failure. If something doesn't feel right, it's okay to back off and tell your physio.",
+    "trigger_condition": null,
+    "phase": "acute",
+    "sort_order": 13
+  },
+  {
+    "id": "msg_strength_through",
+    "type": "daily_message",
+    "title": "Stronger Than You Think",
+    "body": "You chose to do the work when it would've been easy to skip. That's the mindset that gets people back.",
+    "trigger_condition": null,
+    "phase": "strengthening",
+    "sort_order": 14
+  },
+  {
     "id": "ach_first_workout",
     "type": "achievement",
     "title": "First Workout Complete",
