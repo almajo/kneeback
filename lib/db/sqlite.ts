@@ -1,6 +1,6 @@
 import * as SQLite from "expo-sqlite";
 
-export const CURRENT_SCHEMA_VERSION = 5;
+export const CURRENT_SCHEMA_VERSION = 6;
 
 // schema_version is an internal migration-tracking table.
 // It intentionally omits a primary key `id` column and is exempt from the
@@ -322,6 +322,85 @@ export function initializeDatabase(db: SQLite.SQLiteDatabase): void {
         SELECT 1 FROM user_exercises ue WHERE ue.id = exercise_logs.user_exercise_id
       )
     `);
+  }
+
+  // Migration v5 → v6: add glute bridges, wall sits, and forward lunges to
+  // progressive strengthening phase
+  if (currentVersion < 6) {
+    const newExercises = [
+      {
+        id: "e205d10c-dbc1-4b79-b2ce-a124be84d15d",
+        name: "Glute Bridges",
+        description:
+          "Lie on your back with knees bent and feet flat on the floor hip-width apart. Press through your heels to lift your hips until your body forms a straight line from shoulders to knees. Squeeze your glutes at the top, hold briefly, then lower slowly.",
+        phase_start: "strengthening",
+        phase_end: null,
+        role: "primary",
+        primary_exercise_id: null,
+        muscle_groups: '["Glute","Hamstring","Core"]',
+        default_sets: 3,
+        default_reps: 15,
+        default_hold_seconds: null,
+        category: "strengthening",
+        sort_order: 13,
+      },
+      {
+        id: "af956d79-2037-4008-9ee6-8f071892604b",
+        name: "Wall Sits",
+        description:
+          "Stand with your back flat against a wall. Slide down until your knees are at 90° and thighs are parallel to the floor. Keep your knees directly above your ankles and do not let them drift inward. Hold the position.",
+        phase_start: "strengthening",
+        phase_end: null,
+        role: "primary",
+        primary_exercise_id: null,
+        muscle_groups: '["Quad","Glute"]',
+        default_sets: 3,
+        default_reps: 1,
+        default_hold_seconds: 30,
+        category: "strengthening",
+        sort_order: 14,
+      },
+      {
+        id: "9f30e809-ca03-4cb3-a69d-2075f11e7c20",
+        name: "Forward Lunges",
+        description:
+          "Stand tall with feet hip-width apart. Step forward with one leg and lower your back knee toward the floor, keeping your front knee directly above your ankle. Push back to the starting position. Alternate legs each rep.",
+        phase_start: "strengthening",
+        phase_end: null,
+        role: "primary",
+        primary_exercise_id: null,
+        muscle_groups: '["Quad","Glute","Hip"]',
+        default_sets: 3,
+        default_reps: 10,
+        default_hold_seconds: null,
+        category: "strengthening",
+        sort_order: 15,
+      },
+    ];
+
+    for (const ex of newExercises) {
+      db.runSync(
+        `INSERT OR IGNORE INTO exercises
+          (id, name, description, phase_start, phase_end, role, primary_exercise_id,
+           muscle_groups, default_sets, default_reps, default_hold_seconds, category, sort_order)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          ex.id,
+          ex.name,
+          ex.description,
+          ex.phase_start,
+          ex.phase_end,
+          ex.role,
+          ex.primary_exercise_id,
+          ex.muscle_groups,
+          ex.default_sets,
+          ex.default_reps,
+          ex.default_hold_seconds,
+          ex.category,
+          ex.sort_order,
+        ]
+      );
+    }
   }
 
   setSchemaVersion(db, CURRENT_SCHEMA_VERSION);
