@@ -138,12 +138,34 @@ describe('groupExercisesByDisplayPhase', () => {
     expect(map.get('acute')).toEqual([e2]);
   });
 
-  it('remaps prehab exercises into the acute bucket for post_surgery', () => {
+  it('spreads open-ended prehab exercises across all post-op phase buckets', () => {
     const prehab = makeExercise({ id: 'e1', phase_start: 'prehab', phase_end: null });
     const acute = makeExercise({ id: 'e2', phase_start: 'acute' });
     const map = groupExercisesByDisplayPhase([prehab, acute], 'post_surgery');
     expect(map.has('prehab')).toBe(false);
     expect(map.get('acute')).toEqual([prehab, acute]);
+    expect(map.get('early_active')).toEqual([prehab]);
+    expect(map.get('strengthening')).toEqual([prehab]);
+    expect(map.get('advanced_strengthening')).toEqual([prehab]);
+    expect(map.get('return_to_sport')).toEqual([prehab]);
+  });
+
+  it('stops prehab exercises at their phase_end boundary', () => {
+    const prehab = makeExercise({ id: 'e1', phase_start: 'prehab', phase_end: 'strengthening' });
+    const map = groupExercisesByDisplayPhase([prehab], 'post_surgery');
+    expect(map.get('acute')).toEqual([prehab]);
+    expect(map.get('early_active')).toEqual([prehab]);
+    expect(map.get('strengthening')).toEqual([prehab]);
+    expect(map.get('advanced_strengthening')).toBeUndefined();
+    expect(map.get('return_to_sport')).toBeUndefined();
+  });
+
+  it('places non-prehab exercises only in their phase_start bucket', () => {
+    const ex = makeExercise({ id: 'e1', phase_start: 'strengthening', phase_end: null });
+    const map = groupExercisesByDisplayPhase([ex], 'post_surgery');
+    expect(map.get('strengthening')).toEqual([ex]);
+    expect(map.get('acute')).toBeUndefined();
+    expect(map.get('advanced_strengthening')).toBeUndefined();
   });
 
   it('preserves input order within each bucket', () => {
