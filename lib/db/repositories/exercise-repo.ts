@@ -7,7 +7,9 @@ import type {
   ExerciseMuscleGroup,
   ExerciseRole,
   ExerciseCategory,
+  ExerciseStatus,
 } from "../../types";
+import type { CreateExerciseData } from "../../data/data-store.types";
 
 function rowToExercise(row: typeof exercises.$inferSelect): Exercise {
   let muscleGroups: ExerciseMuscleGroup[] = [];
@@ -30,8 +32,8 @@ function rowToExercise(row: typeof exercises.$inferSelect): Exercise {
     default_reps: row.default_reps,
     default_hold_seconds: row.default_hold_seconds ?? null,
     category: row.category as ExerciseCategory,
-    submitted_by: null,
-    status: "approved",
+    submitted_by: row.submitted_by ?? null,
+    status: (row.status as ExerciseStatus) ?? "approved",
     sort_order: row.sort_order,
   };
 }
@@ -97,6 +99,29 @@ export async function getExerciseById(id: string): Promise<Exercise | null> {
   const rows = await db.select().from(exercises).where(eq(exercises.id, id));
   if (rows.length === 0) return null;
   return rowToExercise(rows[0]);
+}
+
+export async function createExercise(data: CreateExerciseData): Promise<Exercise> {
+  await db.insert(exercises).values({
+    id: data.id,
+    name: data.name,
+    description: data.description,
+    phase_start: data.phase_start,
+    phase_end: data.phase_end ?? null,
+    role: data.role,
+    primary_exercise_id: null,
+    muscle_groups: JSON.stringify(data.muscle_groups),
+    default_sets: data.default_sets,
+    default_reps: data.default_reps,
+    default_hold_seconds: data.default_hold_seconds ?? null,
+    category: data.category,
+    submitted_by: data.submitted_by,
+    status: "approved",
+    sort_order: data.sort_order,
+  });
+  const ex = await getExerciseById(data.id);
+  if (!ex) throw new Error("createExercise: row not found after insert");
+  return ex;
 }
 
 export type SeedExerciseData = Omit<Exercise, "submitted_by" | "status">;

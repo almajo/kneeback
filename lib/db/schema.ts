@@ -27,6 +27,8 @@ export const exercises = sqliteTable("exercises", {
   category: text("category").notNull().default("strengthening"),
   sort_order: integer("sort_order").notNull().default(0),
   catalog_version: integer("catalog_version").notNull().default(1),
+  submitted_by: text("submitted_by"),
+  status: text("status").notNull().default("approved"),
   created_at: text("created_at").default(sql`(datetime('now'))`),
   updated_at: text("updated_at").default(sql`(datetime('now'))`),
 });

@@ -21,6 +21,7 @@ import type {
   GateCriterion,
   NotificationPreferences,
   NotificationPrefsData,
+  CreateExerciseData,
 } from "./data-store.types";
 import type { Database } from "../database.types";
 import type {
@@ -202,6 +203,34 @@ export class RemoteDataStore implements DataStore {
 
     if (error) throw new Error(`RemoteDataStore.updateProfile failed: ${error.message}`);
     return dbToProfile(row);
+  }
+
+  // exercises
+  async createExercise(data: CreateExerciseData): Promise<Exercise> {
+    const { data: row, error } = await supabase
+      .from("exercises")
+      .insert({
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        phase_start: data.phase_start,
+        phase_end: data.phase_end ?? null,
+        role: data.role,
+        primary_exercise_id: null,
+        muscle_groups: data.muscle_groups as Database["public"]["Enums"]["exercise_muscle_group"][],
+        default_sets: data.default_sets,
+        default_reps: data.default_reps,
+        default_hold_seconds: data.default_hold_seconds ?? null,
+        category: data.category,
+        submitted_by: data.submitted_by,
+        status: "approved",
+        sort_order: data.sort_order,
+      })
+      .select()
+      .single();
+
+    if (error) throw new Error(`RemoteDataStore.createExercise failed: ${error.message}`);
+    return dbToExercise(row);
   }
 
   // user exercises
