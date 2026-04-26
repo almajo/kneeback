@@ -11,8 +11,6 @@ import { DayModeToggle } from "../../components/SmartRestToggle";
 import { ExerciseCard } from "../../components/ExerciseCard";
 import { AchievementPopup } from "../../components/AchievementPopup";
 import { PhaseOverviewModal } from "../../components/PhaseOverviewModal";
-import { AddExerciseSheet } from "../../components/AddExerciseSheet";
-import { getPhaseFromDays } from "../../lib/phase-gates";
 import { checkAchievements, getStreak } from "../../lib/achievements";
 import { useDataStore, useCatalogStore } from "../../lib/data/data-store-context";
 import { Colors } from "../../constants/colors";
@@ -45,7 +43,6 @@ export default function TodayScreen() {
   const [exerciseLogs, setExerciseLogs] = useState<ExerciseLog[]>([]);
   const [pendingAchievement, setPendingAchievement] = useState<Content | null>(null);
   const [showPhaseOverview, setShowPhaseOverview] = useState(false);
-  const [showAddExercise, setShowAddExercise] = useState(false);
   const { todayMilestones, refetch: refetchMilestones } = useMilestones();
 
   useFocusEffect(useCallback(() => { refetch(); }, [refetch]));
@@ -88,8 +85,6 @@ export default function TodayScreen() {
   const isRestDay = dailyLog?.is_rest_day ?? false;
   const isPtDay = dailyLog?.is_pt_day ?? false;
   const dayMode = isRestDay ? "rest" : isPtDay ? "pt" : "normal";
-  const currentPhase = getPhaseFromDays(daysSinceSurgery, surgeryStatus);
-
   async function runAchievementCheck(overrides?: Partial<{
     isFirstExercise: boolean;
     isFirstRestDay: boolean;
@@ -330,14 +325,7 @@ export default function TodayScreen() {
         </View>
       ) : (
         <>
-          <TouchableOpacity
-            className="mx-4 mt-2 mb-3 py-3 rounded-2xl border border-dashed border-primary items-center flex-row justify-center"
-            onPress={() => setShowAddExercise(true)}
-          >
-            <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
-            <Text className="ml-2 text-primary font-bold">Add new exercise</Text>
-          </TouchableOpacity>
-          <Text
+<Text
             className="mx-4 mb-1 text-base font-bold"
             style={{ color: "#2D2D2D" }}
           >
@@ -453,12 +441,6 @@ export default function TodayScreen() {
       <AchievementPopup
         achievement={pendingAchievement}
         onDismiss={() => setPendingAchievement(null)}
-      />
-      <AddExerciseSheet
-        visible={showAddExercise}
-        onClose={() => setShowAddExercise(false)}
-        currentPhase={currentPhase}
-        onSaved={refetch}
       />
       <DraggableFlatList
         data={exerciseData}

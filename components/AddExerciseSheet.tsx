@@ -14,7 +14,21 @@ import { useAuth } from "../lib/auth-context";
 import { generateId } from "../lib/utils/uuid";
 import { ExerciseStepper } from "./ExerciseStepper";
 import { Colors } from "../constants/colors";
-import type { ExercisePhase, ExerciseCategory } from "../lib/types";
+import type { ExercisePhase, ExerciseCategory, ExerciseMuscleGroup } from "../lib/types";
+
+const ALL_MUSCLE_GROUPS: ExerciseMuscleGroup[] = [
+  "Quad", "Hamstring", "Hip", "Calf", "Knee ROM", "Core", "Glute",
+];
+
+const MUSCLE_TAG_COLORS: Record<ExerciseMuscleGroup, { bg: string; text: string }> = {
+  Quad:        { bg: '#3B82F620', text: '#3B82F6' },
+  Hamstring:   { bg: '#7C3AED20', text: '#7C3AED' },
+  Hip:         { bg: '#F59E0B20', text: '#F59E0B' },
+  Calf:        { bg: '#16A34A20', text: '#16A34A' },
+  'Knee ROM':  { bg: '#0D948820', text: '#0D9488' },
+  Core:        { bg: '#FF6B3520', text: '#FF6B35' },
+  Glute:       { bg: '#E11D4820', text: '#E11D48' },
+};
 
 interface Props {
   visible: boolean;
@@ -36,15 +50,23 @@ export function AddExerciseSheet({ visible, onClose, currentPhase, onSaved }: Pr
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<ExerciseCategory>("strengthening");
+  const [muscleGroups, setMuscleGroups] = useState<ExerciseMuscleGroup[]>([]);
   const [sets, setSets] = useState(3);
   const [reps, setReps] = useState(10);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  function toggleMuscleGroup(group: ExerciseMuscleGroup) {
+    setMuscleGroups((prev) =>
+      prev.includes(group) ? prev.filter((g) => g !== group) : [...prev, group]
+    );
+  }
+
   function reset() {
     setName("");
     setDescription("");
     setCategory("strengthening");
+    setMuscleGroups([]);
     setSets(3);
     setReps(10);
     setSaving(false);
@@ -74,7 +96,7 @@ export function AddExerciseSheet({ visible, onClose, currentPhase, onSaved }: Pr
         phase_start: currentPhase,
         phase_end: null,
         role: "optional",
-        muscle_groups: [],
+        muscle_groups: muscleGroups,
         default_sets: sets,
         default_reps: reps,
         default_hold_seconds: null,
@@ -156,6 +178,34 @@ export function AddExerciseSheet({ visible, onClose, currentPhase, onSaved }: Pr
                   </Text>
                 </TouchableOpacity>
               ))}
+            </View>
+
+            <Text className="text-xs font-semibold tracking-wide mb-2" style={{ color: Colors.textMuted }}>
+              MUSCLE GROUPS (OPTIONAL)
+            </Text>
+            <View className="flex-row flex-wrap gap-2 mb-4">
+              {ALL_MUSCLE_GROUPS.map((group) => {
+                const selected = muscleGroups.includes(group);
+                const colors = MUSCLE_TAG_COLORS[group];
+                return (
+                  <TouchableOpacity
+                    key={group}
+                    onPress={() => toggleMuscleGroup(group)}
+                    style={{
+                      borderRadius: 999,
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      backgroundColor: colors.bg,
+                      borderWidth: 1.5,
+                      borderColor: selected ? colors.text : "transparent",
+                    }}
+                  >
+                    <Text style={{ color: colors.text, fontSize: 10, fontWeight: "500" }}>
+                      {group}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
             <Text className="text-xs font-semibold tracking-wide mb-2" style={{ color: Colors.textMuted }}>

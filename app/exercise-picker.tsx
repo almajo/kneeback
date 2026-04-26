@@ -31,6 +31,7 @@ import {
   displayPhaseFor,
 } from "../lib/exercise-utils";
 import { useDataStore, useCatalogStore } from "../lib/data/data-store-context";
+import { AddExerciseSheet } from "../components/AddExerciseSheet";
 import type { UserExercise } from "../lib/data/data-store.types";
 import type { Exercise, ExercisePhase, GateDefinition } from "../lib/types";
 import type { SurgeryStatus } from "../lib/hooks/use-today";
@@ -60,34 +61,36 @@ export default function ExercisePicker() {
   const [expandedOptionals, setExpandedOptionals] = useState<Set<string>>(
     new Set()
   );
+  const [showAddExercise, setShowAddExercise] = useState(false);
 
   const { gateProgress } = usePhaseGate(daysSinceSurgery, surgeryStatus, null);
 
-  useEffect(() => {
-    async function loadData() {
-      const exs = await catalog.getAllExercises();
-      setExercises(exs);
+  async function loadData() {
+    const exs = await catalog.getAllExercises();
+    setExercises(exs);
 
-      const ues = await store.getAllUserExercises();
-      const map = new Map<string, UserExercise>();
-      for (const ue of ues) map.set(ue.exercise_id, ue);
-      setUserExercisesMap(map);
+    const ues = await store.getAllUserExercises();
+    const map = new Map<string, UserExercise>();
+    for (const ue of ues) map.set(ue.exercise_id, ue);
+    setUserExercisesMap(map);
 
-      const profile = await store.getProfile();
-      if (profile?.surgery_date) {
-        const diff = Math.floor(
-          (Date.now() - new Date(profile.surgery_date).getTime()) / 86400000
-        );
-        if (diff >= 0) {
-          setDaysSinceSurgery(diff);
-          setSurgeryStatus("post_surgery");
-        } else {
-          setSurgeryStatus("pre_surgery");
-        }
+    const profile = await store.getProfile();
+    if (profile?.surgery_date) {
+      const diff = Math.floor(
+        (Date.now() - new Date(profile.surgery_date).getTime()) / 86400000
+      );
+      if (diff >= 0) {
+        setDaysSinceSurgery(diff);
+        setSurgeryStatus("post_surgery");
+      } else {
+        setSurgeryStatus("pre_surgery");
       }
-
-      setLoading(false);
     }
+
+    setLoading(false);
+  }
+
+  useEffect(() => {
     loadData();
   }, []);
 
@@ -220,6 +223,14 @@ export default function ExercisePicker() {
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
       >
+        <TouchableOpacity
+          className="mb-4 py-3 rounded-2xl border border-dashed border-primary items-center flex-row justify-center"
+          onPress={() => setShowAddExercise(true)}
+        >
+          <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
+          <Text className="ml-2 text-primary font-bold">Add custom exercise</Text>
+        </TouchableOpacity>
+
         {activePhases.map((phaseKey) => {
           const phaseExercises = grouped.get(phaseKey) ?? [];
           if (phaseExercises.length === 0) return null;
@@ -363,6 +374,13 @@ export default function ExercisePicker() {
           );
         })}
       </ScrollView>
+
+      <AddExerciseSheet
+        visible={showAddExercise}
+        onClose={() => setShowAddExercise(false)}
+        currentPhase={currentPhase}
+        onSaved={loadData}
+      />
 
       <Modal
         animationType="slide"
