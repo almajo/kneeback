@@ -32,6 +32,8 @@ import type {
   GateCriterion,
   NotificationPreferences,
   NotificationPrefsData,
+  CreateExerciseData,
+  UpdateExerciseData,
 } from "./data-store.types";
 import type { Exercise, Content } from "../types";
 
@@ -49,6 +51,15 @@ export class LocalDataStore implements DataStore {
 
   async updateProfile(data: UpdateProfileData): Promise<Profile> {
     return profileRepo.updateProfile(data);
+  }
+
+  // exercises
+  async createExercise(data: CreateExerciseData): Promise<Exercise> {
+    return exerciseRepoModule.createExercise(data);
+  }
+
+  async updateExercise(id: string, data: UpdateExerciseData): Promise<Exercise> {
+    return exerciseRepoModule.updateCustomExercise(id, data);
   }
 
   // user exercises

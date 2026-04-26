@@ -85,7 +85,6 @@ export default function TodayScreen() {
   const isRestDay = dailyLog?.is_rest_day ?? false;
   const isPtDay = dailyLog?.is_pt_day ?? false;
   const dayMode = isRestDay ? "rest" : isPtDay ? "pt" : "normal";
-
   async function runAchievementCheck(overrides?: Partial<{
     isFirstExercise: boolean;
     isFirstRestDay: boolean;
@@ -326,8 +325,8 @@ export default function TodayScreen() {
         </View>
       ) : (
         <>
-          <Text
-            className="mx-4 mt-2 mb-1 text-base font-bold"
+<Text
+            className="mx-4 mb-1 text-base font-bold"
             style={{ color: "#2D2D2D" }}
           >
             {"Today's Training"}

@@ -3,6 +3,10 @@ import type {
   KneeSide,
   Exercise,
   Content,
+  ExercisePhase,
+  ExerciseRole,
+  ExerciseMuscleGroup,
+  ExerciseCategory,
 } from "../types";
 
 // ─── Profile ────────────────────────────────────────────────────────────────
@@ -34,6 +38,33 @@ export interface UserExercise {
 
 export type CreateUserExerciseData = Omit<UserExercise, "exercise">;
 export type UpdateUserExerciseData = Partial<Omit<CreateUserExerciseData, "id" | "exercise_id">>;
+
+// ─── Custom Exercise ─────────────────────────────────────────────────────────
+
+export interface CreateExerciseData {
+  id: string;
+  name: string;
+  description: string;
+  phase_start: ExercisePhase;
+  phase_end: ExercisePhase | null;
+  role: ExerciseRole;
+  muscle_groups: ExerciseMuscleGroup[];
+  default_sets: number;
+  default_reps: number;
+  default_hold_seconds: number | null;
+  category: ExerciseCategory;
+  submitted_by: string | null;
+  sort_order: number;
+}
+
+export interface UpdateExerciseData {
+  name?: string;
+  description?: string;
+  muscle_groups?: ExerciseMuscleGroup[];
+  default_sets?: number;
+  default_reps?: number;
+  category?: ExerciseCategory;
+}
 
 // ─── Daily Log ───────────────────────────────────────────────────────────────
 
@@ -132,6 +163,10 @@ export interface DataStore {
   getProfile(): Promise<Profile | null>;
   createProfile(data: CreateProfileData): Promise<Profile>;
   updateProfile(data: UpdateProfileData): Promise<Profile>;
+
+  // exercises
+  createExercise(data: CreateExerciseData): Promise<Exercise>;
+  updateExercise(id: string, data: UpdateExerciseData): Promise<Exercise>;
 
   // user exercises
   getAllUserExercises(): Promise<UserExercise[]>;

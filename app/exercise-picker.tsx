@@ -31,6 +31,7 @@ import {
   displayPhaseFor,
 } from "../lib/exercise-utils";
 import { useDataStore, useCatalogStore } from "../lib/data/data-store-context";
+import { AddExerciseSheet } from "../components/AddExerciseSheet";
 import type { UserExercise } from "../lib/data/data-store.types";
 import type { Exercise, ExercisePhase, GateDefinition } from "../lib/types";
 import type { SurgeryStatus } from "../lib/hooks/use-today";
@@ -60,34 +61,37 @@ export default function ExercisePicker() {
   const [expandedOptionals, setExpandedOptionals] = useState<Set<string>>(
     new Set()
   );
+  const [showAddExercise, setShowAddExercise] = useState(false);
+  const [editingExercise, setEditingExercise] = useState<Exercise | undefined>(undefined);
 
   const { gateProgress } = usePhaseGate(daysSinceSurgery, surgeryStatus, null);
 
-  useEffect(() => {
-    async function loadData() {
-      const exs = await catalog.getAllExercises();
-      setExercises(exs);
+  async function loadData() {
+    const exs = await catalog.getAllExercises();
+    setExercises(exs);
 
-      const ues = await store.getAllUserExercises();
-      const map = new Map<string, UserExercise>();
-      for (const ue of ues) map.set(ue.exercise_id, ue);
-      setUserExercisesMap(map);
+    const ues = await store.getAllUserExercises();
+    const map = new Map<string, UserExercise>();
+    for (const ue of ues) map.set(ue.exercise_id, ue);
+    setUserExercisesMap(map);
 
-      const profile = await store.getProfile();
-      if (profile?.surgery_date) {
-        const diff = Math.floor(
-          (Date.now() - new Date(profile.surgery_date).getTime()) / 86400000
-        );
-        if (diff >= 0) {
-          setDaysSinceSurgery(diff);
-          setSurgeryStatus("post_surgery");
-        } else {
-          setSurgeryStatus("pre_surgery");
-        }
+    const profile = await store.getProfile();
+    if (profile?.surgery_date) {
+      const diff = Math.floor(
+        (Date.now() - new Date(profile.surgery_date).getTime()) / 86400000
+      );
+      if (diff >= 0) {
+        setDaysSinceSurgery(diff);
+        setSurgeryStatus("post_surgery");
+      } else {
+        setSurgeryStatus("pre_surgery");
       }
-
-      setLoading(false);
     }
+
+    setLoading(false);
+  }
+
+  useEffect(() => {
     loadData();
   }, []);
 
@@ -220,6 +224,14 @@ export default function ExercisePicker() {
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
       >
+        <TouchableOpacity
+          className="mb-4 py-3 rounded-2xl border border-dashed border-primary items-center flex-row justify-center"
+          onPress={() => setShowAddExercise(true)}
+        >
+          <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
+          <Text className="ml-2 text-primary font-bold">Add custom exercise</Text>
+        </TouchableOpacity>
+
         {activePhases.map((phaseKey) => {
           const phaseExercises = grouped.get(phaseKey) ?? [];
           if (phaseExercises.length === 0) return null;
@@ -301,6 +313,7 @@ export default function ExercisePicker() {
                   onToggle={onToggle}
                   onStepperChange={onStepperChange}
                   matchesSearch={matchesSearch}
+                  onEdit={(ex) => { setEditingExercise(ex); setShowAddExercise(true); }}
                 />
               )}
 
@@ -317,6 +330,7 @@ export default function ExercisePicker() {
                   onToggle={onToggle}
                   onStepperChange={onStepperChange}
                   matchesSearch={matchesSearch}
+                  onEdit={(ex) => { setEditingExercise(ex); setShowAddExercise(true); }}
                 />
               )}
 
@@ -355,6 +369,7 @@ export default function ExercisePicker() {
                         isSaving={saving.has(ex.id)}
                         onToggle={() => onToggle(ex)}
                         onStepperChange={onStepperChange}
+                        onEdit={ex.submitted_by ? () => { setEditingExercise(ex); setShowAddExercise(true); } : undefined}
                       />
                     ))}
                 </View>
@@ -363,6 +378,14 @@ export default function ExercisePicker() {
           );
         })}
       </ScrollView>
+
+      <AddExerciseSheet
+        visible={showAddExercise}
+        onClose={() => { setShowAddExercise(false); setEditingExercise(undefined); }}
+        currentPhase={currentPhase}
+        onSaved={loadData}
+        editExercise={editingExercise}
+      />
 
       <Modal
         animationType="slide"
@@ -541,6 +564,7 @@ interface CategorySectionProps {
     value: number
   ) => void;
   matchesSearch: (ex: Exercise) => boolean;
+  onEdit: (ex: Exercise) => void;
 }
 
 function ExerciseCategorySection({
@@ -555,6 +579,7 @@ function ExerciseCategorySection({
   onToggle,
   onStepperChange,
   matchesSearch,
+  onEdit,
 }: CategorySectionProps) {
   const primaries = getPrimaryExercises(exercises).filter(matchesSearch);
   if (primaries.length === 0) return null;
@@ -591,6 +616,7 @@ function ExerciseCategorySection({
                   return n;
                 })
               }
+              onEdit={primary.submitted_by ? () => onEdit(primary) : undefined}
             />
             {altExpanded &&
               alternatives.map((alt) => (
@@ -626,6 +652,7 @@ interface ExerciseRowProps {
   alternativesCount?: number;
   altExpanded?: boolean;
   onToggleAlternatives?: () => void;
+  onEdit?: () => void;
 }
 
 function ExerciseRow({
@@ -638,6 +665,7 @@ function ExerciseRow({
   alternativesCount = 0,
   altExpanded = false,
   onToggleAlternatives,
+  onEdit,
 }: ExerciseRowProps) {
   const isActive = !!userExercise;
   const sets = userExercise?.sets ?? exercise.default_sets;
@@ -708,6 +736,17 @@ function ExerciseRow({
                   {alternativesCount > 1 ? "s" : ""}{" "}
                   {altExpanded ? "▾" : "▸"}
                 </Text>
+              </TouchableOpacity>
+            )}
+            {onEdit && (
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation?.();
+                  onEdit();
+                }}
+                className="bg-surface border border-border rounded-full px-2 py-0.5"
+              >
+                <Ionicons name="pencil-outline" size={12} color="#888" />
               </TouchableOpacity>
             )}
           </View>

@@ -6,6 +6,7 @@ import m0001 from './0001_powerful_songbird.sql';
 import m0002 from './0002_unique_user_exercises_exercise_id.sql';
 import m0003 from './0003_unify_schema_with_supabase.sql';
 import m0004 from './0004_add_pt_day.sql';
+import m0005 from './0005_add_exercise_submitted_by_status.sql';
 
 export default {
   journal,
@@ -15,5 +16,6 @@ export default {
     m0002,
     m0003,
     m0004,
+    m0005,
   },
 };
