@@ -9,7 +9,7 @@ import type {
   ExerciseCategory,
   ExerciseStatus,
 } from "../../types";
-import type { CreateExerciseData } from "../../data/data-store.types";
+import type { CreateExerciseData, UpdateExerciseData } from "../../data/data-store.types";
 
 function rowToExercise(row: typeof exercises.$inferSelect): Exercise {
   let muscleGroups: ExerciseMuscleGroup[] = [];
@@ -121,6 +121,24 @@ export async function createExercise(data: CreateExerciseData): Promise<Exercise
   });
   const ex = await getExerciseById(data.id);
   if (!ex) throw new Error("createExercise: row not found after insert");
+  return ex;
+}
+
+export async function updateCustomExercise(id: string, data: UpdateExerciseData): Promise<Exercise> {
+  await db
+    .update(exercises)
+    .set({
+      ...(data.name !== undefined && { name: data.name }),
+      ...(data.description !== undefined && { description: data.description }),
+      ...(data.muscle_groups !== undefined && { muscle_groups: JSON.stringify(data.muscle_groups) }),
+      ...(data.default_sets !== undefined && { default_sets: data.default_sets }),
+      ...(data.default_reps !== undefined && { default_reps: data.default_reps }),
+      ...(data.category !== undefined && { category: data.category }),
+      updated_at: sql`(datetime('now'))`,
+    })
+    .where(eq(exercises.id, id));
+  const ex = await getExerciseById(id);
+  if (!ex) throw new Error("updateCustomExercise: row not found after update");
   return ex;
 }
 

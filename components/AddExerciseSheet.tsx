@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import { useAuth } from "../lib/auth-context";
 import { generateId } from "../lib/utils/uuid";
 import { ExerciseStepper } from "./ExerciseStepper";
 import { Colors } from "../constants/colors";
-import type { ExercisePhase, ExerciseCategory, ExerciseMuscleGroup } from "../lib/types";
+import type { Exercise, ExercisePhase, ExerciseCategory, ExerciseMuscleGroup } from "../lib/types";
 
 const ALL_MUSCLE_GROUPS: ExerciseMuscleGroup[] = [
   "Quad", "Hamstring", "Hip", "Calf", "Knee ROM", "Core", "Glute",
@@ -33,8 +33,9 @@ const MUSCLE_TAG_COLORS: Record<ExerciseMuscleGroup, { bg: string; text: string 
 interface Props {
   visible: boolean;
   onClose: () => void;
-  currentPhase: ExercisePhase;
+  currentPhase?: ExercisePhase;
   onSaved: () => void;
+  editExercise?: Exercise;
 }
 
 const CATEGORIES: { label: string; value: ExerciseCategory }[] = [
@@ -43,9 +44,10 @@ const CATEGORIES: { label: string; value: ExerciseCategory }[] = [
   { label: "Activation", value: "activation" },
 ];
 
-export function AddExerciseSheet({ visible, onClose, currentPhase, onSaved }: Props) {
+export function AddExerciseSheet({ visible, onClose, currentPhase, onSaved, editExercise }: Props) {
   const store = useDataStore();
   const { session } = useAuth();
+  const isEditing = !!editExercise;
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -55,6 +57,18 @@ export function AddExerciseSheet({ visible, onClose, currentPhase, onSaved }: Pr
   const [reps, setReps] = useState(10);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (visible && editExercise) {
+      setName(editExercise.name);
+      setDescription(editExercise.description);
+      setCategory(editExercise.category);
+      setMuscleGroups(editExercise.muscle_groups);
+      setSets(editExercise.default_sets);
+      setReps(editExercise.default_reps);
+      setError(null);
+    }
+  }, [visible, editExercise]);
 
   function toggleMuscleGroup(group: ExerciseMuscleGroup) {
     setMuscleGroups((prev) =>
@@ -88,30 +102,41 @@ export function AddExerciseSheet({ visible, onClose, currentPhase, onSaved }: Pr
     setError(null);
 
     try {
-      const exerciseId = generateId();
-      await store.createExercise({
-        id: exerciseId,
-        name: name.trim(),
-        description: description.trim(),
-        phase_start: currentPhase,
-        phase_end: null,
-        role: "optional",
-        muscle_groups: muscleGroups,
-        default_sets: sets,
-        default_reps: reps,
-        default_hold_seconds: null,
-        category,
-        submitted_by: session?.user.id ?? null,
-        sort_order: 999,
-      });
-      await store.createUserExercise({
-        id: generateId(),
-        exercise_id: exerciseId,
-        sets,
-        reps,
-        hold_seconds: null,
-        sort_order: 99,
-      });
+      if (isEditing) {
+        await store.updateExercise(editExercise.id, {
+          name: name.trim(),
+          description: description.trim(),
+          category,
+          muscle_groups: muscleGroups,
+          default_sets: sets,
+          default_reps: reps,
+        });
+      } else {
+        const exerciseId = generateId();
+        await store.createExercise({
+          id: exerciseId,
+          name: name.trim(),
+          description: description.trim(),
+          phase_start: currentPhase!,
+          phase_end: null,
+          role: "optional",
+          muscle_groups: muscleGroups,
+          default_sets: sets,
+          default_reps: reps,
+          default_hold_seconds: null,
+          category,
+          submitted_by: session?.user.id ?? null,
+          sort_order: 999,
+        });
+        await store.createUserExercise({
+          id: generateId(),
+          exercise_id: exerciseId,
+          sets,
+          reps,
+          hold_seconds: null,
+          sort_order: 99,
+        });
+      }
       reset();
       onClose();
       onSaved();
@@ -139,7 +164,7 @@ export function AddExerciseSheet({ visible, onClose, currentPhase, onSaved }: Pr
           <View className="w-10 h-1 rounded-full bg-border self-center mb-5" />
 
           <Text className="text-xl font-bold mb-4" style={{ color: Colors.text }}>
-            Add Exercise
+            {isEditing ? "Edit Exercise" : "Add Exercise"}
           </Text>
 
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -153,7 +178,7 @@ export function AddExerciseSheet({ visible, onClose, currentPhase, onSaved }: Pr
               placeholderTextColor={Colors.textMuted}
               value={name}
               onChangeText={(t) => { setName(t); setError(null); }}
-              autoFocus
+              autoFocus={!isEditing}
             />
 
             <Text className="text-xs font-semibold tracking-wide mb-2" style={{ color: Colors.textMuted }}>
@@ -243,7 +268,7 @@ export function AddExerciseSheet({ visible, onClose, currentPhase, onSaved }: Pr
               disabled={!canSave || saving}
             >
               <Text className="text-white font-bold text-base">
-                {saving ? "Adding…" : "Add Exercise"}
+                {saving ? (isEditing ? "Saving…" : "Adding…") : (isEditing ? "Save Changes" : "Add Exercise")}
               </Text>
             </TouchableOpacity>
           </ScrollView>

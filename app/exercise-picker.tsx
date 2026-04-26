@@ -62,6 +62,7 @@ export default function ExercisePicker() {
     new Set()
   );
   const [showAddExercise, setShowAddExercise] = useState(false);
+  const [editingExercise, setEditingExercise] = useState<Exercise | undefined>(undefined);
 
   const { gateProgress } = usePhaseGate(daysSinceSurgery, surgeryStatus, null);
 
@@ -312,6 +313,7 @@ export default function ExercisePicker() {
                   onToggle={onToggle}
                   onStepperChange={onStepperChange}
                   matchesSearch={matchesSearch}
+                  onEdit={(ex) => { setEditingExercise(ex); setShowAddExercise(true); }}
                 />
               )}
 
@@ -328,6 +330,7 @@ export default function ExercisePicker() {
                   onToggle={onToggle}
                   onStepperChange={onStepperChange}
                   matchesSearch={matchesSearch}
+                  onEdit={(ex) => { setEditingExercise(ex); setShowAddExercise(true); }}
                 />
               )}
 
@@ -366,6 +369,7 @@ export default function ExercisePicker() {
                         isSaving={saving.has(ex.id)}
                         onToggle={() => onToggle(ex)}
                         onStepperChange={onStepperChange}
+                        onEdit={ex.submitted_by ? () => { setEditingExercise(ex); setShowAddExercise(true); } : undefined}
                       />
                     ))}
                 </View>
@@ -377,9 +381,10 @@ export default function ExercisePicker() {
 
       <AddExerciseSheet
         visible={showAddExercise}
-        onClose={() => setShowAddExercise(false)}
+        onClose={() => { setShowAddExercise(false); setEditingExercise(undefined); }}
         currentPhase={currentPhase}
         onSaved={loadData}
+        editExercise={editingExercise}
       />
 
       <Modal
@@ -559,6 +564,7 @@ interface CategorySectionProps {
     value: number
   ) => void;
   matchesSearch: (ex: Exercise) => boolean;
+  onEdit: (ex: Exercise) => void;
 }
 
 function ExerciseCategorySection({
@@ -573,6 +579,7 @@ function ExerciseCategorySection({
   onToggle,
   onStepperChange,
   matchesSearch,
+  onEdit,
 }: CategorySectionProps) {
   const primaries = getPrimaryExercises(exercises).filter(matchesSearch);
   if (primaries.length === 0) return null;
@@ -609,6 +616,7 @@ function ExerciseCategorySection({
                   return n;
                 })
               }
+              onEdit={primary.submitted_by ? () => onEdit(primary) : undefined}
             />
             {altExpanded &&
               alternatives.map((alt) => (
@@ -644,6 +652,7 @@ interface ExerciseRowProps {
   alternativesCount?: number;
   altExpanded?: boolean;
   onToggleAlternatives?: () => void;
+  onEdit?: () => void;
 }
 
 function ExerciseRow({
@@ -656,6 +665,7 @@ function ExerciseRow({
   alternativesCount = 0,
   altExpanded = false,
   onToggleAlternatives,
+  onEdit,
 }: ExerciseRowProps) {
   const isActive = !!userExercise;
   const sets = userExercise?.sets ?? exercise.default_sets;
@@ -726,6 +736,17 @@ function ExerciseRow({
                   {alternativesCount > 1 ? "s" : ""}{" "}
                   {altExpanded ? "▾" : "▸"}
                 </Text>
+              </TouchableOpacity>
+            )}
+            {onEdit && (
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation?.();
+                  onEdit();
+                }}
+                className="bg-surface border border-border rounded-full px-2 py-0.5"
+              >
+                <Ionicons name="pencil-outline" size={12} color="#888" />
               </TouchableOpacity>
             )}
           </View>

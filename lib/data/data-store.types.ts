@@ -57,6 +57,15 @@ export interface CreateExerciseData {
   sort_order: number;
 }
 
+export interface UpdateExerciseData {
+  name?: string;
+  description?: string;
+  muscle_groups?: ExerciseMuscleGroup[];
+  default_sets?: number;
+  default_reps?: number;
+  category?: ExerciseCategory;
+}
+
 // ─── Daily Log ───────────────────────────────────────────────────────────────
 
 export interface DailyLog {
@@ -157,6 +166,7 @@ export interface DataStore {
 
   // exercises
   createExercise(data: CreateExerciseData): Promise<Exercise>;
+  updateExercise(id: string, data: UpdateExerciseData): Promise<Exercise>;
 
   // user exercises
   getAllUserExercises(): Promise<UserExercise[]>;

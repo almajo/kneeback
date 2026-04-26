@@ -33,6 +33,7 @@ import type {
   NotificationPreferences,
   NotificationPrefsData,
   CreateExerciseData,
+  UpdateExerciseData,
 } from "./data-store.types";
 import type { Exercise, Content } from "../types";
 
@@ -55,6 +56,10 @@ export class LocalDataStore implements DataStore {
   // exercises
   async createExercise(data: CreateExerciseData): Promise<Exercise> {
     return exerciseRepoModule.createExercise(data);
+  }
+
+  async updateExercise(id: string, data: UpdateExerciseData): Promise<Exercise> {
+    return exerciseRepoModule.updateCustomExercise(id, data);
   }
 
   // user exercises

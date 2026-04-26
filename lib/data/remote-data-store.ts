@@ -22,6 +22,7 @@ import type {
   NotificationPreferences,
   NotificationPrefsData,
   CreateExerciseData,
+  UpdateExerciseData,
 } from "./data-store.types";
 import type { Database } from "../database.types";
 import type {
@@ -230,6 +231,25 @@ export class RemoteDataStore implements DataStore {
       .single();
 
     if (error) throw new Error(`RemoteDataStore.createExercise failed: ${error.message}`);
+    return dbToExercise(row);
+  }
+
+  async updateExercise(id: string, data: UpdateExerciseData): Promise<Exercise> {
+    const { data: row, error } = await supabase
+      .from("exercises")
+      .update({
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.description !== undefined && { description: data.description }),
+        ...(data.muscle_groups !== undefined && { muscle_groups: data.muscle_groups as Database["public"]["Enums"]["exercise_muscle_group"][] }),
+        ...(data.default_sets !== undefined && { default_sets: data.default_sets }),
+        ...(data.default_reps !== undefined && { default_reps: data.default_reps }),
+        ...(data.category !== undefined && { category: data.category }),
+      })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw new Error(`RemoteDataStore.updateExercise failed: ${error.message}`);
     return dbToExercise(row);
   }
 
